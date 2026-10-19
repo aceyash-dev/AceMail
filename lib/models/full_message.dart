@@ -52,8 +52,7 @@ class FullMessage {
 
     final List<MailAttachment> attachments = [];
     for (final ContentInfo info in message.findContentInfo()) {
-      final String? fetchId = info.fetchId;
-      if (fetchId == null) continue;
+      final String fetchId = info.fetchId;
       final Uint8List? bytes = message.getPart(fetchId)?.decodeContentBinary();
       if (bytes == null || bytes.isEmpty) continue;
       attachments.add(

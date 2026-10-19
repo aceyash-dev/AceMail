@@ -21,7 +21,7 @@ class MailFolder {
         name: mailbox.name,
         path: mailbox.path,
         role: _roleOf(mailbox),
-        unseen: mailbox.messagesUnseen ?? 0,
+        unseen: mailbox.messagesUnseen,
       );
 
   static FolderRole _roleOf(Mailbox mailbox) {

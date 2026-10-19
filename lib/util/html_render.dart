@@ -35,9 +35,12 @@ class HtmlRenderer {
   }
 
   static final RegExp _tag = RegExp(r'<\s*/?\s*([a-zA-Z][a-zA-Z0-9]*)([^>]*)>');
-  static final RegExp _droppable =
-      RegExp(r'(?is)<(script|style|head|title)[^>]*>.*?</\1\s*>');
-  static final RegExp _comment = RegExp(r'(?s)<!--.*?-->');
+  static final RegExp _droppable = RegExp(
+    r'<(script|style|head|title)[^>]*>.*?</\1\s*>',
+    caseSensitive: false,
+    dotAll: true,
+  );
+  static final RegExp _comment = RegExp(r'<!--.*?-->', dotAll: true);
   static final RegExp _whitespace = RegExp(r'[ \t\r\n]+');
 
   static const Set<String> _block = <String>{
@@ -82,7 +85,7 @@ class HtmlRenderer {
 
     final List<InlineSpan> spans = <InlineSpan>[];
     final StringBuffer pending = StringBuffer();
-    final List<_Frame> frames = <_Frame>[_Frame()];
+    final List<_Frame> frames = <_Frame>[const _Frame()];
     final List<bool> lists = <bool>[];
     final List<int> counters = <int>[];
     int breaks = 0;

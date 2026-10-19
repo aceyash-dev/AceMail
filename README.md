@@ -40,23 +40,24 @@ accent and surface ramp to the Milk & Orange brand is exactly what Astryx's
 
 ## Getting it running
 
-The repository holds the Dart source and `pubspec.yaml`. Flutter generates the
-per-platform runner projects, so create those once and copy them in:
+The Android project is included, so that target works out of the box:
 
 ```bash
 git clone https://github.com/aceyash-dev/AceMail.git
 cd AceMail
-
-# Generate the platform folders in a scratch directory …
-flutter create --org dev.acebase --project-name ace_mail --platforms=android,ios,macos,windows,linux /tmp/ace_scaffold
-
-# … and bring them into the project.
-cp -R /tmp/ace_scaffold/android /tmp/ace_scaffold/ios \
-      /tmp/ace_scaffold/macos /tmp/ace_scaffold/windows \
-      /tmp/ace_scaffold/linux .
-
 flutter pub get
-flutter run
+flutter run                 # or: flutter build apk --release
+```
+
+For iOS, macOS, Windows and Linux, generate those runner projects once and copy
+them in:
+
+```bash
+flutter create --org dev.acebase --project-name ace_mail \
+  --platforms=ios,macos,windows,linux /tmp/ace_scaffold
+
+cp -R /tmp/ace_scaffold/ios /tmp/ace_scaffold/macos \
+      /tmp/ace_scaffold/windows /tmp/ace_scaffold/linux .
 ```
 
 Doing it this way (rather than `flutter create .`) avoids overwriting
@@ -67,6 +68,21 @@ Linux desktop additionally needs `libsecret` for the keychain:
 ```bash
 sudo apt install libsecret-1-dev
 ```
+
+## Building the APK
+
+Locally:
+
+```bash
+flutter build apk --release
+# -> build/app/outputs/flutter-apk/app-release.apk
+```
+
+In CI, `.github/workflows/build.yml` runs `flutter analyze`, `flutter test` and
+`flutter build apk --release` on every push and pull request, and on demand from
+the Actions tab. The APK is uploaded as a build artifact; a manual run or a `v*`
+tag also publishes it to a GitHub Release, so it can be downloaded without
+signing in to GitHub.
 
 ## Signing in
 
