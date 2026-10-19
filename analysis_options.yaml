@@ -1,0 +1,19 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - prefer_final_locals
+    - prefer_single_quotes
+    - sort_child_properties_last
+    - unawaited_futures
+    - use_super_parameters
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - macos/**
+    - windows/**
+    - linux/**
+    - web/**
