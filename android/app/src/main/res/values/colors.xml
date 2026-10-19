@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ace Mail palette: Milk & Orange. Shared by the launcher icon and the
+         launch window, so the app opens onto its own background colour. -->
+    <color name="ace_milk">#FFFCF6</color>
+    <color name="ace_ink">#1A1614</color>
+    <color name="ace_orange">#FF6A1A</color>
+</resources>

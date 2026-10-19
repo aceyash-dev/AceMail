@@ -20,10 +20,12 @@ look. Concretely, `lib/theme/astryx_tokens.dart` carries the real token set:
   `border`, …), each with a light and a dark value. No widget reads a raw hex.
 
 Astryx itself ships no font file; it names families and leaves loading to the
-app. Its default family is Figtree, so headings use **Figtree**; body and UI
-text use **Instrument Sans**. Both load through `google_fonts`. Overriding the
-accent and surface ramp to the Milk & Orange brand is exactly what Astryx's
-`defineTheme` is for — a custom theme, not a departure.
+app. Ace Mail bundles **Questrial** and uses it for every type role. Questrial
+has a single weight, so hierarchy is carried by size and colour rather than by
+weight — bold text inside message bodies will not visually differ until a
+weighted companion is bundled alongside it. Overriding the accent and surface
+ramp to the Milk & Orange brand is exactly what Astryx's `defineTheme` is for —
+a custom theme, not a departure.
 
 ## Features
 
@@ -114,7 +116,8 @@ lib/
   state/mail_controller.dart  session and screen state
   screens/                  sign-in, mailbox, compose
   widgets/                  Astryx primitives and the three panes
-  util/                     date and file helpers
+  util/                     dates, file picker, HTML body renderer
+assets/fonts/               Questrial-Regular.ttf
 ```
 
 ## Notes
@@ -123,5 +126,10 @@ lib/
   API used here is the documented low-level `ImapClient` / `SmtpClient` surface;
   if you pin a different major version, check the few call sites in
   `mail_service.dart`.
-- `flutter_html` renders message bodies. It is not a security boundary for
-  hostile mail — treat HTML from untrusted senders accordingly.
+- Message bodies are rendered by `lib/util/html_render.dart`, a small
+  self-contained HTML → rich-text converter: no scripts, no remote layout. It
+  is not a security boundary for hostile mail — treat HTML from untrusted
+  senders accordingly.
+- The launcher icon is an adaptive icon (orange Ace mark on milk) and the
+  launch window is painted in the app's own background colour, so there is no
+  splash screen to flash through.

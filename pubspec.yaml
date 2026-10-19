@@ -12,7 +12,6 @@ dependencies:
   enough_mail: ^2.1.6
   file_selector: ^1.0.3
   flutter_secure_storage: ^9.2.2
-  google_fonts: ^6.2.1
   provider: ^6.1.2
   url_launcher: ^6.3.1
 
@@ -23,3 +22,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Questrial ships a single weight, so only Regular is bundled.
+  fonts:
+    - family: Questrial
+      fonts:
+        - asset: assets/fonts/Questrial-Regular.ttf
+          weight: 400

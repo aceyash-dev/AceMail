@@ -145,7 +145,7 @@ class MessageTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: unread
                                 ? AstryxText.bodyStrong(c.textPrimary)
-                                : AstryxText.body(c.textPrimary),
+                                : AstryxText.body(c.textSecondary),
                           ),
                         ),
                         const SizedBox(width: AstryxSpace.s2),
