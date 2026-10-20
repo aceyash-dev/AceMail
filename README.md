@@ -171,6 +171,8 @@ paging, search, flags, reply threading, the sent-copy rule, switching, removal
 and serialised account mutations. `test/html_render_test.dart` covers the link
 scheme policy and malformed, deeply nested and hostile markup.
 `test/addresses_test.dart` covers recipient parsing and validation.
+`test/sign_in_form_test.dart` covers the sign-in form model — provider lookup,
+validation and account assembly — without a widget tree.
 `test/models_test.dart` covers folder roles, message parsing, the Gravatar URL,
 attachment filename sanitising, account JSON and date formatting.
 

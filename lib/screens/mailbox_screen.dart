@@ -9,6 +9,7 @@ import '../util/routes.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/avatar.dart';
+import '../widgets/confirm_exit.dart';
 import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
@@ -164,25 +165,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
     Navigator.of(context).push(aceRoute(const ComposeScreen()));
   }
 
+  /// Shared with the sign-in screen, which needs the same question asked.
   Future<void> _confirmExit(BuildContext context) async {
-    final bool? leave = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Exit Ace Mail?'),
-        content: const Text('Ace Mail will close.'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Stay'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
-    if (leave ?? false) await SystemNavigator.pop();
+    if (await confirmExit(context)) await SystemNavigator.pop();
   }
 }
 

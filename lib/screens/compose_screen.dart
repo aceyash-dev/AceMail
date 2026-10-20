@@ -10,6 +10,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
 import '../util/files.dart';
+import '../widgets/ace_form_field.dart';
 import '../widgets/astryx_widgets.dart';
 
 class ComposeScreen extends StatefulWidget {
@@ -171,11 +172,23 @@ class _ComposeScreenState extends State<ComposeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _field('To', _to, hint: 'name@example.com', error: _toError),
+              AceFormField(
+                label: 'To',
+                controller: _to,
+                hint: 'name@example.com',
+                error: _toError,
+                keyboard: TextInputType.emailAddress,
+              ),
               const SizedBox(height: AstryxSpace.s3),
-              _field('Cc', _cc, hint: 'optional', error: _ccError),
+              AceFormField(
+                label: 'Cc',
+                controller: _cc,
+                hint: 'optional',
+                error: _ccError,
+                keyboard: TextInputType.emailAddress,
+              ),
               const SizedBox(height: AstryxSpace.s3),
-              _field('Subject', _subject),
+              AceFormField(label: 'Subject', controller: _subject),
               const SizedBox(height: AstryxSpace.s4),
               TextField(
                 controller: _body,
@@ -194,7 +207,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 alignment: Alignment.topCenter,
                 child: _error == null
                     ? const SizedBox(width: double.infinity)
-                    : _errorBox(c, _error!),
+                    : AceErrorBox(message: _error!),
               ),
               const SizedBox(height: AstryxSpace.s3),
               AceButton(
@@ -243,40 +256,4 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
   }
 
-  Widget _errorBox(AstryxColors c, String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AstryxSpace.s3),
-      decoration: BoxDecoration(
-        color: c.errorMuted,
-        borderRadius: BorderRadius.circular(AstryxRadius.element),
-      ),
-      child: Text(message, style: AstryxText.supporting(c.error)),
-    );
-  }
-
-  Widget _field(
-    String label,
-    TextEditingController controller, {
-    String? hint,
-    String? error,
-  }) {
-    final AstryxColors c = context.astryx;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(label, style: AstryxText.label(c.textSecondary)),
-        const SizedBox(height: AstryxSpace.s1_5),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.emailAddress,
-          style: AstryxText.body(c.textPrimary),
-          decoration: InputDecoration(
-            hintText: hint,
-            errorText: error,
-          ),
-        ),
-      ],
-    );
-  }
 }
