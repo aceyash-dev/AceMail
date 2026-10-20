@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/routes.dart';
+import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
+import '../widgets/avatar.dart';
 import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
@@ -25,101 +29,174 @@ class MailboxScreen extends StatelessWidget {
     final MailController controller = context.watch<MailController>();
     final bool wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
     final bool reading = controller.openSummary != null;
+    final String email = controller.account?.email ?? '';
 
-    return Scaffold(
-      backgroundColor: c.backgroundBody,
-      appBar: AppBar(
-        titleSpacing: AstryxSpace.s4,
-        title: Row(
-          children: <Widget>[
-            const BrandMark(size: 30),
-            const SizedBox(width: AstryxSpace.s3),
-            Text('Ace Mail', style: AstryxText.heading3(c.textPrimary)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        // On a phone the first back closes the open message, not the app.
+        if (!wide && controller.openSummary != null) {
+          controller.closeMessage();
+          return;
+        }
+        _confirmExit(context);
+      },
+      child: Scaffold(
+        backgroundColor: c.backgroundBody,
+        appBar: AppBar(
+          titleSpacing: AstryxSpace.s4,
+          title: Row(
+            children: <Widget>[
+              const BrandMark(size: 30),
+              const SizedBox(width: AstryxSpace.s3),
+              Text('Ace Mail', style: AstryxText.heading3(c.textPrimary)),
+            ],
+          ),
+          actions: <Widget>[
+            _AccountChip(
+              email: email,
+              showEmail: wide,
+              onTap: () => showAccountSheet(context),
+            ),
+            AceIconButton(
+              icon: Icons.help_outline_rounded,
+              tooltip: 'How to sign in',
+              onPressed: () =>
+                  Navigator.of(context).push(aceRoute(const TutorialScreen())),
+            ),
+            const SizedBox(width: AstryxSpace.s2),
           ],
         ),
-        actions: <Widget>[
-          if (wide) ...<Widget>[
-            Center(
-              child: Text(
-                controller.account?.email ?? '',
-                style: AstryxText.supporting(c.textSecondary),
+        drawer: wide ? null : const Drawer(child: FolderRail()),
+        floatingActionButton: wide
+            ? null
+            : FloatingActionButton(
+                onPressed: () => _compose(context),
+                backgroundColor: c.accent,
+                foregroundColor: c.onAccent,
+                child: const Icon(Icons.edit_outlined),
               ),
-            ),
-            const SizedBox(width: AstryxSpace.s3),
-            AceButton(
-              label: 'Compose',
-              icon: Icons.edit_outlined,
-              variant: AceButtonVariant.primary,
-              onPressed: () => _compose(context),
-            ),
-            const SizedBox(width: AstryxSpace.s3),
-          ],
-          AceIconButton(
-            icon: Icons.help_outline_rounded,
-            tooltip: 'How to sign in',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const TutorialScreen()),
-            ),
-          ),
-          AceIconButton(
-            icon: Icons.logout_rounded,
-            tooltip: 'Sign out',
-            onPressed: () => _signOut(context),
-          ),
-          const SizedBox(width: AstryxSpace.s2),
-        ],
+        body: wide
+            ? Row(
+                children: <Widget>[
+                  const FolderRail(),
+                  VerticalDivider(width: 1, color: c.border),
+                  const SizedBox(width: 380, child: MessageListPanel()),
+                  VerticalDivider(width: 1, color: c.border),
+                  const Expanded(child: MessageReader()),
+                ],
+              )
+            : AnimatedSwitcher(
+                duration: const Duration(milliseconds: 240),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (
+                  Widget child,
+                  Animation<double> animation,
+                ) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.06, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: reading
+                    ? MessageReader(
+                        key: const ValueKey<String>('reader'),
+                        onBack: controller.closeMessage,
+                      )
+                    : const MessageListPanel(key: ValueKey<String>('list')),
+              ),
       ),
-      drawer: wide ? null : const Drawer(child: FolderRail()),
-      floatingActionButton: wide
-          ? null
-          : FloatingActionButton(
-              onPressed: () => _compose(context),
-              backgroundColor: c.accent,
-              foregroundColor: c.onAccent,
-              child: const Icon(Icons.edit_outlined),
-            ),
-      body: wide
-          ? Row(
-              children: <Widget>[
-                const FolderRail(),
-                VerticalDivider(width: 1, color: c.border),
-                const SizedBox(width: 380, child: MessageListPanel()),
-                VerticalDivider(width: 1, color: c.border),
-                const Expanded(child: MessageReader()),
-              ],
-            )
-          : (reading
-              ? MessageReader(onBack: controller.closeMessage)
-              : const MessageListPanel()),
     );
   }
 
   void _compose(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const ComposeScreen()));
+    Navigator.of(context).push(aceRoute(const ComposeScreen()));
   }
 
-  Future<void> _signOut(BuildContext context) async {
-    final MailController controller = context.read<MailController>();
-    final bool? confirmed = await showDialog<bool>(
+  Future<void> _confirmExit(BuildContext context) async {
+    final bool? leave = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'Saved credentials will be removed from this device.',
-        ),
+        title: const Text('Exit Ace Mail?'),
+        content: const Text('Ace Mail will close.'),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Stay'),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Sign out'),
+            child: const Text('Exit'),
           ),
         ],
       ),
     );
-    if (confirmed ?? false) await controller.signOut();
+    if (leave ?? false) await SystemNavigator.pop();
+  }
+}
+
+/// The signed-in account, tappable to switch accounts.
+class _AccountChip extends StatelessWidget {
+  const _AccountChip({
+    required this.email,
+    required this.showEmail,
+    required this.onTap,
+  });
+
+  final String email;
+  final bool showEmail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    final BorderRadius shape = BorderRadius.circular(AstryxRadius.full);
+
+    return Center(
+      child: Material(
+        color: c.backgroundMuted,
+        borderRadius: shape,
+        child: InkWell(
+          borderRadius: shape,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AstryxSpace.s2,
+              vertical: AstryxSpace.s1,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                MailAvatar(email: email, name: email, size: 26),
+                if (showEmail) ...<Widget>[
+                  const SizedBox(width: AstryxSpace.s2),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 180),
+                    child: Text(
+                      email,
+                      overflow: TextOverflow.ellipsis,
+                      style: AstryxText.supporting(c.textPrimary),
+                    ),
+                  ),
+                  Icon(
+                    Icons.expand_more_rounded,
+                    size: 18,
+                    color: c.iconSecondary,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -35,12 +35,19 @@ a custom theme, not a departure.
 - A built-in step-by-step guide — the `?` button on the sign-in screen and in
   the mailbox — covering app passwords, manual server settings, and what each
   connection error means.
-- Browse every folder, with unread counts.
+- Several accounts signed in at once, switchable from the account chip in the
+  app bar or the header in the folder rail.
+- Sender pictures from Gravatar, falling back to an initials chip when there is
+  no picture — or no network.
+- Browse every folder, with unread counts. Non-selectable container folders
+  such as Gmail's `[Gmail]` are filtered out.
 - Read mail: HTML rendered, a plain-text toggle, and attachments listed and
   saveable.
 - Compose, reply and send, with file attachments.
 - Delete to Trash where the provider has one.
 - Credentials live in the platform keychain, never in plain files.
+- Gesture navigation: swipe right to leave a message, pull down to refresh, and
+  a confirmation before the app closes.
 - Light and dark, following the system.
 
 ## Getting it running
@@ -133,9 +140,10 @@ assets/fonts/               Questrial-Regular.ttf
   self-contained HTML → rich-text converter: no scripts, no remote layout. It
   is not a security boundary for hostile mail — treat HTML from untrusted
   senders accordingly.
-- The launcher icon is an adaptive icon — an orange envelope on a milk tile —
-  and the in-app `BrandMark` draws the same mark from the same 108-unit
-  geometry, so the two never drift apart.
+- The launcher icon is an adaptive icon — a filled orange envelope on a milk
+  tile — and the in-app `BrandMark` draws the same mark from the same 108-unit
+  geometry, so the two never drift apart. `AceLoader` breathes that same
+  envelope wherever a spinner used to be.
 - The launch window is painted in the app's own background colour with that
   mark, so the app appears to open straight onto its UI instead of flashing a
   blank screen first.

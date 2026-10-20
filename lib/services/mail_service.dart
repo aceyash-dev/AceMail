@@ -56,7 +56,12 @@ class MailService {
 
   Future<List<MailFolder>> listFolders() async {
     final List<Mailbox> mailboxes = await _client.listMailboxes();
-    return mailboxes.map(MailFolder.fromMailbox).toList()
+    return mailboxes
+        // Container folders such as Gmail's "[Gmail]" cannot be selected and
+        // hold no messages of their own, so they never belong in the rail.
+        .where((Mailbox mailbox) => !mailbox.isNotSelectable)
+        .map(MailFolder.fromMailbox)
+        .toList()
       ..sort((MailFolder a, MailFolder b) {
         final int byRole = a.sortOrder.compareTo(b.sortOrder);
         return byRole != 0 ? byRole : a.name.compareTo(b.name);

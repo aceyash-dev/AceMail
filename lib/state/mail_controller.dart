@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,172 +9,160 @@ import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../services/mail_service.dart';
+import 'mail_session.dart';
 
 enum MailStatus { signedOut, connecting, ready, failed }
 
-/// Owns the session: the connection, the folder list, the current message and
-/// every async transition the UI reflects.
+/// Owns every signed-in account and which one is in front.
+///
+/// The screens read the active account through the proxy getters below, so
+/// switching accounts is just a change of index — no screen needs to know how
+/// many accounts there are.
 class MailController extends ChangeNotifier {
   MailController({AccountStore? store}) : _store = store ?? AccountStore();
 
   final AccountStore _store;
+  final List<MailSession> _sessions = <MailSession>[];
+  int _activeIndex = 0;
+
+  /// The most recent address, used to prefill the sign-in form.
+  String? lastEmail;
+
+  /// True until the saved accounts have been read back from the keychain.
+  bool restoring = true;
 
   MailStatus status = MailStatus.signedOut;
   String? errorMessage;
-  AceAccount? account;
+  bool connecting = false;
 
-  MailService? _service;
-  String? _password;
+  List<MailSession> get sessions => List<MailSession>.unmodifiable(_sessions);
+  int get activeIndex => _activeIndex;
+  MailSession? get active =>
+      _sessions.isEmpty ? null : _sessions[_activeIndex];
+  bool get isSignedIn => _sessions.isNotEmpty;
+  AceAccount? get account => active?.account;
+  int get accountCount => _sessions.length;
 
-  List<MailFolder> folders = <MailFolder>[];
-  MailFolder? selectedFolder;
-  List<MessageSummary> messages = <MessageSummary>[];
-  MessageSummary? openSummary;
-  FullMessage? openMessage;
+  // --- proxies onto the active session -----------------------------------
+  List<MailFolder> get folders => active?.folders ?? const <MailFolder>[];
+  MailFolder? get selectedFolder => active?.selectedFolder;
+  List<MessageSummary> get messages =>
+      active?.messages ?? const <MessageSummary>[];
+  MessageSummary? get openSummary => active?.openSummary;
+  FullMessage? get openMessage => active?.openMessage;
+  bool get loadingMessages => active?.loadingMessages ?? false;
+  bool get loadingMessage => active?.loadingMessage ?? false;
 
-  bool loadingMessages = false;
-  bool loadingMessage = false;
-
-  bool get isSignedIn => status == MailStatus.ready && _service != null;
-
-  /// Reconnects on launch if credentials were saved.
   Future<void> restore() async {
-    final ({AceAccount account, String password})? saved = await _store.load();
-    if (saved == null) {
-      _set(MailStatus.signedOut);
-      return;
+    final List<StoredAccount> saved = await _store.loadAll();
+    if (saved.isNotEmpty) {
+      lastEmail = saved.last.account.email;
+      for (final StoredAccount stored in saved) {
+        _attach(MailSession(account: stored.account, password: stored.password));
+      }
+      _activeIndex = 0;
+      status = MailStatus.ready;
     }
-    await signIn(saved.account, saved.password, remember: false);
+    restoring = false;
+    notifyListeners();
+
+    // Connect in the background so the UI is up immediately.
+    for (final MailSession session in _sessions) {
+      unawaited(session.connect());
+    }
   }
 
+  /// Adds an account and brings it to the front.
   Future<bool> signIn(
     AceAccount candidate,
     String password, {
     bool remember = true,
   }) async {
-    status = MailStatus.connecting;
+    connecting = true;
     errorMessage = null;
+    status = MailStatus.connecting;
     notifyListeners();
 
-    final MailService service = MailService(candidate);
-    try {
-      final List<MailFolder> loaded = await service.connect(password);
-      _service = service;
-      _password = password;
-      account = candidate;
-      folders = loaded;
-      status = MailStatus.ready;
-      if (remember) await _store.save(candidate, password);
-      notifyListeners();
+    final MailSession session =
+        MailSession(account: candidate, password: password);
+    final bool ok = await session.connect();
 
-      final MailFolder? inbox = _firstWhereOrNull(
-            loaded,
-            (MailFolder f) => f.role == FolderRole.inbox,
-          ) ??
-          _firstWhereOrNull(loaded, (MailFolder _) => true);
-      if (inbox != null) await openFolder(inbox);
-      return true;
-    } catch (error) {
-      errorMessage = error.toString();
-      status = MailStatus.failed;
+    connecting = false;
+    if (!ok) {
+      errorMessage = session.errorMessage;
+      status = _sessions.isEmpty ? MailStatus.failed : MailStatus.ready;
+      session.dispose();
       notifyListeners();
       return false;
     }
+
+    // Replace an existing session for the same address rather than duplicating.
+    final int existing = _sessions.indexWhere(
+      (MailSession s) => s.account.email == candidate.email,
+    );
+    if (existing != -1) {
+      _detachAt(existing);
+    }
+
+    _attach(session);
+    _activeIndex = _sessions.length - 1;
+    lastEmail = candidate.email;
+    status = MailStatus.ready;
+    if (remember) await _persist();
+    notifyListeners();
+    return true;
+  }
+
+  void switchTo(int index) {
+    if (index < 0 || index >= _sessions.length || index == _activeIndex) return;
+    _activeIndex = index;
+    lastEmail = _sessions[index].account.email;
+    notifyListeners();
+    // Connect lazily if this account has not been opened yet this run.
+    final MailSession session = _sessions[index];
+    if (!session.isReady && !session.connecting) {
+      unawaited(session.connect());
+    }
+  }
+
+  Future<void> removeAccount(int index) async {
+    if (index < 0 || index >= _sessions.length) return;
+    _detachAt(index);
+    if (_sessions.isEmpty) {
+      _activeIndex = 0;
+      status = MailStatus.signedOut;
+      await _store.clear();
+    } else {
+      _activeIndex = _activeIndex.clamp(0, _sessions.length - 1);
+      await _persist();
+    }
+    notifyListeners();
   }
 
   Future<void> signOut() async {
-    await _service?.disconnect();
-    _service = null;
-    _password = null;
-    account = null;
-    folders = <MailFolder>[];
-    messages = <MessageSummary>[];
-    selectedFolder = null;
-    openMessage = null;
-    openSummary = null;
+    for (final MailSession session in List<MailSession>.of(_sessions)) {
+      session.removeListener(notifyListeners);
+      session.dispose();
+    }
+    _sessions.clear();
+    _activeIndex = 0;
+    lastEmail = null;
     await _store.clear();
-    _set(MailStatus.signedOut);
-  }
-
-  Future<void> openFolder(MailFolder folder) async {
-    final MailService? service = _service;
-    if (service == null) return;
-
-    selectedFolder = folder;
-    openMessage = null;
-    openSummary = null;
-    messages = <MessageSummary>[];
-    loadingMessages = true;
-    notifyListeners();
-
-    try {
-      messages = await service.fetchSummaries(folder);
-    } catch (error) {
-      errorMessage = error.toString();
-    } finally {
-      loadingMessages = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> refreshMessages() async {
-    final MailFolder? folder = selectedFolder;
-    if (folder != null) await openFolder(folder);
-  }
-
-  Future<void> open(MessageSummary summary) async {
-    final MailService? service = _service;
-    if (service == null) return;
-
-    openSummary = summary;
-    openMessage = null;
-    loadingMessage = true;
-    notifyListeners();
-
-    try {
-      openMessage = await service.fetchMessage(summary);
-      final int index = messages.indexWhere(
-        (MessageSummary m) => m.uid == summary.uid,
-      );
-      if (index != -1 && !messages[index].isSeen) {
-        messages = List<MessageSummary>.of(messages)
-          ..[index] = messages[index].copyWith(isSeen: true);
-      }
-    } catch (error) {
-      errorMessage = error.toString();
-    } finally {
-      loadingMessage = false;
-      notifyListeners();
-    }
-  }
-
-  void closeMessage() {
-    openMessage = null;
-    openSummary = null;
+    status = MailStatus.signedOut;
     notifyListeners();
   }
 
-  Future<void> deleteOpenMessage() async {
-    final MailService? service = _service;
-    final MessageSummary? summary = openSummary;
-    if (service == null || summary == null) return;
+  // --- actions, forwarded to the active session --------------------------
+  Future<void> openFolder(MailFolder folder) async =>
+      active?.openFolder(folder);
 
-    final String? trashPath = _firstWhereOrNull(
-      folders,
-      (MailFolder f) => f.role == FolderRole.trash,
-    )?.path;
-    try {
-      await service.deleteMessage(summary, trashPath: trashPath);
-      messages =
-          messages.where((MessageSummary m) => m.uid != summary.uid).toList();
-      openMessage = null;
-      openSummary = null;
-      notifyListeners();
-    } catch (error) {
-      errorMessage = error.toString();
-      notifyListeners();
-    }
-  }
+  Future<void> refreshMessages() async => active?.refreshMessages();
+
+  Future<void> open(MessageSummary summary) async => active?.open(summary);
+
+  void closeMessage() => active?.closeMessage();
+
+  Future<void> deleteOpenMessage() async => active?.deleteOpenMessage();
 
   Future<void> send({
     required String to,
@@ -182,29 +171,34 @@ class MailController extends ChangeNotifier {
     String subject = '',
     List<File> attachments = const <File>[],
   }) async {
-    final MailService? service = _service;
-    if (service == null) throw MailException('Not signed in.');
-    await service.send(
+    final MailSession? session = active;
+    if (session == null) throw MailException('Not signed in.');
+    await session.send(
       to: to,
       body: body,
       cc: cc,
       subject: subject,
-      password: _password ?? '',
       attachments: attachments,
     );
   }
 
   void clearError() => errorMessage = null;
 
-  void _set(MailStatus value) {
-    status = value;
-    notifyListeners();
+  void _attach(MailSession session) {
+    session.addListener(notifyListeners);
+    _sessions.add(session);
   }
 
-  static T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
-    for (final T item in items) {
-      if (test(item)) return item;
-    }
-    return null;
+  void _detachAt(int index) {
+    final MailSession session = _sessions.removeAt(index);
+    session.removeListener(notifyListeners);
+    session.dispose();
   }
+
+  Future<void> _persist() => _store.saveAll(
+        _sessions
+            .map((MailSession s) =>
+                (account: s.account, password: s.password))
+            .toList(),
+      );
 }

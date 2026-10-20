@@ -9,7 +9,9 @@ import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
 import '../util/html_render.dart';
+import '../util/routes.dart';
 import 'astryx_widgets.dart';
+import 'avatar.dart';
 
 class MessageReader extends StatefulWidget {
   const MessageReader({super.key, this.onBack});
@@ -24,25 +26,36 @@ class MessageReader extends StatefulWidget {
 class _MessageReaderState extends State<MessageReader> {
   bool _plainText = false;
 
+  /// Accumulated horizontal drag, for the swipe-right-to-go-back gesture.
+  double _drag = 0;
+
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final MailController controller = context.watch<MailController>();
 
     if (controller.loadingMessage) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.5),
-        ),
-      );
+      return const Center(child: AceLoader());
     }
 
     final FullMessage? message = controller.openMessage;
     if (message == null) return _placeholder(c);
 
-    return Container(
+    return GestureDetector(
+      // Swipe right to go back, the way Android gesture navigation works.
+      onHorizontalDragStart:
+          widget.onBack == null ? null : (DragStartDetails _) => _drag = 0,
+      onHorizontalDragUpdate: widget.onBack == null
+          ? null
+          : (DragUpdateDetails details) => _drag += details.delta.dx,
+      onHorizontalDragEnd: widget.onBack == null
+          ? null
+          : (DragEndDetails details) {
+              final double velocity = details.primaryVelocity ?? 0;
+              if (_drag > 80 || velocity > 300) widget.onBack!.call();
+              _drag = 0;
+            },
+      child: Container(
       color: c.backgroundSurface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,6 +91,7 @@ class _MessageReaderState extends State<MessageReader> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -116,31 +130,42 @@ class _MessageReaderState extends State<MessageReader> {
   }
 
   Widget _meta(AstryxColors c, FullMessage message) {
-    final List<Widget> lines = <Widget>[
-      Text('From: ${message.fromName}', style: AstryxText.body(c.textPrimary)),
-      if (message.toLine.isNotEmpty)
-        Text(
-          'To: ${message.toLine}',
-          style: AstryxText.supporting(c.textSecondary),
-        ),
-      if (message.ccLine.isNotEmpty)
-        Text(
-          'Cc: ${message.ccLine}',
-          style: AstryxText.supporting(c.textSecondary),
-        ),
-      Text(
-        formatFullDate(message.date),
-        style: AstryxText.supporting(c.textSecondary),
-      ),
-    ];
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: lines
-          .map(
-            (Widget line) =>
-                Padding(padding: const EdgeInsets.only(bottom: 1), child: line),
-          )
-          .toList(),
+      children: <Widget>[
+        MailAvatar(email: message.fromEmail, name: message.fromName, size: 40),
+        const SizedBox(width: AstryxSpace.s3),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                message.fromName,
+                style: AstryxText.bodyStrong(c.textPrimary),
+              ),
+              if (message.fromEmail.isNotEmpty)
+                Text(
+                  message.fromEmail,
+                  style: AstryxText.supporting(c.textSecondary),
+                ),
+              if (message.toLine.isNotEmpty)
+                Text(
+                  'To: ${message.toLine}',
+                  style: AstryxText.supporting(c.textSecondary),
+                ),
+              if (message.ccLine.isNotEmpty)
+                Text(
+                  'Cc: ${message.ccLine}',
+                  style: AstryxText.supporting(c.textSecondary),
+                ),
+              Text(
+                formatFullDate(message.date),
+                style: AstryxText.supporting(c.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -279,8 +304,8 @@ class _MessageReaderState extends State<MessageReader> {
         ? message.subject
         : 'Re: ${message.subject}';
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ComposeScreen(
+      aceRoute(
+        ComposeScreen(
           initialTo: message.fromEmail,
           initialSubject: subject,
           initialBody: '\n\n--- Original message ---\n${message.textBody}',

@@ -7,6 +7,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
 import 'astryx_widgets.dart';
+import 'avatar.dart';
 
 class MessageListPanel extends StatelessWidget {
   const MessageListPanel({super.key});
@@ -33,13 +34,7 @@ class MessageListPanel extends StatelessWidget {
     final AstryxColors c = context.astryx;
 
     if (controller.loadingMessages) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.5),
-        ),
-      );
+      return const Center(child: AceLoader());
     }
     if (controller.messages.isEmpty) {
       return Center(
@@ -50,18 +45,25 @@ class MessageListPanel extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      itemCount: controller.messages.length,
-      separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
-      itemBuilder: (BuildContext context, int index) {
-        final MessageSummary summary = controller.messages[index];
-        final bool selected = controller.openSummary?.uid == summary.uid;
-        return MessageTile(
-          summary: summary,
-          selected: selected,
-          onTap: () => context.read<MailController>().open(summary),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: () => context.read<MailController>().refreshMessages(),
+      color: c.accent,
+      backgroundColor: c.backgroundSurface,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: controller.messages.length,
+        separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
+        itemBuilder: (BuildContext context, int index) {
+          final MessageSummary summary = controller.messages[index];
+          return MessageTile(
+            key: ValueKey<int>(summary.uid),
+            summary: summary,
+            index: index,
+            selected: controller.openSummary?.uid == summary.uid,
+            onTap: () => context.read<MailController>().open(summary),
+          );
+        },
+      ),
     );
   }
 }
@@ -83,9 +85,7 @@ class _ListHeader extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(
-            child: Text(title, style: AstryxText.heading2(c.textPrimary)),
-          ),
+          Expanded(child: Text(title, style: AstryxText.heading2(c.textPrimary))),
           AceIconButton(
             icon: Icons.refresh_rounded,
             tooltip: 'Refresh',
@@ -101,11 +101,13 @@ class MessageTile extends StatelessWidget {
   const MessageTile({
     super.key,
     required this.summary,
+    required this.index,
     required this.selected,
     required this.onTap,
   });
 
   final MessageSummary summary;
+  final int index;
   final bool selected;
   final VoidCallback onTap;
 
@@ -114,72 +116,80 @@ class MessageTile extends StatelessWidget {
     final AstryxColors c = context.astryx;
     final bool unread = !summary.isSeen;
 
-    return Material(
-      color: selected ? c.accentMuted : c.backgroundSurface,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AstryxSpace.s5,
-            vertical: AstryxSpace.s3,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              InitialsAvatar(
-                initials: summary.initials,
-                seed: summary.fromEmail.isEmpty
-                    ? summary.fromName
-                    : summary.fromEmail,
-              ),
-              const SizedBox(width: AstryxSpace.s3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            summary.fromName,
-                            overflow: TextOverflow.ellipsis,
-                            style: unread
-                                ? AstryxText.bodyStrong(c.textPrimary)
-                                : AstryxText.body(c.textSecondary),
-                          ),
-                        ),
-                        const SizedBox(width: AstryxSpace.s2),
-                        Text(
-                          formatListDate(summary.date),
-                          style: AstryxText.supporting(c.textSecondary),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AstryxSpace.s0_5),
-                    Text(
-                      summary.subject,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: unread
-                          ? AstryxText.body(c.textPrimary)
-                          : AstryxText.body(c.textSecondary),
-                    ),
-                  ],
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(milliseconds: 200 + (index.clamp(0, 8) * 24)),
+      curve: Curves.easeOutCubic,
+      builder: (BuildContext context, double t, Widget? child) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, (1 - t) * 8), child: child),
+      ),
+      child: Material(
+        color: selected ? c.accentMuted : c.backgroundSurface,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AstryxSpace.s5,
+              vertical: AstryxSpace.s3,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                MailAvatar(
+                  email: summary.fromEmail,
+                  name: summary.fromName,
+                  size: 40,
                 ),
-              ),
-              if (unread) ...<Widget>[
-                const SizedBox(width: AstryxSpace.s2),
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(top: AstryxSpace.s1_5),
-                  decoration: BoxDecoration(
-                    color: c.accent,
-                    shape: BoxShape.circle,
+                const SizedBox(width: AstryxSpace.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              summary.fromName,
+                              overflow: TextOverflow.ellipsis,
+                              style: unread
+                                  ? AstryxText.bodyStrong(c.textPrimary)
+                                  : AstryxText.body(c.textSecondary),
+                            ),
+                          ),
+                          const SizedBox(width: AstryxSpace.s2),
+                          Text(
+                            formatListDate(summary.date),
+                            style: AstryxText.supporting(c.textSecondary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AstryxSpace.s0_5),
+                      Text(
+                        summary.subject,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: unread
+                            ? AstryxText.body(c.textPrimary)
+                            : AstryxText.body(c.textSecondary),
+                      ),
+                    ],
                   ),
                 ),
+                if (unread) ...<Widget>[
+                  const SizedBox(width: AstryxSpace.s2),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(top: AstryxSpace.s1_5),
+                    decoration: BoxDecoration(
+                      color: c.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

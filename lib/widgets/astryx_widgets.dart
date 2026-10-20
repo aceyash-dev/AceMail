@@ -56,11 +56,8 @@ class AceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final (
-      Color background,
-      Color foreground,
-      BorderSide? side,
-    ) = switch (variant) {
+    final (Color background, Color foreground, BorderSide? side) =
+        switch (variant) {
       AceButtonVariant.primary => (c.accent, c.onAccent, null),
       AceButtonVariant.ghost => (
           c.backgroundSurface,
@@ -145,9 +142,48 @@ class AceIconButton extends StatelessWidget {
   }
 }
 
-/// The Ace Mail mark: an envelope on a milk tile — the same mark as the
-/// launcher icon, drawn rather than shipped as an image so it stays crisp at
-/// any size and stays in step with `ic_launcher_foreground.xml`.
+/// The Ace Mail envelope, filled, expressed on a 108-unit grid so the in-app
+/// mark and `ic_launcher_foreground.xml` stay in step. The flap is cut out in
+/// [foldColor] — whatever surface the mark sits on.
+class EnvelopePainter extends CustomPainter {
+  const EnvelopePainter({required this.color, required this.foldColor});
+
+  final Color color;
+  final Color foldColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double u = size.width / 108.0;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(30 * u, 40 * u, 48 * u, 32 * u),
+        Radius.circular(4 * u),
+      ),
+      Paint()..color = color,
+    );
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(33 * u, 43.5 * u)
+        ..lineTo(54 * u, 59 * u)
+        ..lineTo(75 * u, 43.5 * u),
+      Paint()
+        ..color = foldColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.5 * u
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant EnvelopePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.foldColor != foldColor;
+}
+
+/// The Ace Mail mark: the filled envelope on a milk tile, the same mark as the
+/// launcher icon.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 44});
 
@@ -164,48 +200,63 @@ class BrandMark extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.28),
         border: Border.all(color: c.border),
       ),
-      child: CustomPaint(painter: _EnvelopePainter(color: c.accent)),
+      child: CustomPaint(
+        painter: EnvelopePainter(color: c.accent, foldColor: c.backgroundBody),
+      ),
     );
   }
 }
 
-/// Envelope geometry expressed on a 108-unit grid, matching
-/// `ic_launcher_foreground.xml` exactly.
-class _EnvelopePainter extends CustomPainter {
-  const _EnvelopePainter({required this.color});
+/// The Ace Mail envelope, breathing — used wherever a spinner used to be.
+class AceLoader extends StatefulWidget {
+  const AceLoader({super.key, this.size = 46, this.foldColor});
 
-  final Color color;
+  final double size;
+  final Color? foldColor;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final double u = size.width / 108.0;
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.5 * u
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+  State<AceLoader> createState() => _AceLoaderState();
+}
 
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(30 * u, 40 * u, 48 * u, 32 * u),
-        Radius.circular(4 * u),
-      ),
-      paint,
-    );
+class _AceLoaderState extends State<AceLoader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
 
-    canvas.drawPath(
-      Path()
-        ..moveTo(34 * u, 44 * u)
-        ..lineTo(54 * u, 59.5 * u)
-        ..lineTo(74 * u, 44 * u),
-      paint,
-    );
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
-  bool shouldRepaint(covariant _EnvelopePainter oldDelegate) =>
-      oldDelegate.color != color;
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? _) {
+        final double t = Curves.easeInOut.transform(_controller.value);
+        return Opacity(
+          opacity: 0.4 + 0.6 * t,
+          child: Transform.scale(
+            scale: 0.9 + 0.1 * t,
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: CustomPaint(
+                painter: EnvelopePainter(
+                  color: c.accent,
+                  foldColor: widget.foldColor ?? c.backgroundBody,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Circular initials chip. The colour is derived from the address so the same
@@ -247,8 +298,7 @@ class InitialsAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       child: Text(
         initials,
-        style:
-            AstryxText.bodyStrong(Colors.white).copyWith(fontSize: size * 0.36),
+        style: AstryxText.bodyStrong(Colors.white).copyWith(fontSize: size * 0.36),
       ),
     );
   }
