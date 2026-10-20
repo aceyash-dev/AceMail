@@ -63,6 +63,15 @@ android {
             }
         }
     }
+
+    packaging {
+        jniLibs {
+            // `--target-platform` keeps the x86/x86_64 Flutter and Dart code
+            // out, but the engine still ships libdartjni.so for x64. Strip the
+            // whole ABI so the APK carries arm only.
+            excludes += listOf("lib/x86/**", "lib/x86_64/**")
+        }
+    }
 }
 
 kotlin {
