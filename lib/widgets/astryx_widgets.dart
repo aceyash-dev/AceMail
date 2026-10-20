@@ -145,7 +145,9 @@ class AceIconButton extends StatelessWidget {
   }
 }
 
-/// The Ace Mail mark: an orange rounded square carrying the letter A.
+/// The Ace Mail mark: an envelope on a milk tile — the same mark as the
+/// launcher icon, drawn rather than shipped as an image so it stays crisp at
+/// any size and stays in step with `ic_launcher_foreground.xml`.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 44});
 
@@ -157,22 +159,53 @@ class BrandMark extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[c.accent, c.textAccent],
-        ),
+        color: c.backgroundBody,
         borderRadius: BorderRadius.circular(size * 0.28),
+        border: Border.all(color: c.border),
       ),
-      child: Text(
-        'A',
-        style: AstryxText.heading2(c.onAccent)
-            .copyWith(fontSize: size * 0.55, fontWeight: AstryxType.bold),
-      ),
+      child: CustomPaint(painter: _EnvelopePainter(color: c.accent)),
     );
   }
+}
+
+/// Envelope geometry expressed on a 108-unit grid, matching
+/// `ic_launcher_foreground.xml` exactly.
+class _EnvelopePainter extends CustomPainter {
+  const _EnvelopePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double u = size.width / 108.0;
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.5 * u
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(30 * u, 40 * u, 48 * u, 32 * u),
+        Radius.circular(4 * u),
+      ),
+      paint,
+    );
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(34 * u, 44 * u)
+        ..lineTo(54 * u, 59.5 * u)
+        ..lineTo(74 * u, 44 * u),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _EnvelopePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Circular initials chip. The colour is derived from the address so the same

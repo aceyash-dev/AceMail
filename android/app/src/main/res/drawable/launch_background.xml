@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ace Mail has no splash screen. The launch window is painted in the app's
-     own background colour, so the app appears to open straight onto its UI
-     instead of flashing a white screen first. -->
+<!-- Ace Mail opens straight onto the mark, in the app's own background colour.
+     There is no separate splash: this is drawn natively from the first frame,
+     so the transition into the Flutter UI is seamless. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ace_milk" />
+    <item
+        android:drawable="@drawable/ic_launcher_foreground"
+        android:gravity="center" />
 </layer-list>

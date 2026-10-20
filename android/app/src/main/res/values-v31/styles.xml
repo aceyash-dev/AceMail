@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+ always shows a system splash. Give it the app's background
-         colour and an empty icon, so nothing visible is drawn. -->
+    <!-- Android 12+ always draws a system splash. Give it the app's own
+         background colour and the Ace Mail mark, so it reads as the app
+         opening instantly rather than a blank screen. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowSplashScreenBackground">@color/ace_milk</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/transparent</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
     </style>
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@color/ace_milk</item>

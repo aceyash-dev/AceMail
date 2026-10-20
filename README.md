@@ -32,6 +32,9 @@ a custom theme, not a departure.
 - Sign in to any IMAP/SMTP provider; Gmail, Outlook, Yahoo, iCloud, Zoho,
   Rediffmail, Fastmail and Proton Bridge are detected from the address, anything
   else takes manual hosts.
+- A built-in step-by-step guide — the `?` button on the sign-in screen and in
+  the mailbox — covering app passwords, manual server settings, and what each
+  connection error means.
 - Browse every folder, with unread counts.
 - Read mail: HTML rendered, a plain-text toggle, and attachments listed and
   saveable.
@@ -130,6 +133,13 @@ assets/fonts/               Questrial-Regular.ttf
   self-contained HTML → rich-text converter: no scripts, no remote layout. It
   is not a security boundary for hostile mail — treat HTML from untrusted
   senders accordingly.
-- The launcher icon is an adaptive icon (orange Ace mark on milk) and the
-  launch window is painted in the app's own background colour, so there is no
-  splash screen to flash through.
+- The launcher icon is an adaptive icon — an orange envelope on a milk tile —
+  and the in-app `BrandMark` draws the same mark from the same 108-unit
+  geometry, so the two never drift apart.
+- The launch window is painted in the app's own background colour with that
+  mark, so the app appears to open straight onto its UI instead of flashing a
+  blank screen first.
+- The release manifest declares `android.permission.INTERNET`. Flutter's
+  template only puts it in the debug and profile manifests, so a release build
+  without it fails every connection with
+  "Failed host lookup … errno = 7".

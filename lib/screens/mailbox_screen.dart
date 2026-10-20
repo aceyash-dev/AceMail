@@ -9,6 +9,7 @@ import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
 import 'compose_screen.dart';
+import 'tutorial_screen.dart';
 
 /// The three-pane mailbox. Above [_wideBreakpoint] the folder rail, message
 /// list and reader sit side by side; below it the reader takes the screen and
@@ -53,6 +54,13 @@ class MailboxScreen extends StatelessWidget {
             ),
             const SizedBox(width: AstryxSpace.s3),
           ],
+          AceIconButton(
+            icon: Icons.help_outline_rounded,
+            tooltip: 'How to sign in',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const TutorialScreen()),
+            ),
+          ),
           AceIconButton(
             icon: Icons.logout_rounded,
             tooltip: 'Sign out',

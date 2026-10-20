@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Ace Mail talks to your mail provider directly over IMAP/SMTP, so it
+         needs network access. Flutter's template only declares this for debug
+         and profile builds, which is why a release build fails with
+         "Failed host lookup ... errno = 7" without it. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="Ace Mail"
         android:name="${applicationName}"

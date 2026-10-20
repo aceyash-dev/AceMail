@@ -7,6 +7,7 @@ import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../widgets/astryx_widgets.dart';
+import 'tutorial_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -81,6 +82,12 @@ class _SignInScreenState extends State<SignInScreen> {
     await controller.signIn(account, _password.text);
   }
 
+  void _openTutorial(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const TutorialScreen()),
+    );
+  }
+
   Future<void> _fail(String message) {
     showDialog<void>(
       context: context,
@@ -126,21 +133,31 @@ class _SignInScreenState extends State<SignInScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           const BrandMark(),
                           const SizedBox(width: AstryxSpace.s4),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Ace Mail',
-                                style: AstryxText.heading1(c.textPrimary),
-                              ),
-                              Text(
-                                'Any IMAP · any SMTP · any device',
-                                style: AstryxText.supporting(c.textSecondary),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Ace Mail',
+                                  style: AstryxText.heading1(c.textPrimary),
+                                ),
+                                Text(
+                                  'Any IMAP · any SMTP · any device',
+                                  style: AstryxText.supporting(
+                                    c.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AceIconButton(
+                            icon: Icons.help_outline_rounded,
+                            tooltip: 'How to sign in',
+                            onPressed: () => _openTutorial(context),
                           ),
                         ],
                       ),
@@ -225,9 +242,20 @@ class _SignInScreenState extends State<SignInScreen> {
                               AstryxRadius.element,
                             ),
                           ),
-                          child: Text(
-                            controller.errorMessage!,
-                            style: AstryxText.supporting(c.error),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                controller.errorMessage!,
+                                style: AstryxText.supporting(c.error),
+                              ),
+                              const SizedBox(height: AstryxSpace.s3),
+                              AceButton(
+                                label: 'How to fix this',
+                                icon: Icons.help_outline_rounded,
+                                onPressed: () => _openTutorial(context),
+                              ),
+                            ],
                           ),
                         ),
                       ],
