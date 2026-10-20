@@ -98,6 +98,8 @@ class _MessageReaderState extends State<MessageReader> {
   }
 
   Widget _toolbar(BuildContext context, AstryxColors c, FullMessage message) {
+    final bool flagged =
+        context.watch<MailController>().openSummary?.isFlagged ?? false;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AstryxSpace.s4,
@@ -114,6 +116,19 @@ class _MessageReaderState extends State<MessageReader> {
               onPressed: widget.onBack,
             ),
           const Spacer(),
+          AceIconButton(
+            icon: flagged ? Icons.star_rounded : Icons.star_border_rounded,
+            tooltip: flagged ? 'Remove flag' : 'Flag',
+            onPressed: () => context.read<MailController>().toggleOpenFlagged(),
+          ),
+          AceIconButton(
+            icon: Icons.mark_email_unread_outlined,
+            tooltip: 'Mark as unread',
+            onPressed: () {
+              context.read<MailController>().markOpenUnread();
+              widget.onBack?.call();
+            },
+          ),
           AceButton(
             label: 'Reply',
             variant: AceButtonVariant.ghost,

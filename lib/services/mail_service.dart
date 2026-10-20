@@ -6,6 +6,7 @@ import '../models/ace_account.dart';
 import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
+import 'mail_transport.dart';
 
 /// A failure worth showing the user, phrased for a person rather than a log.
 class MailException implements Exception {
@@ -20,7 +21,7 @@ class MailException implements Exception {
 /// Thin, explicit wrapper over `enough_mail`'s low-level IMAP and SMTP clients.
 /// One instance per signed-in account; every call is sequential on the IMAP
 /// client, which enough_mail serialises internally.
-class MailService {
+class MailService implements MailTransport {
   MailService(this.account);
 
   final AceAccount account;
@@ -34,6 +35,7 @@ class MailService {
     return client;
   }
 
+  @override
   Future<List<MailFolder>> connect(String password) async {
     final ImapClient client = ImapClient(isLogEnabled: false);
     try {
@@ -54,6 +56,7 @@ class MailService {
     return listFolders();
   }
 
+  @override
   Future<List<MailFolder>> listFolders() async {
     final List<Mailbox> mailboxes = await _client.listMailboxes();
     return mailboxes
@@ -68,28 +71,79 @@ class MailService {
       });
   }
 
+  @override
   Future<void> selectFolder(MailFolder folder) =>
       _client.selectMailboxByPath(folder.path);
 
-  /// Headers only — the list never pulls message bodies.
-  Future<List<MessageSummary>> fetchSummaries(
-    MailFolder folder, {
-    int limit = 40,
-  }) async {
+  /// Every message UID in [folder], newest first. One cheap SEARCH, so paging
+  /// and searching can both work from the same list.
+  @override
+  Future<List<int>> listMessageUids(MailFolder folder) async {
     await selectFolder(folder);
-    final FetchImapResult result = await _client.fetchRecentMessages(
-      messageCount: limit,
-      criteria: 'BODY.PEEK[HEADER]',
+    final SearchImapResult result = await _client.uidSearchMessages(
+      searchCriteria: 'ALL',
     );
-    return result.messages
-        .map(MessageSummary.fromMime)
-        .toList()
-        .reversed
-        .toList();
+    final List<int> uids = result.matchingSequence?.toList() ?? <int>[];
+    return uids.reversed.toList();
   }
+
+  /// Headers only — the list never pulls message bodies.
+  @override
+  Future<List<MessageSummary>> fetchSummariesByUid(
+    MailFolder folder,
+    List<int> uids,
+  ) async {
+    if (uids.isEmpty) return <MessageSummary>[];
+    await selectFolder(folder);
+    final FetchImapResult result = await _client.uidFetchMessages(
+      MessageSequence.fromIds(uids, isUid: true),
+      'BODY.PEEK[HEADER]',
+    );
+    return result.messages.map(MessageSummary.fromMime).toList()
+      ..sort(
+        (MessageSummary a, MessageSummary b) =>
+            b.sequenceId.compareTo(a.sequenceId),
+      );
+  }
+
+  /// Subject, sender or recipient containing [query].
+  @override
+  Future<List<MessageSummary>> search(
+    MailFolder folder,
+    String query,
+  ) async {
+    await selectFolder(folder);
+    final String escaped =
+        query.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+    final SearchImapResult result = await _client.searchMessages(
+      searchCriteria:
+          'OR OR SUBJECT "$escaped" FROM "$escaped" TO "$escaped"',
+    );
+    final MessageSequence? matches = result.matchingSequence;
+    if (matches == null || matches.isEmpty) return <MessageSummary>[];
+    final List<int> newestFirst =
+        matches.toList().reversed.take(80).toList();
+    return fetchSummariesByUid(folder, newestFirst);
+  }
+
+  @override
+  Future<void> markUnread(MessageSummary summary) => _client.uidStore(
+        MessageSequence.fromId(summary.uid, isUid: true),
+        <String>[MessageFlags.seen],
+        action: StoreAction.remove,
+      );
+
+  @override
+  Future<void> setFlagged(MessageSummary summary, bool flagged) =>
+      _client.uidStore(
+        MessageSequence.fromId(summary.uid, isUid: true),
+        <String>[MessageFlags.flagged],
+        action: flagged ? StoreAction.add : StoreAction.remove,
+      );
 
   /// Fetches the full message. `BODY[]` rather than `BODY.PEEK[]`, so the
   /// server also sets the `\Seen` flag as a side effect.
+  @override
   Future<FullMessage> fetchMessage(MessageSummary summary) async {
     final FetchImapResult result = await _client.uidFetchMessage(
       summary.uid,
@@ -102,6 +156,7 @@ class MailService {
   }
 
   /// Moves the message to [trashPath] when the server has one, then expunges.
+  @override
   Future<void> deleteMessage(
     MessageSummary summary, {
     String? trashPath,
@@ -116,12 +171,14 @@ class MailService {
         // No trash folder on this server; fall through to a hard delete.
       }
     }
-    await _client.store(MessageSequence.fromId(summary.sequenceId), <String>[
-      MessageFlags.deleted,
-    ]);
+    await _client.uidStore(
+      MessageSequence.fromId(summary.uid, isUid: true),
+      <String>[MessageFlags.deleted],
+    );
     await _client.expunge();
   }
 
+  @override
   Future<void> send({
     required String to,
     required String body,
@@ -185,6 +242,7 @@ class MailService {
     }
   }
 
+  @override
   Future<void> disconnect() async {
     final ImapClient? client = _imap;
     _imap = null;

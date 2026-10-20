@@ -11,6 +11,7 @@ class MessageSummary {
     required this.fromEmail,
     required this.date,
     required this.isSeen,
+    required this.isFlagged,
   });
 
   final int uid;
@@ -20,11 +21,13 @@ class MessageSummary {
   final String fromEmail;
   final DateTime? date;
   final bool isSeen;
+  final bool isFlagged;
 
   factory MessageSummary.fromMime(MimeMessage message) {
-    final MailAddress? from = (message.from != null && message.from!.isNotEmpty)
-        ? message.from!.first
-        : null;
+    final MailAddress? from =
+        (message.from != null && message.from!.isNotEmpty)
+            ? message.from!.first
+            : null;
     return MessageSummary(
       uid: message.uid ?? 0,
       sequenceId: message.sequenceId ?? 0,
@@ -33,10 +36,11 @@ class MessageSummary {
       fromEmail: from?.email ?? '',
       date: message.decodeDate(),
       isSeen: message.isSeen,
+      isFlagged: message.isFlagged,
     );
   }
 
-  MessageSummary copyWith({bool? isSeen}) => MessageSummary(
+  MessageSummary copyWith({bool? isSeen, bool? isFlagged}) => MessageSummary(
         uid: uid,
         sequenceId: sequenceId,
         subject: subject,
@@ -44,6 +48,7 @@ class MessageSummary {
         fromEmail: fromEmail,
         date: date,
         isSeen: isSeen ?? this.isSeen,
+        isFlagged: isFlagged ?? this.isFlagged,
       );
 
   /// Two letters for the avatar chip, derived from the display name.

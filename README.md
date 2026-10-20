@@ -38,12 +38,15 @@ a custom theme, not a departure.
 - Several accounts signed in at once, switchable from the account chip in the
   app bar or the header in the folder rail.
 - Sender pictures from Gravatar, falling back to an initials chip when there is
-  no picture — or no network.
-- Browse every folder, with unread counts. Non-selectable container folders
-  such as Gmail's `[Gmail]` are filtered out.
+  no picture — or no network. The lookup can be switched off, because it sends
+  a hash of the sender's address to a third party.
+- Browse every folder, with unread counts, paged forty at a time. Non-selectable
+  container folders such as Gmail's `[Gmail]` are filtered out.
+- Search the open folder across subject, sender and recipient.
 - Read mail: HTML rendered, a plain-text toggle, and attachments listed and
   saveable.
 - Compose, reply and send, with file attachments.
+- Mark as unread, and flag/unflag with the star.
 - Delete to Trash where the provider has one.
 - Credentials live in the platform keychain, never in plain files.
 - Gesture navigation: swipe right to leave a message, pull down to refresh, and
@@ -152,6 +155,18 @@ lib/
 assets/fonts/               Questrial-Regular.ttf
 ```
 
+## Tests
+
+```bash
+flutter test
+```
+
+`test/session_test.dart` drives the session and the multi-account controller
+through a `MailTransport` fake — connection de-duplication, paging, search,
+flags, deletion, switching, removal and disposal — so the parts that are hard to
+exercise by hand are covered. `test/models_test.dart` covers folder roles,
+message parsing, the Gravatar URL, account JSON and date formatting.
+
 ## Notes
 
 - Mail transport is [`enough_mail`](https://pub.dev/packages/enough_mail). The
@@ -173,3 +188,5 @@ assets/fonts/               Questrial-Regular.ttf
   template only puts it in the debug and profile manifests, so a release build
   without it fails every connection with
   "Failed host lookup … errno = 7".
+- The APK is built for `armeabi-v7a` and `arm64-v8a` only. `x86`/`x86_64` are
+  emulator and ChromeOS images, and shipping them just inflates the download.

@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import 'astryx_widgets.dart';
 
 /// A sender's picture.
@@ -52,6 +54,10 @@ class MailAvatar extends StatelessWidget {
       seed: address.isEmpty ? name : address,
       size: size,
     );
+
+    // A Gravatar lookup sends a hash of the sender's address to a third party,
+    // so it only happens when the user has left it switched on.
+    if (!context.watch<Preferences>().showAvatars) return fallback;
 
     if (address.isEmpty || !address.contains('@') || _missing.contains(address)) {
       return fallback;

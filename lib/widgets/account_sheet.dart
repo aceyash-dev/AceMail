@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import '../screens/sign_in_screen.dart';
 import '../state/mail_controller.dart';
 import '../state/mail_session.dart';
@@ -76,6 +77,22 @@ class AccountSheet extends StatelessWidget {
               },
             ),
           ),
+          Divider(height: 1, color: c.border),
+          SwitchListTile(
+            value: context.watch<Preferences>().showAvatars,
+            onChanged: (bool value) =>
+                context.read<Preferences>().setShowAvatars(value),
+            title: Text(
+              'Sender pictures',
+              style: AstryxText.body(c.textPrimary),
+            ),
+            subtitle: Text(
+              'Look sender addresses up on Gravatar. Turning this off keeps '
+              'their addresses off a third-party server.',
+              style: AstryxText.supporting(c.textSecondary),
+            ),
+          ),
+          const SizedBox(height: AstryxSpace.s2),
         ],
       ),
     );

@@ -9,7 +9,14 @@ import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../services/mail_service.dart';
+import '../services/mail_transport.dart';
 import 'mail_session.dart';
+
+/// Builds the transport for an account. Tests inject a fake here.
+typedef MailTransportFactory = MailTransport Function(
+  AceAccount account,
+  String password,
+);
 
 enum MailStatus { signedOut, connecting, ready, failed }
 
@@ -19,9 +26,14 @@ enum MailStatus { signedOut, connecting, ready, failed }
 /// switching accounts is just a change of index — no screen needs to know how
 /// many accounts there are.
 class MailController extends ChangeNotifier {
-  MailController({AccountStore? store}) : _store = store ?? AccountStore();
+  MailController({AccountStore? store, MailTransportFactory? transportFactory})
+      : _store = store ?? AccountStore(),
+        _transportFactory = transportFactory;
 
   final AccountStore _store;
+
+  /// Injectable so tests can drive the session without a mail server.
+  final MailTransportFactory? _transportFactory;
   final List<MailSession> _sessions = <MailSession>[];
   int _activeIndex = 0;
 
@@ -52,6 +64,9 @@ class MailController extends ChangeNotifier {
   FullMessage? get openMessage => active?.openMessage;
   bool get loadingMessages => active?.loadingMessages ?? false;
   bool get loadingMessage => active?.loadingMessage ?? false;
+  bool get loadingMore => active?.loadingMore ?? false;
+  bool get hasMore => active?.hasMore ?? false;
+  String? get searchQuery => active?.searchQuery;
 
   /// The active account's most recent error, if any. Surfaced as a snack bar
   /// so failures do not disappear silently.
@@ -61,9 +76,7 @@ class MailController extends ChangeNotifier {
     final List<StoredAccount> saved = await _store.loadAll();
     if (saved.isNotEmpty) {
       for (final StoredAccount stored in saved) {
-        _attach(
-          MailSession(account: stored.account, password: stored.password),
-        );
+        _attach(_newSession(stored.account, stored.password));
       }
 
       // Land back on whichever account was in front last time.
@@ -96,8 +109,7 @@ class MailController extends ChangeNotifier {
     status = MailStatus.connecting;
     notifyListeners();
 
-    final MailSession session =
-        MailSession(account: candidate, password: password);
+    final MailSession session = _newSession(candidate, password);
     final bool ok = await session.connect();
 
     connecting = false;
@@ -169,11 +181,21 @@ class MailController extends ChangeNotifier {
 
   Future<void> refreshMessages() async => active?.refreshMessages();
 
+  Future<void> loadMore() async => active?.loadMore();
+
+  Future<void> search(String query) async => active?.search(query);
+
+  void clearSearch() => active?.clearSearch();
+
   Future<void> open(MessageSummary summary) async => active?.open(summary);
 
   void closeMessage() => active?.closeMessage();
 
   Future<void> deleteOpenMessage() async => active?.deleteOpenMessage();
+
+  Future<void> markOpenUnread() async => active?.markOpenUnread();
+
+  Future<void> toggleOpenFlagged() async => active?.toggleOpenFlagged();
 
   Future<void> send({
     required String to,
@@ -194,6 +216,12 @@ class MailController extends ChangeNotifier {
   }
 
   void clearError() => errorMessage = null;
+
+  MailSession _newSession(AceAccount account, String password) => MailSession(
+        account: account,
+        password: password,
+        transport: _transportFactory?.call(account, password),
+      );
 
   void _attach(MailSession session) {
     session.addListener(notifyListeners);

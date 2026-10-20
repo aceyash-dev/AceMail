@@ -36,6 +36,12 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            // Phones and tablets only. No x86/x86_64: those are emulator and
+            // ChromeOS images, and shipping them just inflates the APK.
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     signingConfigs {
