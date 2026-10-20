@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/sign_in_form.dart';
 import '../state/mail_controller.dart';
@@ -84,7 +85,10 @@ class _SignInScreenState extends State<SignInScreen> {
       Navigator.of(context).pop();
       return;
     }
-    if (!await confirmExit(context) || !mounted) return;
+    // The user can turn the confirmation off; then leaving just leaves.
+    final Preferences prefs = context.read<Preferences>();
+    if (prefs.confirmExit && !await confirmExit(context)) return;
+    if (!mounted) return;
     final NavigatorState nav = Navigator.of(context);
     if (nav.canPop()) {
       nav.pop();

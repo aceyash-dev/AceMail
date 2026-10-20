@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,10 +22,7 @@ class MessageListPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _ListHeader(
-            title: controller.selectedFolder?.label ?? 'Mail',
-            folder: controller.selectedFolder?.path,
-          ),
+          _ListHeader(title: controller.selectedFolder?.label ?? 'Mail'),
           Divider(height: 1, color: c.border),
           Expanded(child: _body(context, controller)),
         ],
@@ -139,49 +134,16 @@ class _LoadMoreRow extends StatelessWidget {
   }
 }
 
-class _ListHeader extends StatefulWidget {
-  const _ListHeader({required this.title, required this.folder});
+/// The folder name and a refresh button. Search lives in the app bar now, so
+/// there is exactly one place to look for it.
+class _ListHeader extends StatelessWidget {
+  const _ListHeader({required this.title});
 
   final String title;
-  final String? folder;
-
-  @override
-  State<_ListHeader> createState() => _ListHeaderState();
-}
-
-class _ListHeaderState extends State<_ListHeader> {
-  final TextEditingController _search = TextEditingController();
-  Timer? _debounce;
-
-  @override
-  void didUpdateWidget(covariant _ListHeader oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // A new folder starts from a clean search.
-    if (oldWidget.folder != widget.folder && _search.text.isNotEmpty) {
-      _search.clear();
-    }
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _search.dispose();
-    super.dispose();
-  }
-
-  void _onChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted) return;
-      context.read<MailController>().search(value);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final bool searching =
-        (context.watch<MailController>().searchQuery ?? '').isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -190,61 +152,15 @@ class _ListHeaderState extends State<_ListHeader> {
         AstryxSpace.s3,
         AstryxSpace.s3,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  widget.title,
-                  style: AstryxText.heading2(c.textPrimary),
-                ),
-              ),
-              AceIconButton(
-                icon: Icons.refresh_rounded,
-                tooltip: 'Refresh',
-                onPressed: () =>
-                    context.read<MailController>().refreshMessages(),
-              ),
-            ],
+          Expanded(
+            child: Text(title, style: AstryxText.heading2(c.textPrimary)),
           ),
-          const SizedBox(height: AstryxSpace.s2),
-          TextField(
-            controller: _search,
-            onChanged: _onChanged,
-            onSubmitted: (String value) {
-              _debounce?.cancel();
-              context.read<MailController>().search(value);
-            },
-            textInputAction: TextInputAction.search,
-            style: AstryxText.body(c.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Search this folder',
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: c.iconSecondary,
-              ),
-              suffixIcon: searching
-                  ? IconButton(
-                      icon: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: c.iconSecondary,
-                      ),
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        _search.clear();
-                        context.read<MailController>().clearSearch();
-                      },
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AstryxSpace.s3,
-                vertical: AstryxSpace.s2,
-              ),
-            ),
+          AceIconButton(
+            icon: Icons.refresh_rounded,
+            tooltip: 'Refresh',
+            onPressed: () => context.read<MailController>().refreshMessages(),
           ),
         ],
       ),

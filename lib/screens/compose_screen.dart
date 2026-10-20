@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/limits.dart';
+import '../data/preferences.dart';
 import '../services/mail_service.dart';
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
@@ -52,6 +53,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
   String? _toError;
   String? _ccError;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // A brand-new message starts with the signature. A reply already carries a
+    // quoted body, so the signature is not forced into it.
+    if (widget.initialBody.isEmpty) {
+      final String signature = context.read<Preferences>().signature.trim();
+      if (signature.isNotEmpty) _body.text = '\n\n-- \n$signature';
+    }
+  }
 
   @override
   void dispose() {

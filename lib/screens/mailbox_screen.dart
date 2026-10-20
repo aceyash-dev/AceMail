@@ -1,24 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
-import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
-import '../widgets/avatar.dart';
 import '../widgets/confirm_exit.dart';
 import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
 import 'compose_screen.dart';
-import 'tutorial_screen.dart';
 
 /// The three-pane mailbox. Above [_wideBreakpoint] the folder rail, message
 /// list and reader sit side by side; below it the reader takes the screen and
 /// folders move into a drawer.
+///
+/// The app bar carries the brand and search. Accounts, help and settings live
+/// in the rail, so the top of the screen stays about the mail.
 class MailboxScreen extends StatefulWidget {
   const MailboxScreen({super.key});
 
@@ -32,6 +35,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
   MailController? _controller;
   String? _lastError;
 
+  final TextEditingController _search = TextEditingController();
+  Timer? _searchDebounce;
+  bool _searching = false;
+
+  /// The folder the current search belongs to, so a folder change can end it.
+  String? _searchFolder;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -44,25 +54,63 @@ class _MailboxScreenState extends State<MailboxScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _search.dispose();
     _controller?.removeListener(_onControllerChanged);
     super.dispose();
   }
 
   /// Surfaces a failure that would otherwise be swallowed — a folder that will
-  /// not load, a message that will not delete.
+  /// not load, a message that will not delete — and closes search when the
+  /// ground moves under it.
   void _onControllerChanged() {
-    final String? error = _controller?.sessionError;
+    final MailController? controller = _controller;
+    if (controller == null) return;
+
+    final String? error = controller.sessionError;
     if (error == null) {
       _lastError = null;
-      return;
+    } else if (error != _lastError) {
+      _lastError = error;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      });
     }
-    if (error == _lastError) return;
-    _lastError = error;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    if (!_searching) return;
+    final bool folderMoved = controller.selectedFolder?.path != _searchFolder;
+    final bool openedMessage = controller.openSummary != null;
+    if (folderMoved || openedMessage) {
+      // The session has already reset its own query in the folder case, so only
+      // the field and the mode need clearing.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _exitSearch(clearQuery: false);
+      });
+    }
+  }
+
+  void _openSearch() {
+    setState(() {
+      _searching = true;
+      _searchFolder = context.read<MailController>().selectedFolder?.path;
+    });
+  }
+
+  void _exitSearch({bool clearQuery = true}) {
+    _searchDebounce?.cancel();
+    _search.clear();
+    if (clearQuery) context.read<MailController>().clearSearch();
+    if (mounted) setState(() => _searching = false);
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 450), () {
       if (!mounted) return;
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      context.read<MailController>().search(value);
     });
   }
 
@@ -73,12 +121,15 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final bool wide =
         MediaQuery.sizeOf(context).width >= MailboxScreen._wideBreakpoint;
     final bool reading = controller.openSummary != null;
-    final String email = controller.account?.email ?? '';
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
+        if (_searching) {
+          _exitSearch();
+          return;
+        }
         // On a phone the first back closes the open message, not the app.
         if (!wide && controller.openSummary != null) {
           controller.closeMessage();
@@ -90,25 +141,21 @@ class _MailboxScreenState extends State<MailboxScreen> {
         backgroundColor: c.backgroundBody,
         appBar: AppBar(
           titleSpacing: AstryxSpace.s4,
-          title: Row(
-            children: <Widget>[
-              const BrandMark(size: 30),
-              const SizedBox(width: AstryxSpace.s3),
-              Text('Ace Mail', style: AstryxText.heading3(c.textPrimary)),
-            ],
-          ),
+          leading: _searching
+              ? AceIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  tooltip: 'Close search',
+                  onPressed: _exitSearch,
+                )
+              : null,
+          title: _searching ? _searchField(c) : _brand(c),
           actions: <Widget>[
-            _AccountChip(
-              email: email,
-              showEmail: wide,
-              onTap: () => showAccountSheet(context),
-            ),
-            AceIconButton(
-              icon: Icons.help_outline_rounded,
-              tooltip: 'How to sign in',
-              onPressed: () =>
-                  Navigator.of(context).push(aceRoute(const TutorialScreen())),
-            ),
+            if (!_searching && !(reading && !wide))
+              AceIconButton(
+                icon: Icons.search_rounded,
+                tooltip: 'Search',
+                onPressed: _openSearch,
+              ),
             const SizedBox(width: AstryxSpace.s2),
           ],
         ),
@@ -161,70 +208,44 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
   }
 
+  Widget _brand(AstryxColors c) {
+    return Row(
+      children: <Widget>[
+        const BrandMark(size: 30),
+        const SizedBox(width: AstryxSpace.s3),
+        Text('Ace Mail', style: AstryxText.heading3(c.textPrimary)),
+      ],
+    );
+  }
+
+  Widget _searchField(AstryxColors c) {
+    return TextField(
+      controller: _search,
+      autofocus: true,
+      onChanged: _onSearchChanged,
+      onSubmitted: (String value) {
+        _searchDebounce?.cancel();
+        context.read<MailController>().search(value);
+      },
+      textInputAction: TextInputAction.search,
+      style: AstryxText.body(c.textPrimary),
+      decoration: InputDecoration(
+        hintText: 'Search this folder',
+        border: InputBorder.none,
+        isDense: true,
+        hintStyle: AstryxText.body(c.textDisabled),
+      ),
+    );
+  }
+
   void _compose(BuildContext context) {
     Navigator.of(context).push(aceRoute(const ComposeScreen()));
   }
 
-  /// Shared with the sign-in screen, which needs the same question asked.
   Future<void> _confirmExit(BuildContext context) async {
-    if (await confirmExit(context)) await SystemNavigator.pop();
-  }
-}
-
-/// The signed-in account, tappable to switch accounts.
-class _AccountChip extends StatelessWidget {
-  const _AccountChip({
-    required this.email,
-    required this.showEmail,
-    required this.onTap,
-  });
-
-  final String email;
-  final bool showEmail;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-    final BorderRadius shape = BorderRadius.circular(AstryxRadius.full);
-
-    return Center(
-      child: Material(
-        color: c.backgroundMuted,
-        borderRadius: shape,
-        child: InkWell(
-          borderRadius: shape,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AstryxSpace.s2,
-              vertical: AstryxSpace.s1,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                MailAvatar(email: email, name: email, size: 26),
-                if (showEmail) ...<Widget>[
-                  const SizedBox(width: AstryxSpace.s2),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 180),
-                    child: Text(
-                      email,
-                      overflow: TextOverflow.ellipsis,
-                      style: AstryxText.supporting(c.textPrimary),
-                    ),
-                  ),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 18,
-                    color: c.iconSecondary,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    // The user can turn the confirmation off; then leaving just leaves.
+    final Preferences prefs = context.read<Preferences>();
+    if (prefs.confirmExit && !await confirmExit(context)) return;
+    await SystemNavigator.pop();
   }
 }

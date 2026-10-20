@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ace_mail/data/account_store.dart';
+import 'package:ace_mail/data/preferences.dart';
 import 'package:ace_mail/models/mail_folder.dart';
 import 'package:ace_mail/models/message_summary.dart';
 import 'package:ace_mail/state/mail_controller.dart';
@@ -152,6 +153,28 @@ void main() {
       expect(session.openMessage, isNotNull);
       expect(session.messages.first.isSeen, isTrue);
       expect(transport.markedSeen, session.messages.first.uid);
+    });
+
+    test('a message is left unread when that setting is off', () async {
+      final Preferences prefs = Preferences();
+      await prefs.setMarkAsReadOnOpen(false);
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(3));
+      transport.unread.add(1); // uid 1 arrives unread
+      final MailSession session = MailSession(
+        account: accountA,
+        password: 'p',
+        transport: transport,
+        preferences: prefs,
+      );
+      await session.connect();
+      expect(session.messages.first.isSeen, isFalse);
+
+      await session.open(session.messages.first);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.openMessage, isNotNull);
+      expect(session.messages.first.isSeen, isFalse);
+      expect(transport.markedSeen, isNull);
     });
 
     test('delete moves to Trash and never hard-deletes when Trash exists',

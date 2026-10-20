@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../data/account_store.dart';
+import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/full_message.dart';
 import '../models/mail_folder.dart';
@@ -27,14 +28,21 @@ enum MailStatus { signedOut, connecting, ready, failed }
 /// switching accounts is just a change of index — no screen needs to know how
 /// many accounts there are.
 class MailController extends ChangeNotifier {
-  MailController({AccountStore? store, MailTransportFactory? transportFactory})
-      : _store = store ?? AccountStore(),
-        _transportFactory = transportFactory;
+  MailController({
+    AccountStore? store,
+    MailTransportFactory? transportFactory,
+    Preferences? preferences,
+  })  : _store = store ?? AccountStore(),
+        _transportFactory = transportFactory,
+        _preferences = preferences;
 
   final AccountStore _store;
 
   /// Injectable so tests can drive the session without a mail server.
   final MailTransportFactory? _transportFactory;
+
+  /// Held by the sessions, which read the reading settings live.
+  final Preferences? _preferences;
   final List<MailSession> _sessions = <MailSession>[];
   int _activeIndex = 0;
 
@@ -254,6 +262,7 @@ class MailController extends ChangeNotifier {
         account: account,
         password: password,
         transport: _transportFactory?.call(account, password),
+        preferences: _preferences,
       );
 
   void _attach(MailSession session) {

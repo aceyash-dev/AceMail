@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Ace Mail mark for the launch window in dark mode. Same shape, but the
+     flap is cut out in ink so it matches the dark splash background instead of
+     glowing milk-white. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:pathData="M34,38 L74,38 Q79,38 79,43 L79,65 Q79,70 74,70 L34,70 Q29,70 29,65 L29,43 Q29,38 34,38 Z"
+        android:fillColor="@color/ace_orange" />
+
+    <path
+        android:pathData="M33,43 L54,58.5 L75,43"
+        android:fillColor="#00000000"
+        android:strokeColor="@color/ace_ink"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

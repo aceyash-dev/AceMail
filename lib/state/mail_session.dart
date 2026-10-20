@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/full_message.dart';
 import '../models/mail_folder.dart';
@@ -19,11 +20,19 @@ class MailSession extends ChangeNotifier {
     required this.account,
     required this.password,
     MailTransport? transport,
-  }) : _injected = transport;
+    Preferences? preferences,
+  })  : _injected = transport,
+        _preferences = preferences;
 
   final AceAccount account;
   final String password;
   final MailTransport? _injected;
+
+  /// Read live, so toggling "mark as read when opened" applies to the very
+  /// next message without rebuilding the session.
+  final Preferences? _preferences;
+
+  bool get _markAsRead => _preferences?.markAsReadOnOpen ?? true;
 
   /// How many messages a page holds. The list grows a page at a time.
   static const int pageSize = 40;
@@ -258,10 +267,13 @@ class MailSession extends ChangeNotifier {
       final FullMessage loaded = await _transport.fetchMessage(summary);
       if (token != _messageToken) return; // a newer message won
       openMessage = loaded;
-      _replace(summary.uid, summary.copyWith(isSeen: true));
-      // Set \Seen deliberately rather than as a side effect of reading, so the
-      // row and the server agree. Best effort: a failure must not hide the mail.
-      unawaited(_markSeenQuietly(summary));
+      if (_markAsRead) {
+        _replace(summary.uid, summary.copyWith(isSeen: true));
+        // Set \Seen deliberately rather than as a side effect of reading, so
+        // the row and the server agree. Best effort: a failure must not hide
+        // the mail.
+        unawaited(_markSeenQuietly(summary));
+      }
     } catch (error) {
       if (token != _messageToken) return;
       errorMessage = error.toString();

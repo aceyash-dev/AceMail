@@ -35,8 +35,10 @@ a custom theme, not a departure.
 - A built-in step-by-step guide — the `?` button on the sign-in screen and in
   the mailbox — covering app passwords, manual server settings, and what each
   connection error means.
-- Several accounts signed in at once, switchable from the account chip in the
-  app bar or the header in the folder rail.
+- Several accounts signed in at once, switchable from the header at the top of
+  the folder rail.
+- Search in the app bar; settings and help at the foot of the rail. The top of
+  the screen is about the mail.
 - Sender pictures from Gravatar, falling back to an initials chip. **Off by
   default**: the lookup sends a hash of every sender's address to a third
   party, and a hash of an address is not anonymous.
@@ -157,6 +159,22 @@ lib/
   util/                     dates, file picker, HTML body renderer
 assets/fonts/               Questrial-Regular.ttf
 ```
+
+## Settings
+
+Every setting changes something real and survives a restart.
+
+| Group | Setting | Effect |
+| --- | --- | --- |
+| Account | Manage accounts | Add, switch or remove accounts |
+| Account | Sender pictures | Gravatar lookups. Off by default |
+| Reading | Mark as read when opened | Whether opening sets `\Seen` on the server |
+| Reading | Signature | Appended to new messages |
+| Appearance | Theme | System, Light or Dark |
+| Appearance | Text size | Multiplies the device setting |
+| Appearance | Ask before exiting | Whether leaving the mailbox asks first |
+| Support | How to sign in | The step-by-step tutorial |
+| Support | About Ace Mail | Version and what the app does with your credentials |
 
 ## Tests
 

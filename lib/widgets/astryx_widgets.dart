@@ -155,23 +155,25 @@ class EnvelopePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double u = size.width / 108.0;
 
+    // Body 29..79 x 38..70, corner radius 5 — the same numbers as
+    // ic_launcher_foreground.xml.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(30 * u, 40 * u, 48 * u, 32 * u),
-        Radius.circular(4 * u),
+        Rect.fromLTWH(29 * u, 38 * u, 50 * u, 32 * u),
+        Radius.circular(5 * u),
       ),
       Paint()..color = color,
     );
 
     canvas.drawPath(
       Path()
-        ..moveTo(33 * u, 43.5 * u)
-        ..lineTo(54 * u, 59 * u)
-        ..lineTo(75 * u, 43.5 * u),
+        ..moveTo(33 * u, 43 * u)
+        ..lineTo(54 * u, 58.5 * u)
+        ..lineTo(75 * u, 43 * u),
       Paint()
         ..color = foldColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.5 * u
+        ..strokeWidth = 5.5 * u
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
