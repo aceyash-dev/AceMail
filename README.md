@@ -85,25 +85,28 @@ builds two things:
 | iOS, macOS | No | need macOS runners |
 | Windows | No | needs a Windows runner |
 
+The Linux runner project is committed, so the Linux job works from a clean
+checkout. The other three are not, which is why they are not claimed.
+
 The app targets all five, but only the two above are built automatically, so
 those are the two that cannot silently rot. The rest need the runner projects
 generated first (below) and are built by hand.
 
-For iOS, macOS, Windows and Linux, generate those runner projects once and copy
-them in:
+For iOS, macOS and Windows, generate those runner projects once and copy them
+in (Linux is already in the repository):
 
 ```bash
 flutter create --org dev.acebase --project-name ace_mail \
-  --platforms=ios,macos,windows,linux /tmp/ace_scaffold
+  --platforms=ios,macos,windows /tmp/ace_scaffold
 
 cp -R /tmp/ace_scaffold/ios /tmp/ace_scaffold/macos \
-      /tmp/ace_scaffold/windows /tmp/ace_scaffold/linux .
+      /tmp/ace_scaffold/windows .
 ```
 
 Doing it this way (rather than `flutter create .`) avoids overwriting
 `lib/main.dart` and `pubspec.yaml`.
 
-Linux desktop additionally needs `libsecret` for the keychain:
+Linux desktop additionally needs `libsecret` for the keychain — CI installs it:
 
 ```bash
 sudo apt install libsecret-1-dev
