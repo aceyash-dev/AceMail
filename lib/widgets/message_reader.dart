@@ -58,107 +58,127 @@ class _MessageReaderState extends State<MessageReader> {
               _drag = 0;
             },
       child: Container(
-      color: c.backgroundSurface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          _toolbar(context, c, message),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AstryxSpace.s6,
-                0,
-                AstryxSpace.s6,
-                AstryxSpace.s6,
-              ),
+        color: c.backgroundSurface,
+        child: Stack(
+          children: <Widget>[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                if (widget.onBack != null) _topBar(context),
+                Expanded(
+                  child: SingleChildScrollView(
+                    // Clearance for the floating toolbar.
+                    padding: const EdgeInsets.fromLTRB(
+                      AstryxSpace.s6,
+                      0,
+                      AstryxSpace.s6,
+                      104,
+                    ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    message.subject,
-                    style: AstryxText.heading2(c.textPrimary),
-                  ),
-                  const SizedBox(height: AstryxSpace.s2),
-                  _meta(c, message),
-                  if (message.attachments.isNotEmpty ||
-                      message.skippedAttachments > 0) ...<Widget>[
-                    const SizedBox(height: AstryxSpace.s4),
-                    _attachments(context, c, message),
-                    if (message.skippedAttachments > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AstryxSpace.s2),
-                        child: Text(
-                          '${message.skippedAttachments} attachment(s) were too '
-                          'large to open here.',
-                          style: AstryxText.supporting(c.textSecondary),
+                    Text(
+                      message.subject,
+                      style: AstryxText.heading2(c.textPrimary),
+                    ),
+                    const SizedBox(height: AstryxSpace.s2),
+                    _meta(c, message),
+                    if (message.attachments.isNotEmpty ||
+                        message.skippedAttachments > 0) ...<Widget>[
+                      const SizedBox(height: AstryxSpace.s4),
+                      _attachments(context, c, message),
+                      if (message.skippedAttachments > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: AstryxSpace.s2),
+                          child: Text(
+                            '${message.skippedAttachments} attachment(s) were too '
+                            'large to open here.',
+                            style: AstryxText.supporting(c.textSecondary),
+                          ),
                         ),
-                      ),
-                  ],
-                  const SizedBox(height: AstryxSpace.s4),
-                  Divider(height: 1, color: c.border),
-                  const SizedBox(height: AstryxSpace.s4),
-                  _body(c, message),
-                ],
+                    ],
+                    const SizedBox(height: AstryxSpace.s4),
+                    Divider(height: 1, color: c.border),
+                    const SizedBox(height: AstryxSpace.s4),
+                      _body(c, message),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+          Positioned(
+              left: AstryxSpace.s4,
+              right: AstryxSpace.s4,
+              bottom: AstryxSpace.s5,
+              child: Center(child: _actions(context, message)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _toolbar(BuildContext context, AstryxColors c, FullMessage message) {
-    final bool flagged =
-        context.watch<MailController>().openSummary?.isFlagged ?? false;
+  /// Just the back affordance. The actions live in the floating toolbar at the
+  /// bottom, where a thumb can reach them.
+  Widget _topBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AstryxSpace.s4,
         AstryxSpace.s3,
-        AstryxSpace.s4,
-        AstryxSpace.s2,
+        AstryxSpace.s3,
+        AstryxSpace.s3,
+        AstryxSpace.s1,
       ),
       child: Row(
         children: <Widget>[
-          if (widget.onBack != null)
-            AceIconButton(
-              icon: Icons.arrow_back_rounded,
-              tooltip: 'Back',
-              onPressed: widget.onBack,
-            ),
-          const Spacer(),
           AceIconButton(
-            icon: flagged ? Icons.star_rounded : Icons.star_border_rounded,
-            tooltip: flagged ? 'Remove flag' : 'Flag',
-            onPressed: () => context.read<MailController>().toggleOpenFlagged(),
-          ),
-          AceIconButton(
-            icon: Icons.mark_email_unread_outlined,
-            tooltip: 'Mark as unread',
-            onPressed: () {
-              context.read<MailController>().markOpenUnread();
-              widget.onBack?.call();
-            },
-          ),
-          AceButton(
-            label: 'Reply',
-            variant: AceButtonVariant.ghost,
-            onPressed: () => _reply(context, message),
-          ),
-          const SizedBox(width: AstryxSpace.s2),
-          AceButton(
-            label: 'Reply all',
-            variant: AceButtonVariant.ghost,
-            onPressed: () => _reply(context, message, all: true),
-          ),
-          const SizedBox(width: AstryxSpace.s2),
-          AceButton(
-            label: 'Delete',
-            variant: AceButtonVariant.danger,
-            onPressed: () => _confirmDelete(context),
+            icon: Icons.arrow_back_rounded,
+            tooltip: 'Back',
+            onPressed: widget.onBack,
           ),
         ],
       ),
+    );
+  }
+
+  /// The expressive floating toolbar.
+  Widget _actions(BuildContext context, FullMessage message) {
+    final bool flagged =
+        context.watch<MailController>().openSummary?.isFlagged ?? false;
+
+    return AceToolbar(
+      actions: <AceToolbarAction>[
+        AceToolbarAction(
+          icon: Icons.reply_rounded,
+          tooltip: 'Reply',
+          onPressed: () => _reply(context, message),
+        ),
+        AceToolbarAction(
+          icon: Icons.reply_all_rounded,
+          tooltip: 'Reply all',
+          onPressed: () => _reply(context, message, all: true),
+        ),
+        AceToolbarAction(
+          icon: flagged ? Icons.star_rounded : Icons.star_border_rounded,
+          tooltip: flagged ? 'Remove flag' : 'Flag',
+          selected: flagged,
+          onPressed: () => context.read<MailController>().toggleOpenFlagged(),
+        ),
+        AceToolbarAction(
+          icon: Icons.mark_email_unread_outlined,
+          tooltip: 'Mark as unread',
+          onPressed: () {
+            context.read<MailController>().markOpenUnread();
+            widget.onBack?.call();
+          },
+        ),
+        AceToolbarAction(
+          icon: Icons.delete_outline_rounded,
+          tooltip: 'Delete',
+          destructive: true,
+          onPressed: () => _confirmDelete(context),
+        ),
+      ],
     );
   }
 

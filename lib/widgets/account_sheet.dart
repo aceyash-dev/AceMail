@@ -1,27 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/preferences.dart';
+import '../screens/settings_screen.dart';
 import '../screens/sign_in_screen.dart';
 import '../state/mail_controller.dart';
 import '../state/mail_session.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
+import 'astryx_widgets.dart';
 import 'avatar.dart';
 
 /// Bottom sheet listing every signed-in account: tap to switch, add another,
 /// or remove one.
+///
+/// Grouped the way the rest of the app's lists are — a section of accounts,
+/// then a section of actions.
 Future<void> showAccountSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: context.astryx.backgroundSurface,
-    showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AstryxRadius.page),
-      ),
-    ),
     builder: (BuildContext sheetContext) => const AccountSheet(),
   );
 }
@@ -35,66 +32,96 @@ class AccountSheet extends StatelessWidget {
     final MailController controller = context.watch<MailController>();
 
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AstryxSpace.s5,
-              0,
-              AstryxSpace.s5,
-              AstryxSpace.s2,
-            ),
-            child: Text('Accounts', style: AstryxText.heading3(c.textPrimary)),
-          ),
-          for (int i = 0; i < controller.sessions.length; i++)
-            _AccountTile(
-              session: controller.sessions[i],
-              index: i,
-              active: i == controller.activeIndex,
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AstryxSpace.s3,
-              AstryxSpace.s2,
-              AstryxSpace.s3,
-              AstryxSpace.s3,
-            ),
-            child: ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AstryxRadius.element),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s6,
+                AstryxSpace.s1,
+                AstryxSpace.s6,
+                AstryxSpace.s4,
               ),
-              leading: Icon(Icons.add_rounded, color: c.accent),
-              title: Text(
-                'Add another account',
-                style: AstryxText.bodyStrong(c.textAccent),
-              ),
-              onTap: () {
-                final NavigatorState nav = Navigator.of(context);
-                nav.pop();
-                nav.push(aceRoute(const SignInScreen(isAdding: true)));
-              },
+              child: Text('Accounts', style: AstryxText.heading2(c.textPrimary)),
             ),
-          ),
-          Divider(height: 1, color: c.border),
-          SwitchListTile(
-            value: context.watch<Preferences>().showAvatars,
-            onChanged: (bool value) =>
-                context.read<Preferences>().setShowAvatars(value),
-            title: Text(
-              'Sender pictures',
-              style: AstryxText.body(c.textPrimary),
+            _Group(
+              children: <Widget>[
+                for (int i = 0; i < controller.sessions.length; i++)
+                  _AccountTile(
+                    session: controller.sessions[i],
+                    index: i,
+                    active: i == controller.activeIndex,
+                  ),
+              ],
             ),
-            subtitle: Text(
-              'Off by default. Turning this on sends a hash of every sender\'s '
-              'address to gravatar.com, which is not anonymous — addresses are '
-              'guessable and can be hashed by anyone.',
-              style: AstryxText.supporting(c.textSecondary),
+            _Group(
+              children: <Widget>[
+                AceListTile(
+                  leading: Icon(Icons.add_rounded, color: c.accent),
+                  title: 'Add another account',
+                  onTap: () {
+                    final NavigatorState nav = Navigator.of(context);
+                    nav.pop();
+                    nav.push(aceRoute(const SignInScreen(isAdding: true)));
+                  },
+                ),
+                AceListTile(
+                  leading: Icon(
+                    Icons.settings_outlined,
+                    color: c.iconSecondary,
+                  ),
+                  title: 'Settings',
+                  onTap: () {
+                    final NavigatorState nav = Navigator.of(context);
+                    nav.pop();
+                    nav.push(aceRoute(const SettingsScreen()));
+                  },
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: AstryxSpace.s2),
-        ],
+            const SizedBox(height: AstryxSpace.s5),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A tonal card holding a run of rows.
+class _Group extends StatelessWidget {
+  const _Group({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AstryxSpace.s3,
+        0,
+        AstryxSpace.s3,
+        AstryxSpace.s3,
+      ),
+      child: AceSurface(
+        squircle: true,
+        padding: const EdgeInsets.symmetric(vertical: AstryxSpace.s1),
+        child: Column(
+          children: <Widget>[
+            for (int i = 0; i < children.length; i++) ...<Widget>[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  indent: AstryxSpace.s11,
+                  endIndent: AstryxSpace.s3,
+                  color: c.border,
+                ),
+              children[i],
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -116,47 +143,34 @@ class _AccountTile extends StatelessWidget {
     final AstryxColors c = context.astryx;
     final String email = session.account.email;
 
-    return Padding(
+    return AceListTile(
+      selected: active,
+      onTap: () {
+        context.read<MailController>().switchTo(index);
+        Navigator.of(context).pop();
+      },
       padding: const EdgeInsets.symmetric(
         horizontal: AstryxSpace.s3,
-        vertical: AstryxSpace.s0_5,
+        vertical: AstryxSpace.s2,
       ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AstryxRadius.element),
-        ),
-        tileColor: active ? c.accentMuted : null,
-        leading: MailAvatar(email: email, name: email, size: 40),
-        title: Text(
-          email,
-          overflow: TextOverflow.ellipsis,
-          style: AstryxText.body(active ? c.textAccent : c.textPrimary),
-        ),
-        subtitle: Text(
-          active
-              ? 'Active'
-              : (session.isReady ? 'Signed in' : 'Connecting…'),
-          style: AstryxText.supporting(c.textSecondary),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (active) Icon(Icons.check_circle_rounded, size: 20, color: c.accent),
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline_rounded,
-                size: 20,
-                color: c.iconSecondary,
-              ),
-              tooltip: 'Remove account',
-              onPressed: () => _remove(context),
-            ),
-          ],
-        ),
-        onTap: () {
-          context.read<MailController>().switchTo(index);
-          Navigator.of(context).pop();
-        },
+      leading: MailAvatar(email: email, name: email, size: 42),
+      title: email,
+      subtitle: active
+          ? 'Active'
+          : (session.isReady ? 'Signed in' : 'Connecting…'),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (active)
+            Icon(Icons.check_circle_rounded, size: 20, color: c.accent),
+          AceIconButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: 'Remove account',
+            variant: AceIconButtonVariant.danger,
+            size: AstryxSize.elementMd,
+            onPressed: () => _remove(context),
+          ),
+        ],
       ),
     );
   }

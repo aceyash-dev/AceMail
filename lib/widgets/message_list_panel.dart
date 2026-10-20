@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +11,8 @@ import '../util/dates.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 
+/// The message list, under a large title that collapses as it scrolls — the
+/// Material 3 Expressive large app bar, scoped to this pane.
 class MessageListPanel extends StatelessWidget {
   const MessageListPanel({super.key});
 
@@ -18,156 +22,169 @@ class MessageListPanel extends StatelessWidget {
     final MailController controller = context.watch<MailController>();
 
     return Container(
-      color: c.backgroundSurface,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          _ListHeader(title: controller.selectedFolder?.label ?? 'Mail'),
-          Divider(height: 1, color: c.border),
-          Expanded(child: _body(context, controller)),
-        ],
+      color: c.backgroundBody,
+      child: RefreshIndicator(
+        onRefresh: () => context.read<MailController>().refreshMessages(),
+        color: c.accent,
+        backgroundColor: c.backgroundSurface,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: <Widget>[
+            SliverAppBar.large(
+              pinned: true,
+              automaticallyImplyLeading: false,
+              backgroundColor: c.backgroundBody,
+              surfaceTintColor: Colors.transparent,
+              foregroundColor: c.textPrimary,
+              expandedHeight: 132,
+              title: Text(
+                controller.selectedFolder?.label ?? 'Mail',
+                style: AstryxText.heading2(c.textPrimary),
+              ),
+              actions: <Widget>[
+                AceIconButton(
+                  icon: Icons.refresh_rounded,
+                  tooltip: 'Refresh',
+                  onPressed: () =>
+                      context.read<MailController>().refreshMessages(),
+                ),
+                const SizedBox(width: AstryxSpace.s2),
+              ],
+            ),
+            ..._slivers(context, controller),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _body(BuildContext context, MailController controller) {
+  List<Widget> _slivers(BuildContext context, MailController controller) {
     final AstryxColors c = context.astryx;
 
     if (controller.loadingMessages) {
-      return const Center(child: AceLoader());
+      return <Widget>[
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(child: AceLoader()),
+        ),
+      ];
     }
 
     // A failed fetch used to look like an empty folder. Say what happened.
     final String? error = controller.sessionError;
     if (controller.messages.isEmpty && error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AstryxSpace.s5),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.error_outline_rounded, size: 28, color: c.error),
-              const SizedBox(height: AstryxSpace.s3),
-              Text(
-                error,
-                textAlign: TextAlign.center,
-                style: AstryxText.supporting(c.error),
-              ),
-              const SizedBox(height: AstryxSpace.s4),
-              AceButton(
-                label: 'Try again',
-                icon: Icons.refresh_rounded,
-                onPressed: () =>
-                    context.read<MailController>().refreshMessages(),
-              ),
-            ],
+      return <Widget>[
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Centred(
+            icon: Icons.error_outline_rounded,
+            iconColor: c.error,
+            message: error,
+            action: AceButton(
+              label: 'Try again',
+              icon: Icons.refresh_rounded,
+              variant: AceButtonVariant.tonal,
+              onPressed: () => context.read<MailController>().refreshMessages(),
+            ),
           ),
         ),
-      );
+      ];
     }
 
     if (controller.messages.isEmpty) {
-      return Center(
-        child: Text(
-          controller.searchQuery == null
-              ? 'This folder is empty.'
-              : 'Nothing matched “${controller.searchQuery}”.',
-          textAlign: TextAlign.center,
-          style: AstryxText.body(c.textSecondary),
+      return <Widget>[
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Centred(
+            icon: Icons.mark_email_read_outlined,
+            iconColor: c.iconDisabled,
+            message: controller.searchQuery == null
+                ? 'This folder is empty.'
+                : 'Nothing matched “${controller.searchQuery}”.',
+          ),
         ),
-      );
+      ];
     }
 
-    // One extra row at the end when there are older messages to pull in.
-    final int count =
-        controller.messages.length + (controller.hasMore ? 1 : 0);
-
-    return RefreshIndicator(
-      onRefresh: () => context.read<MailController>().refreshMessages(),
-      color: c.accent,
-      backgroundColor: c.backgroundSurface,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: count,
-        separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
-        itemBuilder: (BuildContext context, int index) {
-          if (index >= controller.messages.length) {
-            return _LoadMoreRow(loading: controller.loadingMore);
-          }
-          final MessageSummary summary = controller.messages[index];
-          return MessageTile(
-            key: ValueKey<int>(summary.uid),
-            summary: summary,
-            index: index,
-            selected: controller.openSummary?.uid == summary.uid,
-            onTap: () => context.read<MailController>().open(summary),
-          );
-        },
+    return <Widget>[
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
+        sliver: SliverList.builder(
+          itemCount: controller.messages.length,
+          itemBuilder: (BuildContext context, int index) {
+            final MessageSummary summary = controller.messages[index];
+            return MessageTile(
+              key: ValueKey<int>(summary.uid),
+              summary: summary,
+              index: index,
+              selected: controller.openSummary?.uid == summary.uid,
+              onTap: () => context.read<MailController>().open(summary),
+            );
+          },
+        ),
       ),
-    );
+      if (controller.hasMore)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AstryxSpace.s6),
+            child: Center(
+              child: controller.loadingMore
+                  ? const AceLoader(size: 34)
+                  : AceButton(
+                      label: 'Load older messages',
+                      icon: Icons.expand_more_rounded,
+                      variant: AceButtonVariant.tonal,
+                      onPressed: () =>
+                          context.read<MailController>().loadMore(),
+                    ),
+            ),
+          ),
+        ),
+      const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s10)),
+    ];
   }
 }
 
-class _LoadMoreRow extends StatelessWidget {
-  const _LoadMoreRow({required this.loading});
+class _Centred extends StatelessWidget {
+  const _Centred({
+    required this.icon,
+    required this.iconColor,
+    required this.message,
+    this.action,
+  });
 
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AstryxSpace.s5),
-      child: Center(
-        child: loading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.4),
-              )
-            : AceButton(
-                label: 'Load older messages',
-                icon: Icons.expand_more_rounded,
-                onPressed: () => context.read<MailController>().loadMore(),
-              ),
-      ),
-    );
-  }
-}
-
-/// The folder name and a refresh button. Search lives in the app bar now, so
-/// there is exactly one place to look for it.
-class _ListHeader extends StatelessWidget {
-  const _ListHeader({required this.title});
-
-  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final String message;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AstryxSpace.s5,
-        AstryxSpace.s4,
-        AstryxSpace.s3,
-        AstryxSpace.s3,
-      ),
-      child: Row(
+      padding: const EdgeInsets.all(AstryxSpace.s6),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Expanded(
-            child: Text(title, style: AstryxText.heading2(c.textPrimary)),
+          Icon(icon, size: 32, color: iconColor),
+          const SizedBox(height: AstryxSpace.s3),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AstryxText.body(c.textSecondary),
           ),
-          AceIconButton(
-            icon: Icons.refresh_rounded,
-            tooltip: 'Refresh',
-            onPressed: () => context.read<MailController>().refreshMessages(),
-          ),
+          if (action != null) ...<Widget>[
+            const SizedBox(height: AstryxSpace.s5),
+            action!,
+          ],
         ],
       ),
     );
   }
 }
 
+/// One message row. Springs on press, morphs its corners, and states unread
+/// with weight and a dot rather than a colour change alone.
 class MessageTile extends StatelessWidget {
   const MessageTile({
     super.key,
@@ -189,97 +206,108 @@ class MessageTile extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: Duration(milliseconds: 200 + (index.clamp(0, 8) * 24)),
-      curve: Curves.easeOutCubic,
+      duration: Duration(milliseconds: 260 + (index.clamp(0, 8) * 28)),
+      curve: AstryxMotion.emphasizedDecelerate,
       builder: (BuildContext context, double t, Widget? child) => Opacity(
         opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, (1 - t) * 8),
-          child: child,
-        ),
+        child: Transform.translate(offset: Offset(0, (1 - t) * 10), child: child),
       ),
-      child: Material(
-        color: selected ? c.accentMuted : c.backgroundSurface,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AstryxSpace.s5,
-              vertical: AstryxSpace.s3,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                MailAvatar(
-                  email: summary.fromEmail,
-                  name: summary.fromName,
-                  size: 40,
-                ),
-                const SizedBox(width: AstryxSpace.s3),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              summary.fromName,
-                              overflow: TextOverflow.ellipsis,
-                              style: unread
-                                  ? AstryxText.bodyStrong(c.textPrimary)
-                                  : AstryxText.body(c.textSecondary),
-                            ),
-                          ),
-                          const SizedBox(width: AstryxSpace.s2),
-                          Text(
-                            formatListDate(summary.date),
-                            style: AstryxText.supporting(c.textSecondary),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AstryxSpace.s0_5),
-                      Row(
-                        children: <Widget>[
-                          if (summary.isFlagged) ...<Widget>[
-                            Icon(
-                              Icons.star_rounded,
-                              size: 15,
-                              color: c.accent,
-                            ),
-                            const SizedBox(width: AstryxSpace.s1),
-                          ],
-                          Expanded(
-                            child: Text(
-                              summary.subject,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: unread
-                                  ? AstryxText.body(c.textPrimary)
-                                  : AstryxText.body(c.textSecondary),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+      child: AceSpringy(
+        onTap: onTap,
+        builder: (BuildContext context, double press, bool hover) {
+          final double t = press.clamp(0.0, 1.0);
+          final BorderRadius shape = BorderRadius.circular(
+            lerpDouble(AstryxRadius.container, AstryxRadius.inner, t)!,
+          );
+
+          return Transform.scale(
+            scale: 1 - 0.02 * press,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AstryxSpace.s3,
+                vertical: AstryxSpace.s3,
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? c.accentMuted
+                    : (hover ? c.surfaceHighest : Colors.transparent),
+                borderRadius: shape,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  MailAvatar(
+                    email: summary.fromEmail,
+                    name: summary.fromName,
+                    size: 42,
                   ),
-                ),
-                if (unread) ...<Widget>[
-                  const SizedBox(width: AstryxSpace.s2),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(top: AstryxSpace.s1_5),
-                    decoration: BoxDecoration(
-                      color: c.accent,
-                      shape: BoxShape.circle,
+                  const SizedBox(width: AstryxSpace.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                summary.fromName,
+                                overflow: TextOverflow.ellipsis,
+                                style: unread
+                                    ? AstryxText.bodyStrong(c.textPrimary)
+                                    : AstryxText.body(c.textSecondary),
+                              ),
+                            ),
+                            const SizedBox(width: AstryxSpace.s2),
+                            Text(
+                              formatListDate(summary.date),
+                              style: AstryxText.supporting(c.textSecondary),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AstryxSpace.s0_5),
+                        Row(
+                          children: <Widget>[
+                            if (summary.isFlagged) ...<Widget>[
+                              Icon(
+                                Icons.star_rounded,
+                                size: 15,
+                                color: c.tertiary,
+                              ),
+                              const SizedBox(width: AstryxSpace.s1),
+                            ],
+                            Expanded(
+                              child: Text(
+                                summary.subject,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: unread
+                                    ? AstryxText.body(c.textPrimary)
+                                    : AstryxText.body(c.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                  if (unread) ...<Widget>[
+                    const SizedBox(width: AstryxSpace.s2),
+                    Container(
+                      width: 9,
+                      height: 9,
+                      margin: const EdgeInsets.only(top: AstryxSpace.s1_5),
+                      decoration: BoxDecoration(
+                        color: c.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -196,6 +196,8 @@ class _SignInScreenState extends State<SignInScreen> {
                             AceButton(
                               label: connecting ? 'Connecting…' : 'Connect',
                               variant: AceButtonVariant.primary,
+                              size: AceButtonSize.large,
+                              loading: connecting,
                               expand: true,
                               onPressed: connecting ? null : _submit,
                             ),
@@ -230,12 +232,13 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Ace Mail', style: AstryxText.heading1(c.textPrimary)),
+              Text('Ace Mail', style: AstryxText.display3(c.textPrimary)),
+              const SizedBox(height: AstryxSpace.s0_5),
               Text(
                 widget.isAdding
                     ? 'Add another account'
                     : 'Any IMAP · any SMTP · any device',
-                style: AstryxText.supporting(c.textSecondary),
+                style: AstryxText.body(c.textSecondary),
               ),
             ],
           ),

@@ -162,11 +162,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
         drawer: wide ? null : const Drawer(child: FolderRail()),
         floatingActionButton: wide
             ? null
-            : FloatingActionButton(
+            : AceFab(
+                label: 'Compose',
+                icon: Icons.edit_outlined,
                 onPressed: () => _compose(context),
-                backgroundColor: c.accent,
-                foregroundColor: c.onAccent,
-                child: const Icon(Icons.edit_outlined),
               ),
         body: wide
             ? Row(
@@ -219,21 +218,40 @@ class _MailboxScreenState extends State<MailboxScreen> {
   }
 
   Widget _searchField(AstryxColors c) {
-    return TextField(
-      controller: _search,
-      autofocus: true,
-      onChanged: _onSearchChanged,
-      onSubmitted: (String value) {
-        _searchDebounce?.cancel();
-        context.read<MailController>().search(value);
-      },
-      textInputAction: TextInputAction.search,
-      style: AstryxText.body(c.textPrimary),
-      decoration: InputDecoration(
-        hintText: 'Search this folder',
-        border: InputBorder.none,
-        isDense: true,
-        hintStyle: AstryxText.body(c.textDisabled),
+    // A pill, matching every other control in the expressive layer.
+    return Container(
+      height: AstryxSize.elementLg,
+      padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s4),
+      decoration: BoxDecoration(
+        color: c.backgroundMuted,
+        borderRadius: BorderRadius.circular(AstryxRadius.full),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.search_rounded, size: 18, color: c.iconSecondary),
+          const SizedBox(width: AstryxSpace.s2),
+          Expanded(
+            child: TextField(
+              controller: _search,
+              autofocus: true,
+              onChanged: _onSearchChanged,
+              onSubmitted: (String value) {
+                _searchDebounce?.cancel();
+                context.read<MailController>().search(value);
+              },
+              textInputAction: TextInputAction.search,
+              style: AstryxText.body(c.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Search this folder',
+                border: InputBorder.none,
+                isDense: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+                hintStyle: AstryxText.body(c.textDisabled),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

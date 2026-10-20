@@ -54,7 +54,10 @@ class AceFormField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(label, style: AstryxText.label(c.textSecondary)),
+        Padding(
+          padding: const EdgeInsets.only(left: AstryxSpace.s1),
+          child: Text(label, style: AstryxText.label(c.textSecondary)),
+        ),
         const SizedBox(height: AstryxSpace.s1_5),
         if (trailing == null)
           field
@@ -120,15 +123,15 @@ class AceErrorBox extends StatelessWidget {
     final AstryxColors c = context.astryx;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AstryxSpace.s3),
+      padding: const EdgeInsets.all(AstryxSpace.s4),
       decoration: BoxDecoration(
         color: c.errorMuted,
-        borderRadius: BorderRadius.circular(AstryxRadius.element),
+        borderRadius: BorderRadius.circular(AstryxRadius.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(message, style: AstryxText.supporting(c.error)),
+          Text(message, style: AstryxText.supporting(c.onErrorMuted)),
           if (action != null) ...<Widget>[
             const SizedBox(height: AstryxSpace.s3),
             action!,

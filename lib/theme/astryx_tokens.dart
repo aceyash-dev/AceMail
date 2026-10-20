@@ -1,15 +1,18 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
-/// Astryx design tokens.
+/// Astryx's type scale, on a geometric ramp.
 ///
-/// Ported from Meta's Astryx design system token reference
-/// (astryx.atmeta.com/docs/tokens). Astryx is token-driven: components read
-/// semantic tokens, never raw values. This file holds the raw scales —
-/// typography, spacing, radius, control size — and [AstryxColors] holds the
-/// semantic palette, themed with the Ace Mail brand exactly the way Astryx's
-/// `defineTheme` overrides a theme.
-
-/// Geometric type scale: round(14 × 1.2^step).
+/// Astryx names families per role and leaves loading to the app; its own
+/// default is Figtree. This theme uses **Questrial** for every role.
+///
+/// Questrial ships one weight — Regular. That is a real constraint, not an
+/// oversight: hierarchy here is carried by size, tracking and colour, and the
+/// weight values are kept so the roles stay faithful to Astryx the moment a
+/// weighted companion is bundled alongside it. Material 3 Expressive wants a
+/// high-contrast scale, so the display end of this ramp is deliberately further
+/// from the body end than a default M3 scale would be.
 abstract final class AstryxType {
   static const double base = 14;
   static const double ratio = 1.2;
@@ -27,21 +30,26 @@ abstract final class AstryxType {
   static const double s4xl = 35;
   static const double s5xl = 42;
 
+  /// Expressive additions — the display end of the ramp.
+  static const double s6xl = 50;
+  static const double s7xl = 60;
+
   static const FontWeight normal = FontWeight.w400;
   static const FontWeight medium = FontWeight.w500;
   static const FontWeight semibold = FontWeight.w600;
   static const FontWeight bold = FontWeight.w700;
 
-  /// Astryx leading rule: a tiered target ratio snapped to the 4px grid.
-  /// Small text (<20px) targets 1.5, medium (20–31px) 1.4, large (>=32px) 1.25.
-  static double leading(double fontSize) {
-    final double target = fontSize < 20 ? 1.5 : (fontSize < 32 ? 1.4 : 1.25);
-    final double snapped = (fontSize * target / 4).round() * 4;
-    return snapped / fontSize;
+  /// Line height for a given size, kept tight at the display end the way an
+  /// expressive scale wants it and looser for body copy.
+  static double leading(double size) {
+    if (size >= 35) return 1.06;
+    if (size >= 24) return 1.14;
+    if (size >= 17) return 1.32;
+    return 1.45;
   }
 }
 
-/// 4px base-unit spacing scale (0 – 48px).
+/// Astryx's spacing scale, in 4s.
 abstract final class AstryxSpace {
   static const double s0 = 0;
   static const double s0_5 = 2;
@@ -60,182 +68,282 @@ abstract final class AstryxSpace {
   static const double s12 = 48;
 }
 
-/// Radius by role, from a 4dp base unit.
+/// Astryx's shape scale, widened with the larger, softer corners Material 3
+/// Expressive uses for buttons, sheets and large surfaces.
 abstract final class AstryxRadius {
   static const double none = 0;
   static const double inner = 8;
   static const double element = 12;
   static const double container = 16;
+  static const double lg = 24;
   static const double chat = 28;
   static const double page = 32;
+  static const double xxl = 36;
   static const double full = 9999;
+
+  /// Sheets and dialogs, at the size M3 Expressive gives them.
+  static const double sheet = 28;
+
+  /// A stadium: buttons and chips are fully rounded in expressive M3.
+  static const double pill = full;
 }
 
-/// Fixed control heights, plus the minimum pointer target.
+/// Astryx's element sizes.
 abstract final class AstryxSize {
   static const double elementSm = 28;
   static const double elementMd = 32;
-  static const double elementLg = 36;
+  static const double elementLg = 40;
+  static const double elementXl = 56;
   static const double touchTarget = 44;
 }
 
-/// Semantic colour tokens. Each token carries a light and a dark value, as in
-/// Astryx, so nothing in the app references a raw hex.
+/// Continuous corners — the squircle Material 3 Expressive favours for large
+/// surfaces, where a plain rounded rectangle reads too sharp.
+abstract final class AstryxShape {
+  /// A true superellipse: `|x/a|^n + |y/b|^n = 1`.
+  ///
+  /// `exponent` 2 is a circle, 4 is the classic squircle, higher is squarer.
+  static Path squircle(Rect rect, {double exponent = 4, int samples = 72}) {
+    final double a = rect.width / 2;
+    final double b = rect.height / 2;
+    final double cx = rect.center.dx;
+    final double cy = rect.center.dy;
+    final double power = 2 / exponent;
+
+    final Path path = Path();
+    for (int i = 0; i <= samples; i++) {
+      final double t = (i / samples) * 2 * math.pi;
+      final double ct = math.cos(t);
+      final double st = math.sin(t);
+      final double x =
+          cx + a * ct.sign * math.pow(ct.abs(), power).toDouble();
+      final double y =
+          cy + b * st.sign * math.pow(st.abs(), power).toDouble();
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    return path..close();
+  }
+}
+
+/// A continuous-corner border, for Material widgets that take a [ShapeBorder].
 @immutable
-class AstryxColors {
+class AceSquircleBorder extends OutlinedBorder {
+  const AceSquircleBorder({
+    super.side = BorderSide.none,
+    this.exponent = 4,
+  });
+
+  final double exponent;
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.all(side.width);
+
+  @override
+  AceSquircleBorder scale(double t) =>
+      AceSquircleBorder(side: side.scale(t), exponent: exponent);
+
+  @override
+  AceSquircleBorder copyWith({BorderSide? side}) =>
+      AceSquircleBorder(side: side ?? this.side, exponent: exponent);
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      AstryxShape.squircle(rect.deflate(side.width), exponent: exponent);
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      AstryxShape.squircle(rect, exponent: exponent);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    if (side.style == BorderStyle.none) return;
+    canvas.drawPath(getOuterPath(rect), side.toPaint());
+  }
+}
+
+/// Astryx's motion tokens.
+///
+/// Material 3 Expressive motion is spring-based rather than curve-based: things
+/// that move use a spatial spring, things that only change colour or opacity
+/// use an effects spring that never overshoots. Flutter does not ship these, so
+/// they live here and are applied by [AceSpringy] and the route transitions.
+abstract final class AstryxMotion {
+  /// Moving something small, like a press morph.
+  static const SpringDescription spatialFast =
+      SpringDescription(mass: 1, stiffness: 1400, damping: 68);
+
+  /// The default for anything that travels.
+  static const SpringDescription spatialDefault =
+      SpringDescription(mass: 1, stiffness: 700, damping: 48);
+
+  /// Large surfaces, sheets, page-level movement.
+  static const SpringDescription spatialSlow =
+      SpringDescription(mass: 1, stiffness: 300, damping: 32);
+
+  /// Colour and opacity. Critically damped, so it settles without a wobble.
+  static const SpringDescription effectsFast =
+      SpringDescription(mass: 1, stiffness: 1400, damping: 75);
+
+  static const SpringDescription effectsDefault =
+      SpringDescription(mass: 1, stiffness: 700, damping: 53);
+
+  /// Deliberately under-damped: this is the one that gives a press its life.
+  static const SpringDescription press =
+      SpringDescription(mass: 1, stiffness: 900, damping: 34);
+
+  static const Duration fast = Duration(milliseconds: 180);
+  static const Duration medium = Duration(milliseconds: 280);
+  static const Duration slow = Duration(milliseconds: 420);
+
+  /// Material's emphasised easing, for the places an implicit animation is
+  /// simpler than a spring.
+  static const Curve emphasized = Cubic(0.2, 0, 0, 1);
+  static const Curve emphasizedDecelerate = Cubic(0.05, 0.7, 0.1, 1);
+  static const Curve emphasizedAccelerate = Cubic(0.3, 0, 0.8, 0.15);
+  static const Curve standard = Curves.easeOutCubic;
+}
+
+/// Astryx's elevation ramp, expressed as tonal levels rather than shadows — the
+/// Material 3 Expressive approach: a surface rises by getting lighter or
+/// darker, not by casting a bigger shadow.
+abstract final class AstryxElevation {
+  static const double level0 = 0;
+  static const double level1 = 1;
+  static const double level2 = 3;
+  static const double level3 = 6;
+  static const double level4 = 8;
+  static const double level5 = 12;
+}
+
+/// Astryx's semantic colour roles.
+///
+/// This is a **vocabulary over the Material 3 Expressive scheme**, not a
+/// parallel palette: the scheme is generated from the Milk & Orange seed with
+/// Material's `expressive` variant, and every Astryx role reads from it. The
+/// brand lives in the scheme's overridden roles, so the two systems cannot
+/// drift apart.
+@immutable
+class AstryxColors extends ThemeExtension<AstryxColors> {
   const AstryxColors({
-    required this.accent,
-    required this.accentMuted,
-    required this.onAccent,
-    required this.neutral,
-    required this.backgroundBody,
-    required this.backgroundSurface,
-    required this.backgroundCard,
-    required this.backgroundPopover,
-    required this.backgroundMuted,
-    required this.overlay,
-    required this.overlayHover,
-    required this.overlayPressed,
-    required this.textPrimary,
-    required this.textSecondary,
-    required this.textDisabled,
-    required this.textAccent,
-    required this.iconPrimary,
-    required this.iconSecondary,
-    required this.iconDisabled,
-    required this.border,
-    required this.borderEmphasized,
+    required this.scheme,
     required this.success,
     required this.successMuted,
     required this.onSuccess,
-    required this.error,
-    required this.errorMuted,
-    required this.onError,
     required this.warning,
     required this.warningMuted,
     required this.onWarning,
-    required this.backgroundOrange,
-    required this.borderOrange,
-    required this.iconOrange,
-    required this.textOrange,
+    required this.brandBorder,
   });
 
-  final Color accent;
-  final Color accentMuted;
-  final Color onAccent;
-  final Color neutral;
-  final Color backgroundBody;
-  final Color backgroundSurface;
-  final Color backgroundCard;
-  final Color backgroundPopover;
-  final Color backgroundMuted;
-  final Color overlay;
-  final Color overlayHover;
-  final Color overlayPressed;
-  final Color textPrimary;
-  final Color textSecondary;
-  final Color textDisabled;
-  final Color textAccent;
-  final Color iconPrimary;
-  final Color iconSecondary;
-  final Color iconDisabled;
-  final Color border;
-  final Color borderEmphasized;
+  /// The Material 3 Expressive scheme underneath.
+  final ColorScheme scheme;
+
+  // --- semantic roles Material's scheme does not carry -------------------
   final Color success;
   final Color successMuted;
   final Color onSuccess;
-  final Color error;
-  final Color errorMuted;
-  final Color onError;
   final Color warning;
   final Color warningMuted;
   final Color onWarning;
-  final Color backgroundOrange;
-  final Color borderOrange;
-  final Color iconOrange;
-  final Color textOrange;
+  final Color brandBorder;
 
-  /// Milk & Orange brand, light mode. Structural tokens keep Astryx's values;
-  /// the brand overrides accent and the surface ramp.
-  static const AstryxColors light = AstryxColors(
-    accent: Color(0xFFFF6A1A),
-    accentMuted: Color(0xFFFFE9D8),
-    onAccent: Color(0xFFFFFFFF),
-    neutral: Color(0x0F000000),
-    backgroundBody: Color(0xFFFFFCF6),
-    backgroundSurface: Color(0xFFFFFFFF),
-    backgroundCard: Color(0xFFFFFFFF),
-    backgroundPopover: Color(0xFFFFFFFF),
-    backgroundMuted: Color(0xFFFBF4E9),
-    overlay: Color(0x80000000),
-    overlayHover: Color(0x0D000000),
-    overlayPressed: Color(0x1A000000),
-    textPrimary: Color(0xFF2A211B),
-    textSecondary: Color(0xFF6B5D50),
-    textDisabled: Color(0xFFA99A8B),
-    textAccent: Color(0xFFCC4C06),
-    iconPrimary: Color(0xFF2A211B),
-    iconSecondary: Color(0xFF8C7B6B),
-    iconDisabled: Color(0xFFB7A99A),
-    border: Color(0x1A2A211B),
-    borderEmphasized: Color(0xFFD8C7AC),
-    success: Color(0xFF00490B),
-    successMuted: Color(0xFFBCE0BB),
-    onSuccess: Color(0xFFFFFFFF),
-    error: Color(0xFF76000C),
-    errorMuted: Color(0xFFFFC4BE),
-    onError: Color(0xFFFFFFFF),
-    warning: Color(0xFF4B3900),
-    warningMuted: Color(0xFFFAE19E),
-    onWarning: Color(0xFF111111),
-    backgroundOrange: Color(0xFFFFE9D8),
-    borderOrange: Color(0xFFFFC7A1),
-    iconOrange: Color(0xFF622700),
-    textOrange: Color(0xFF622700),
-  );
+  factory AstryxColors.fromScheme(ColorScheme scheme) {
+    final bool dark = scheme.brightness == Brightness.dark;
+    return AstryxColors(
+      scheme: scheme,
+      success: dark ? const Color(0xFF9CD8A4) : const Color(0xFF1D6B2F),
+      successMuted: dark ? const Color(0xFF20401F) : const Color(0xFFC8E8C6),
+      onSuccess: dark ? const Color(0xFF06210B) : const Color(0xFFFFFFFF),
+      warning: dark ? const Color(0xFFF3CE6B) : const Color(0xFF6B4E00),
+      warningMuted: dark ? const Color(0xFF4A3A10) : const Color(0xFFFFE7A8),
+      onWarning: dark ? const Color(0xFF241A00) : const Color(0xFF1A1200),
+      brandBorder: scheme.primary.withValues(alpha: dark ? 0.55 : 0.38),
+    );
+  }
 
-  /// Milk & Orange brand, dark mode. Warm-shifted from Astryx's dark ramp.
-  static const AstryxColors dark = AstryxColors(
-    accent: Color(0xFFFF8A45),
-    accentMuted: Color(0xFF3A2A1E),
-    onAccent: Color(0xFF111111),
-    neutral: Color(0x1AFFFFFF),
-    backgroundBody: Color(0xFF1A1614),
-    backgroundSurface: Color(0xFF241F1B),
-    backgroundCard: Color(0xFF201B17),
-    backgroundPopover: Color(0xFF201B17),
-    backgroundMuted: Color(0xFF241F1B),
-    overlay: Color(0xCC000000),
-    overlayHover: Color(0x0DFFFFFF),
-    overlayPressed: Color(0x1AFFFFFF),
-    textPrimary: Color(0xFFFAF3E8),
-    textSecondary: Color(0xFFB7A99A),
-    textDisabled: Color(0xFF6B5D50),
-    textAccent: Color(0xFFFFB37E),
-    iconPrimary: Color(0xFFFAF3E8),
-    iconSecondary: Color(0xFF9E8F80),
-    iconDisabled: Color(0xFF6B5D50),
-    border: Color(0x1AFFFFFF),
-    borderEmphasized: Color(0xFF4A4038),
-    success: Color(0xFFA4D6A3),
-    successMuted: Color(0x3D90CA90),
-    onSuccess: Color(0xFF111111),
-    error: Color(0xFFFFC4BE),
-    errorMuted: Color(0x3DFF9890),
-    onError: Color(0xFF111111),
-    warning: Color(0xFFF8D36A),
-    warningMuted: Color(0x3DE2B623),
-    onWarning: Color(0xFF111111),
-    backgroundOrange: Color(0xFF503424),
-    borderOrange: Color(0xFFDF843F),
-    iconOrange: Color(0xFFFF9E55),
-    textOrange: Color(0xFFFFB37E),
-  );
+  // --- accent ------------------------------------------------------------
+  Color get accent => scheme.primary;
+  Color get onAccent => scheme.onPrimary;
+  Color get accentMuted => scheme.primaryContainer;
+  Color get onAccentMuted => scheme.onPrimaryContainer;
+  Color get neutral => scheme.surfaceContainerHighest;
+
+  // --- surfaces, on Material's tonal ramp --------------------------------
+  Color get backgroundBody => scheme.surface;
+  Color get backgroundSurface => scheme.surfaceContainerLowest;
+  Color get backgroundCard => scheme.surfaceContainerLow;
+  Color get backgroundPopover => scheme.surfaceContainer;
+  Color get backgroundMuted => scheme.surfaceContainerHigh;
+  Color get surfaceHighest => scheme.surfaceContainerHighest;
+  Color get surfaceBright => scheme.surfaceBright;
+  Color get surfaceDim => scheme.surfaceDim;
+
+  // --- state layers ------------------------------------------------------
+  Color get overlay => scheme.scrim;
+  Color get overlayHover => scheme.onSurface.withValues(alpha: 0.08);
+  Color get overlayPressed => scheme.onSurface.withValues(alpha: 0.12);
+
+  // --- content -----------------------------------------------------------
+  Color get textPrimary => scheme.onSurface;
+  Color get textSecondary => scheme.onSurfaceVariant;
+  Color get textDisabled => scheme.outline;
+  Color get textAccent => scheme.primary;
+  Color get iconPrimary => scheme.onSurface;
+  Color get iconSecondary => scheme.onSurfaceVariant;
+  Color get iconDisabled => scheme.outline;
+
+  Color get border => scheme.outlineVariant;
+  Color get borderEmphasized => scheme.outline;
+
+  // --- status ------------------------------------------------------------
+  Color get error => scheme.error;
+  Color get errorMuted => scheme.errorContainer;
+  Color get onError => scheme.onError;
+  Color get onErrorMuted => scheme.onErrorContainer;
+
+  // --- the brand ramp ----------------------------------------------------
+  Color get backgroundOrange => scheme.primaryContainer;
+  Color get borderOrange => brandBorder;
+  Color get iconOrange => scheme.onPrimaryContainer;
+  Color get textOrange => scheme.onPrimaryContainer;
+
+  // --- expressive extras -------------------------------------------------
+  Color get tertiary => scheme.tertiary;
+  Color get tertiaryContainer => scheme.tertiaryContainer;
+  Color get onTertiaryContainer => scheme.onTertiaryContainer;
+  Color get secondaryContainer => scheme.secondaryContainer;
+  Color get onSecondaryContainer => scheme.onSecondaryContainer;
+  Color get inverseSurface => scheme.inverseSurface;
+  Color get onInverseSurface => scheme.onInverseSurface;
+  Color get inversePrimary => scheme.inversePrimary;
+
+  @override
+  AstryxColors copyWith({ColorScheme? scheme}) =>
+      AstryxColors.fromScheme(scheme ?? this.scheme);
+
+  @override
+  AstryxColors lerp(covariant AstryxColors? other, double t) {
+    if (other == null) return this;
+    return AstryxColors(
+      scheme: ColorScheme.lerp(scheme, other.scheme, t),
+      success: Color.lerp(success, other.success, t)!,
+      successMuted: Color.lerp(successMuted, other.successMuted, t)!,
+      onSuccess: Color.lerp(onSuccess, other.onSuccess, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      warningMuted: Color.lerp(warningMuted, other.warningMuted, t)!,
+      onWarning: Color.lerp(onWarning, other.onWarning, t)!,
+      brandBorder: Color.lerp(brandBorder, other.brandBorder, t)!,
+    );
+  }
 }
 
-/// Convenience accessor: `context.astryx` resolves the active mode's palette.
+/// `context.astryx` resolves the active mode's palette from the theme.
 extension AstryxContext on BuildContext {
-  AstryxColors get astryx => Theme.of(this).brightness == Brightness.dark
-      ? AstryxColors.dark
-      : AstryxColors.light;
+  AstryxColors get astryx =>
+      Theme.of(this).extension<AstryxColors>() ??
+      AstryxColors.fromScheme(Theme.of(this).colorScheme);
 }

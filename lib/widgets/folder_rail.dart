@@ -9,6 +9,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import 'account_sheet.dart';
+import 'astryx_widgets.dart';
 import 'avatar.dart';
 
 /// The rail is a drawer on a phone, so anything that pushes a screen has to
@@ -111,33 +112,41 @@ class _RailAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final BorderRadius shape = BorderRadius.circular(AstryxRadius.element);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: shape,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AstryxSpace.s3,
-            vertical: AstryxSpace.s3,
-          ),
-          child: Row(
-            children: <Widget>[
-              Icon(icon, size: 18, color: c.iconSecondary),
-              const SizedBox(width: AstryxSpace.s3),
-              Expanded(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: AstryxText.body(c.textSecondary),
-                ),
+    return AceSpringy(
+      onTap: onTap,
+      builder: (BuildContext context, double press, bool hover) {
+        final double t = press.clamp(0.0, 1.0);
+        return Transform.scale(
+          scale: 1 - 0.03 * press,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AstryxSpace.s3,
+              vertical: AstryxSpace.s3,
+            ),
+            decoration: BoxDecoration(
+              color: hover ? c.surfaceHighest : Colors.transparent,
+              borderRadius: BorderRadius.circular(
+                AstryxRadius.element -
+                    (AstryxRadius.element - AstryxRadius.inner) * t,
               ),
-            ],
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, size: 18, color: c.iconSecondary),
+                const SizedBox(width: AstryxSpace.s3),
+                Expanded(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AstryxText.body(c.textSecondary),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -175,13 +184,22 @@ class _AccountHeader extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                MailAvatar(email: email, name: email, size: 30),
+                MailAvatar(email: email, name: email, size: 34),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
-                  child: Text(
-                    email,
-                    overflow: TextOverflow.ellipsis,
-                    style: AstryxText.supporting(c.textPrimary),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        email,
+                        overflow: TextOverflow.ellipsis,
+                        style: AstryxText.bodyStrong(c.textPrimary),
+                      ),
+                      Text(
+                        'Switch account',
+                        style: AstryxText.caption(c.textSecondary),
+                      ),
+                    ],
                   ),
                 ),
                 Icon(
@@ -208,36 +226,41 @@ class _FolderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final Color foreground = selected ? c.textAccent : c.textSecondary;
-    final BorderRadius shape = BorderRadius.circular(AstryxRadius.element);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          color: selected ? c.accentMuted : Colors.transparent,
-          borderRadius: shape,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: shape,
-            onTap: () {
-              context.read<MailController>().openFolder(folder);
-              _closeDrawerIfOpen(context);
-            },
-            child: Padding(
+      child: AceSpringy(
+        onTap: () {
+          context.read<MailController>().openFolder(folder);
+          _closeDrawerIfOpen(context);
+        },
+        builder: (BuildContext context, double press, bool hover) {
+          final double t = press.clamp(0.0, 1.0);
+          return Transform.scale(
+            scale: 1 - 0.03 * press,
+            child: AnimatedContainer(
+              duration: AstryxMotion.fast,
+              curve: AstryxMotion.emphasized,
               padding: const EdgeInsets.symmetric(
                 horizontal: AstryxSpace.s3,
                 vertical: AstryxSpace.s3,
               ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? c.accentMuted
+                    : (hover ? c.surfaceHighest : Colors.transparent),
+                borderRadius: BorderRadius.circular(
+                  AstryxRadius.element -
+                      (AstryxRadius.element - AstryxRadius.inner) * t,
+                ),
+              ),
               child: Row(
                 children: <Widget>[
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 8,
-                    height: 8,
+                    duration: AstryxMotion.fast,
+                    curve: AstryxMotion.emphasized,
+                    width: selected ? 10 : 8,
+                    height: selected ? 10 : 8,
                     decoration: BoxDecoration(
                       color: selected ? c.accent : c.borderEmphasized,
                       shape: BoxShape.circle,
@@ -271,8 +294,8 @@ class _FolderTile extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

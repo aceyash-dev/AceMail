@@ -5,7 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../theme/astryx_tokens.dart';
 import 'astryx_widgets.dart';
+
+class _SquircleClipper extends CustomClipper<Path> {
+  const _SquircleClipper();
+
+  @override
+  Path getClip(Size size) => AstryxShape.squircle(Offset.zero & size);
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
 
 /// A sender's picture.
 ///
@@ -66,7 +77,10 @@ class MailAvatar extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: ClipOval(
+      // A continuous corner rather than a circle, to match the initials tile
+      // and the rest of the expressive shape language.
+      child: ClipPath(
+        clipper: const _SquircleClipper(),
         child: Image.network(
           gravatarUrl(address, size: (size * 3).round()),
           width: size,
