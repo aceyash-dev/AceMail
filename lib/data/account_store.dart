@@ -16,8 +16,30 @@ class AccountStore {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _accountsKey = 'ace.accounts';
   static const String _passwordPrefix = 'ace.password.';
+  static const String _activeKey = 'ace.active';
 
   String _passwordKey(String email) => '$_passwordPrefix$email';
+
+  /// The account that was in front last time, so a restart lands back on it.
+  Future<String?> loadActiveEmail() async {
+    try {
+      return await _storage.read(key: _activeKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveActiveEmail(String? email) async {
+    try {
+      if (email == null) {
+        await _storage.delete(key: _activeKey);
+      } else {
+        await _storage.write(key: _activeKey, value: email);
+      }
+    } catch (_) {
+      // Nothing stored.
+    }
+  }
 
   Future<List<StoredAccount>> loadAll() async {
     try {
@@ -85,6 +107,7 @@ class AccountStore {
         }
       }
       await _storage.delete(key: _accountsKey);
+      await _storage.delete(key: _activeKey);
     } catch (_) {
       // Nothing stored.
     }

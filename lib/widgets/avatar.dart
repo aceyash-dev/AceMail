@@ -72,6 +72,9 @@ class MailAvatar extends StatelessWidget {
               progress == null ? child : fallback,
           errorBuilder: (BuildContext context, Object error,
               StackTrace? stackTrace) {
+            // Remember the miss so the list does not retry it, but keep the
+            // set bounded over a long session.
+            if (_missing.length > 500) _missing.clear();
             _missing.add(address);
             return fallback;
           },

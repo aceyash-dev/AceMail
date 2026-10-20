@@ -47,7 +47,8 @@ class _MessageReaderState extends State<MessageReader> {
           widget.onBack == null ? null : (DragStartDetails _) => _drag = 0,
       onHorizontalDragUpdate: widget.onBack == null
           ? null
-          : (DragUpdateDetails details) => _drag += details.delta.dx,
+          : (DragUpdateDetails details) =>
+              _drag = details.delta.dx > 0 ? _drag + details.delta.dx : 0,
       onHorizontalDragEnd: widget.onBack == null
           ? null
           : (DragEndDetails details) {

@@ -96,6 +96,28 @@ the Actions tab. The APK is uploaded as a build artifact; a manual run or a `v*`
 tag also publishes it to a GitHub Release, so it can be downloaded without
 signing in to GitHub.
 
+## Release signing
+
+CI signs the release APK with a real keystore held in repository secrets, so
+successive builds can update an installed app in place instead of demanding an
+uninstall first:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | the keystore, base64-encoded |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore password |
+| `ANDROID_KEY_ALIAS` | `ace` |
+| `ANDROID_KEY_PASSWORD` | the key password (same as the store password) |
+
+`android/app/build.gradle.kts` reads `android/key.properties`, which CI writes
+from those secrets. Locally, with no such file, the release build falls back to
+the debug key so `flutter run --release` still works.
+
+**Keep a copy of the keystore.** If it is lost you can never ship an update to
+an installed app — Play will reject the upload and a side-load will refuse to
+install over the existing one. It must never be committed: `android/.gitignore`
+already excludes `*.jks`, `*.keystore` and `key.properties`.
+
 ## Signing in
 
 Most providers need an **app password**, not your account password:

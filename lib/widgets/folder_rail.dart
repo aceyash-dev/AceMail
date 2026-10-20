@@ -76,7 +76,13 @@ class _AccountHeader extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: shape,
-          onTap: () => showAccountSheet(context),
+          onTap: () {
+            // Close the drawer first, so the sheet is not stacked over it.
+            if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
+              Navigator.of(context).pop();
+            }
+            showAccountSheet(context);
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AstryxSpace.s3,

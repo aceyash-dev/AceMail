@@ -39,8 +39,36 @@ jobs:
       - name: Test
         run: flutter test
 
+      # The keystore and its passwords live in repository secrets, never in the
+      # repo. Without them the build still succeeds, signed with the debug key.
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No release keystore secret found - falling back to debug signing."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/ace-release.jks
+          {
+            echo "storeFile=ace-release.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+          echo "Release signing configured."
+
       - name: Build release APK
         run: flutter build apk --release
+
+      - name: Report signer
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E "certificate DN|SHA-256" || true
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

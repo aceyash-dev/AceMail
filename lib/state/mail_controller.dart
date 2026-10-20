@@ -53,23 +53,36 @@ class MailController extends ChangeNotifier {
   bool get loadingMessages => active?.loadingMessages ?? false;
   bool get loadingMessage => active?.loadingMessage ?? false;
 
+  /// The active account's most recent error, if any. Surfaced as a snack bar
+  /// so failures do not disappear silently.
+  String? get sessionError => active?.errorMessage;
+
   Future<void> restore() async {
     final List<StoredAccount> saved = await _store.loadAll();
     if (saved.isNotEmpty) {
-      lastEmail = saved.last.account.email;
       for (final StoredAccount stored in saved) {
-        _attach(MailSession(account: stored.account, password: stored.password));
+        _attach(
+          MailSession(account: stored.account, password: stored.password),
+        );
       }
-      _activeIndex = 0;
+
+      // Land back on whichever account was in front last time.
+      final String? previous = await _store.loadActiveEmail();
+      final int index = previous == null
+          ? 0
+          : _sessions.indexWhere(
+              (MailSession s) => s.account.email == previous,
+            );
+      _activeIndex = index < 0 ? 0 : index;
+      lastEmail = _sessions[_activeIndex].account.email;
       status = MailStatus.ready;
     }
     restoring = false;
     notifyListeners();
 
-    // Connect in the background so the UI is up immediately.
-    for (final MailSession session in _sessions) {
-      unawaited(session.connect());
-    }
+    // Bring up only the active account. The rest connect the first time they
+    // are switched to, so ten accounts do not mean ten IMAP connections.
+    if (_sessions.isNotEmpty) unawaited(_sessions[_activeIndex].connect());
   }
 
   /// Adds an account and brings it to the front.
@@ -117,12 +130,10 @@ class MailController extends ChangeNotifier {
     if (index < 0 || index >= _sessions.length || index == _activeIndex) return;
     _activeIndex = index;
     lastEmail = _sessions[index].account.email;
+    unawaited(_store.saveActiveEmail(lastEmail));
     notifyListeners();
-    // Connect lazily if this account has not been opened yet this run.
-    final MailSession session = _sessions[index];
-    if (!session.isReady && !session.connecting) {
-      unawaited(session.connect());
-    }
+    // connect() is idempotent, so this is a no-op once the account is up.
+    unawaited(_sessions[index].connect());
   }
 
   Future<void> removeAccount(int index) async {
@@ -195,10 +206,22 @@ class MailController extends ChangeNotifier {
     session.dispose();
   }
 
-  Future<void> _persist() => _store.saveAll(
-        _sessions
-            .map((MailSession s) =>
-                (account: s.account, password: s.password))
-            .toList(),
-      );
+  Future<void> _persist() async {
+    await _store.saveAll(
+      _sessions
+          .map((MailSession s) => (account: s.account, password: s.password))
+          .toList(),
+    );
+    await _store.saveActiveEmail(lastEmail);
+  }
+
+  @override
+  void dispose() {
+    for (final MailSession session in _sessions) {
+      session.removeListener(notifyListeners);
+      session.dispose();
+    }
+    _sessions.clear();
+    super.dispose();
+  }
 }

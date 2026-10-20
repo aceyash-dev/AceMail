@@ -36,6 +36,35 @@ class MessageListPanel extends StatelessWidget {
     if (controller.loadingMessages) {
       return const Center(child: AceLoader());
     }
+
+    // A failed fetch used to look like an empty folder. Say what happened.
+    final String? error = controller.sessionError;
+    if (controller.messages.isEmpty && error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AstryxSpace.s5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.error_outline_rounded, size: 28, color: c.error),
+              const SizedBox(height: AstryxSpace.s3),
+              Text(
+                error,
+                textAlign: TextAlign.center,
+                style: AstryxText.supporting(c.error),
+              ),
+              const SizedBox(height: AstryxSpace.s4),
+              AceButton(
+                label: 'Try again',
+                icon: Icons.refresh_rounded,
+                onPressed: () =>
+                    context.read<MailController>().refreshMessages(),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (controller.messages.isEmpty) {
       return Center(
         child: Text(

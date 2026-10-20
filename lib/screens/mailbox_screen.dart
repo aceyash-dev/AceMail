@@ -18,16 +18,59 @@ import 'tutorial_screen.dart';
 /// The three-pane mailbox. Above [_wideBreakpoint] the folder rail, message
 /// list and reader sit side by side; below it the reader takes the screen and
 /// folders move into a drawer.
-class MailboxScreen extends StatelessWidget {
+class MailboxScreen extends StatefulWidget {
   const MailboxScreen({super.key});
 
   static const double _wideBreakpoint = 940;
 
   @override
+  State<MailboxScreen> createState() => _MailboxScreenState();
+}
+
+class _MailboxScreenState extends State<MailboxScreen> {
+  MailController? _controller;
+  String? _lastError;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final MailController controller = context.read<MailController>();
+    if (!identical(controller, _controller)) {
+      _controller?.removeListener(_onControllerChanged);
+      _controller = controller..addListener(_onControllerChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  /// Surfaces a failure that would otherwise be swallowed — a folder that will
+  /// not load, a message that will not delete.
+  void _onControllerChanged() {
+    final String? error = _controller?.sessionError;
+    if (error == null) {
+      _lastError = null;
+      return;
+    }
+    if (error == _lastError) return;
+    _lastError = error;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final MailController controller = context.watch<MailController>();
-    final bool wide = MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+    final bool wide =
+        MediaQuery.sizeOf(context).width >= MailboxScreen._wideBreakpoint;
     final bool reading = controller.openSummary != null;
     final String email = controller.account?.email ?? '';
 

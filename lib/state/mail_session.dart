@@ -35,9 +35,20 @@ class MailSession extends ChangeNotifier {
 
   bool get isReady => _service != null;
 
-  Future<bool> connect() async {
-    if (_service != null) return true;
+  Future<bool>? _connecting;
 
+  /// Connects at most once. A switch that arrives while the first attempt is
+  /// still running joins that attempt instead of opening a second connection.
+  Future<bool> connect() {
+    final Future<bool>? inFlight = _connecting;
+    if (inFlight != null) return inFlight;
+    if (_service != null) return Future<bool>.value(true);
+    final Future<bool> attempt = _connect();
+    _connecting = attempt;
+    return attempt;
+  }
+
+  Future<bool> _connect() async {
     connecting = true;
     errorMessage = null;
     notifyListeners();
@@ -57,6 +68,7 @@ class MailSession extends ChangeNotifier {
     } catch (error) {
       errorMessage = error.toString();
       connecting = false;
+      _connecting = null; // let a later attempt try again
       notifyListeners();
       return false;
     }
@@ -71,6 +83,7 @@ class MailSession extends ChangeNotifier {
     openSummary = null;
     messages = <MessageSummary>[];
     loadingMessages = true;
+    errorMessage = null;
     notifyListeners();
 
     try {
