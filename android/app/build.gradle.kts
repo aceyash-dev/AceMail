@@ -36,12 +36,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-        ndk {
-            // Phones and tablets only. No x86/x86_64: those are emulator and
-            // ChromeOS images, and shipping them just inflates the APK.
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
+        // NB: the ABIs that end up in the APK are chosen by Flutter, not here.
+        // The Flutter Gradle plugin writes abiFilters itself, so an `ndk {}`
+        // block in defaultConfig is silently overridden. Pass
+        // `--target-platform android-arm,android-arm64` to `flutter build apk`
+        // instead — that is what keeps x86_64 out of the release.
     }
 
     signingConfigs {

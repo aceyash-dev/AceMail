@@ -61,8 +61,10 @@ jobs:
           } > android/key.properties
           echo "Release signing configured."
 
+      # arm only: x86/x86_64 are emulator and ChromeOS images, and shipping
+      # them just inflates the download. Flutter picks the ABIs, not Gradle.
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --target-platform android-arm,android-arm64
 
       - name: Report signer
         run: |
