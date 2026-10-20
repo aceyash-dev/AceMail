@@ -227,6 +227,16 @@ const AceAccount accountA = AceAccount(
   smtpPort: 587,
 );
 
+/// A third account, for the tests that need one above and one below the
+/// active index.
+const AceAccount accountC = AceAccount(
+  email: 'cara@example.net',
+  imapHost: 'imap.example.net',
+  imapPort: 993,
+  smtpHost: 'smtp.example.net',
+  smtpPort: 587,
+);
+
 const AceAccount accountB = AceAccount(
   email: 'b@example.com',
   imapHost: 'imap.example.com',

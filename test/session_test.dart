@@ -441,6 +441,61 @@ void main() {
       expect(controller.isSignedIn, isTrue, reason: 'the session still works');
     });
 
+    test('removing an account above the active one keeps the same mailbox',
+        () async {
+      final MailController controller = MailController(
+        store: FakeStore(),
+        transportFactory: (_, __) => FakeTransport()..uids.addAll(uidRange(2)),
+      );
+      await controller.signIn(accountA, 'p');
+      await controller.signIn(accountB, 'p');
+      await controller.signIn(accountC, 'p');
+      controller.switchTo(2);
+      expect(controller.account?.email, accountC.email);
+
+      await controller.removeAccount(0);
+
+      expect(
+        controller.account?.email,
+        accountC.email,
+        reason: 'everything above the removed account shifted down by one, so '
+            'the account in front is still in front',
+      );
+      expect(controller.accountCount, 2);
+    });
+
+    test('removing the active account moves to the next one', () async {
+      final MailController controller = MailController(
+        store: FakeStore(),
+        transportFactory: (_, __) => FakeTransport()..uids.addAll(uidRange(2)),
+      );
+      await controller.signIn(accountA, 'p');
+      await controller.signIn(accountB, 'p');
+      await controller.signIn(accountC, 'p');
+      controller.switchTo(1);
+      expect(controller.account?.email, accountB.email);
+
+      await controller.removeAccount(1);
+
+      expect(controller.account?.email, accountC.email);
+      expect(controller.accountCount, 2);
+    });
+
+    test('removing an account below the active one changes nothing', () async {
+      final MailController controller = MailController(
+        store: FakeStore(),
+        transportFactory: (_, __) => FakeTransport()..uids.addAll(uidRange(2)),
+      );
+      await controller.signIn(accountA, 'p');
+      await controller.signIn(accountB, 'p');
+      await controller.signIn(accountC, 'p');
+      controller.switchTo(2);
+
+      await controller.removeAccount(1);
+
+      expect(controller.account?.email, accountC.email);
+    });
+
     test('a failed signIn adds nothing and reports the error', () async {
       final FakeStore store = FakeStore();
       final MailController controller = MailController(

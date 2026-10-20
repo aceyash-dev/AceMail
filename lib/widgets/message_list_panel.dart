@@ -14,6 +14,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
+import 'skeleton.dart';
 import 'swipe_action.dart';
 
 /// The message list, under a large title that collapses as it scrolls — the
@@ -90,14 +91,17 @@ class MessageListPanel extends StatelessWidget {
     );
   }
 
+  Preferences prefsOf(BuildContext context) => context.watch<Preferences>();
+
   List<Widget> _slivers(BuildContext context, MailController controller) {
     final AstryxColors c = context.astryx;
 
     if (controller.loadingMessages) {
+      // Rows shaped like the ones coming, rather than a spinner on an empty
+      // screen.
       return <Widget>[
-        const SliverFillRemaining(
-          hasScrollBody: false,
-          child: Center(child: AceLoader()),
+        SliverToBoxAdapter(
+          child: MessageListSkeleton(avatarSize: prefsOf(context).density.avatarSize),
         ),
       ];
     }
@@ -274,6 +278,7 @@ class MessageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
+    final ListDensity density = context.watch<Preferences>().density;
     final bool unread = !summary.isSeen;
 
     return TweenAnimationBuilder<double>(
@@ -297,9 +302,9 @@ class MessageTile extends StatelessWidget {
             scale: 1 - 0.02 * press,
             child: Container(
               margin: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: AstryxSpace.s3,
-                vertical: AstryxSpace.s3,
+                vertical: density.verticalPadding,
               ),
               decoration: BoxDecoration(
                 color: selected
@@ -313,7 +318,7 @@ class MessageTile extends StatelessWidget {
                   MailAvatar(
                     email: summary.fromEmail,
                     name: summary.fromName,
-                    size: 42,
+                    size: density.avatarSize,
                   ),
                   const SizedBox(width: AstryxSpace.s3),
                   Expanded(

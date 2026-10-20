@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/mail_providers.dart';
+import '../util/addresses.dart';
 import 'ace_account.dart';
 
 /// The result of reading the sign-in form: either an account ready to connect,
@@ -59,7 +60,12 @@ class SignInFormModel {
   /// The account to sign in with, or the reason there isn't one.
   SignInOutcome build() {
     final String address = email.text.trim();
-    if (!address.contains('@')) {
+    // The same validator the compose screen uses, rather than a second,
+    // looser opinion about what an address is.
+    if (address.isEmpty) {
+      return const SignInOutcome(error: 'Enter your email address.');
+    }
+    if (MailAddresses.validate(address, field: 'Email') != null) {
       return const SignInOutcome(error: 'Enter a valid email address.');
     }
     if (password.text.isEmpty) {

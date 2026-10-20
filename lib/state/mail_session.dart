@@ -34,8 +34,11 @@ class MailSession extends ChangeNotifier {
 
   bool get _markAsRead => _preferences?.markAsReadOnOpen ?? true;
 
-  /// How many messages a page holds. The list grows a page at a time.
+  /// The default page size, for callers with no settings to hand.
   static const int pageSize = 40;
+
+  /// How many messages a page holds, from the user's setting.
+  int get _pageSize => _preferences?.pageSize.count ?? pageSize;
 
   /// Providers that file a copy of what you send without being asked. Adding a
   /// second copy ourselves is how you end up with duplicates in Sent.
@@ -46,7 +49,11 @@ class MailSession extends ChangeNotifier {
     'yahoo.com', 'yahoo.in', 'ymail.com',
   };
 
-  late final MailTransport _transport = _injected ?? MailService(account);
+  late final MailTransport _transport = _injected ??
+      MailService(
+        account,
+        reconnectAllowed: () => _preferences?.autoReconnect ?? true,
+      );
 
   bool connecting = false;
   String? errorMessage;
@@ -158,7 +165,7 @@ class MailSession extends ChangeNotifier {
       final List<int> uids = await _transport.listMessageUids(folder);
       final List<MessageSummary> page = await _transport.fetchSummariesByUid(
         folder,
-        uids.take(pageSize).toList(),
+        uids.take(_pageSize).toList(),
       );
       if (token != _folderToken) return; // a newer folder won
       _uids = uids;
@@ -184,7 +191,7 @@ class MailSession extends ChangeNotifier {
     _notify();
     try {
       final List<int> next =
-          _uids.skip(messages.length).take(pageSize).toList();
+          _uids.skip(messages.length).take(_pageSize).toList();
       final List<MessageSummary> more =
           await _transport.fetchSummariesByUid(folder, next);
       if (token != _folderToken) return;
@@ -421,7 +428,7 @@ class MailSession extends ChangeNotifier {
     String? inReplyTo,
     String? references,
   }) async {
-    if (!_connected) throw MailException('Not connected.');
+    if (!_connected) throw const MailConnectionException('Not connected.');
     await _transport.send(
       to: to,
       body: body,

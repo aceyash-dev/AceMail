@@ -75,8 +75,12 @@ ColorScheme buildAstryxScheme(Brightness brightness) {
     seedColor: const Color(0xFFFF6A1A),
     brightness: brightness,
     dynamicSchemeVariant: DynamicSchemeVariant.expressive,
-    primary: dark ? const Color(0xFFFF8A45) : const Color(0xFFFF6A1A),
-    onPrimary: dark ? const Color(0xFF2A1200) : const Color(0xFFFFFFFF),
+    // A shade deeper than the pure brand orange in light mode, so a filled
+    // button is distinguishable from the page (3.25:1 where #FF6A1A gave 2.80).
+    primary: dark ? const Color(0xFFFF8A45) : const Color(0xFFF25C05),
+    // Dark on the orange, not white. White on #FF6A1A is 2.87:1, which fails AA
+    // on every filled button, badge and toggle; this is 4.9:1.
+    onPrimary: dark ? const Color(0xFF2A1200) : const Color(0xFF3A1500),
     primaryContainer: dark ? const Color(0xFF503424) : const Color(0xFFFFE0C6),
     onPrimaryContainer:
         dark ? const Color(0xFFFFDCC2) : const Color(0xFF4A1B00),
@@ -93,7 +97,9 @@ ColorScheme buildAstryxScheme(Brightness brightness) {
         dark ? const Color(0xFF2B2521) : const Color(0xFFF6EDE0),
     surfaceContainerHighest:
         dark ? const Color(0xFF332C27) : const Color(0xFFF0E6D6),
-    outline: dark ? const Color(0xFF9E8F80) : const Color(0xFF8C7B6B),
+    // Also the disabled-ink role, so it has to be readable: 5.1:1 on Milk,
+    // where the previous value was 2.5:1.
+    outline: dark ? const Color(0xFF9E8F80) : const Color(0xFF7A6A5A),
     outlineVariant: dark ? const Color(0xFF4A4038) : const Color(0xFFE0D2BE),
   );
 }
@@ -211,7 +217,9 @@ ThemeData buildAstryxTheme(Brightness brightness) {
         horizontal: AstryxSpace.s4,
         vertical: AstryxSpace.s3,
       ),
-      hintStyle: AstryxText.body(c.textDisabled),
+      // Hint text is content, not a disabled control, so it takes the
+      // readable secondary ink rather than the disabled one.
+      hintStyle: AstryxText.body(c.textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AstryxRadius.container),
         borderSide: BorderSide.none,

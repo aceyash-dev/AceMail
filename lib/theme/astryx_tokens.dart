@@ -270,6 +270,7 @@ abstract final class AstryxElevation {
 class AstryxColors extends ThemeExtension<AstryxColors> {
   const AstryxColors({
     required this.scheme,
+    required this.accentInk,
     required this.success,
     required this.successMuted,
     required this.onSuccess,
@@ -283,6 +284,10 @@ class AstryxColors extends ThemeExtension<AstryxColors> {
   final ColorScheme scheme;
 
   // --- semantic roles Material's scheme does not carry -------------------
+
+  /// Orange as *text* on the page, which the fill role cannot be: the brand
+  /// orange is only 2.8:1 on Milk. This is 5.9:1 there, and 10:1 in dark mode.
+  final Color accentInk;
   final Color success;
   final Color successMuted;
   final Color onSuccess;
@@ -295,6 +300,7 @@ class AstryxColors extends ThemeExtension<AstryxColors> {
     final bool dark = scheme.brightness == Brightness.dark;
     return AstryxColors(
       scheme: scheme,
+      accentInk: dark ? const Color(0xFFFFB68F) : const Color(0xFFB03A00),
       success: dark ? const Color(0xFF9CD8A4) : const Color(0xFF1D6B2F),
       successMuted: dark ? const Color(0xFF20401F) : const Color(0xFFC8E8C6),
       onSuccess: dark ? const Color(0xFF06210B) : const Color(0xFFFFFFFF),
@@ -331,7 +337,7 @@ class AstryxColors extends ThemeExtension<AstryxColors> {
   Color get textPrimary => scheme.onSurface;
   Color get textSecondary => scheme.onSurfaceVariant;
   Color get textDisabled => scheme.outline;
-  Color get textAccent => scheme.primary;
+  Color get textAccent => accentInk;
   Color get iconPrimary => scheme.onSurface;
   Color get iconSecondary => scheme.onSurfaceVariant;
   Color get iconDisabled => scheme.outline;
@@ -370,6 +376,7 @@ class AstryxColors extends ThemeExtension<AstryxColors> {
     if (other == null) return this;
     return AstryxColors(
       scheme: ColorScheme.lerp(scheme, other.scheme, t),
+      accentInk: Color.lerp(accentInk, other.accentInk, t)!,
       success: Color.lerp(success, other.success, t)!,
       successMuted: Color.lerp(successMuted, other.successMuted, t)!,
       onSuccess: Color.lerp(onSuccess, other.onSuccess, t)!,

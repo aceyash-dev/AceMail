@@ -1,6 +1,7 @@
 import 'package:ace_mail/data/limits.dart';
 import 'package:ace_mail/models/ace_account.dart';
 import 'package:ace_mail/util/file_names.dart';
+import 'package:ace_mail/util/initials.dart';
 import 'package:ace_mail/models/mail_folder.dart';
 import 'package:ace_mail/models/message_summary.dart';
 import 'package:ace_mail/util/dates.dart';
@@ -97,9 +98,9 @@ void main() {
 
   group('MailAvatar', () {
     test('initials come from the name, then the address', () {
-      expect(MailAvatar.initialsFor('Priya Sharma', 'p@x.com'), 'PS');
-      expect(MailAvatar.initialsFor('', 'priya@x.com'), 'PR');
-      expect(MailAvatar.initialsFor('', ''), '?');
+      expect(initialsFor('Priya Sharma', 'p@x.com'), 'PS');
+      expect(initialsFor('', 'priya@x.com'), 'PR');
+      expect(initialsFor('', ''), '?');
     });
 
     test('the Gravatar URL is the documented md5 form', () {

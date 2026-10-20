@@ -26,6 +26,30 @@ enum AceTextSize {
   final double scale;
 }
 
+/// How many messages a page of the list holds.
+enum PageSize {
+  twenty('20', 20),
+  forty('40', 40),
+  eighty('80', 80);
+
+  const PageSize(this.label, this.count);
+
+  final String label;
+  final int count;
+}
+
+/// How tightly the message list is packed.
+enum ListDensity {
+  comfortable('Comfortable', 42, 12),
+  compact('Compact', 34, 8);
+
+  const ListDensity(this.label, this.avatarSize, this.verticalPadding);
+
+  final String label;
+  final double avatarSize;
+  final double verticalPadding;
+}
+
 /// Which representation of a message the reader opens with.
 enum MessageView {
   formatted('Formatted'),
@@ -54,6 +78,10 @@ class Preferences extends ChangeNotifier {
   static const String _keySwipeStart = 'ace.swipeStart';
   static const String _keySwipeEnd = 'ace.swipeEnd';
   static const String _keyMessageView = 'ace.messageView';
+  static const String _keyAutoReconnect = 'ace.autoReconnect';
+  static const String _keyPageSize = 'ace.pageSize';
+  static const String _keyDensity = 'ace.listDensity';
+  static const String _keyConfirmDelete = 'ace.confirmDelete';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -65,6 +93,10 @@ class Preferences extends ChangeNotifier {
     _keySwipeStart,
     _keySwipeEnd,
     _keyMessageView,
+    _keyAutoReconnect,
+    _keyPageSize,
+    _keyDensity,
+    _keyConfirmDelete,
   ];
 
   final FlutterSecureStorage _storage;
@@ -78,6 +110,10 @@ class Preferences extends ChangeNotifier {
   SwipeAction _swipeStart = SwipeAction.toggleRead;
   SwipeAction _swipeEnd = SwipeAction.archive;
   MessageView _messageView = MessageView.formatted;
+  bool _autoReconnect = true;
+  PageSize _pageSize = PageSize.forty;
+  ListDensity _density = ListDensity.comfortable;
+  bool _confirmDelete = true;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -111,6 +147,18 @@ class Preferences extends ChangeNotifier {
   /// Whether the reader opens formatted or as plain text.
   MessageView get messageView => _messageView;
 
+  /// Whether a dropped connection is retried automatically.
+  bool get autoReconnect => _autoReconnect;
+
+  /// How many messages a page holds.
+  PageSize get pageSize => _pageSize;
+
+  /// How tightly the message list is packed.
+  ListDensity get density => _density;
+
+  /// Whether deleting asks first.
+  bool get confirmDelete => _confirmDelete;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -133,6 +181,10 @@ class Preferences extends ChangeNotifier {
     _swipeEnd = _decodeEnum(raw[_keySwipeEnd], SwipeAction.values, _swipeEnd);
     _messageView =
         _decodeEnum(raw[_keyMessageView], MessageView.values, _messageView);
+    _autoReconnect = _decodeBool(raw[_keyAutoReconnect], _autoReconnect);
+    _pageSize = _decodeEnum(raw[_keyPageSize], PageSize.values, _pageSize);
+    _density = _decodeEnum(raw[_keyDensity], ListDensity.values, _density);
+    _confirmDelete = _decodeBool(raw[_keyConfirmDelete], _confirmDelete);
 
     notifyListeners();
   }
@@ -163,6 +215,18 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setMessageView(MessageView value) =>
       _write(_keyMessageView, value.name, () => _messageView = value);
+
+  Future<void> setAutoReconnect(bool value) =>
+      _write(_keyAutoReconnect, '$value', () => _autoReconnect = value);
+
+  Future<void> setPageSize(PageSize value) =>
+      _write(_keyPageSize, value.name, () => _pageSize = value);
+
+  Future<void> setDensity(ListDensity value) =>
+      _write(_keyDensity, value.name, () => _density = value);
+
+  Future<void> setConfirmDelete(bool value) =>
+      _write(_keyConfirmDelete, '$value', () => _confirmDelete = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

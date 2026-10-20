@@ -10,6 +10,7 @@ import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
+import '../util/attach_plan.dart';
 import '../util/files.dart';
 import '../widgets/ace_form_field.dart';
 import '../widgets/astryx_widgets.dart';
@@ -78,15 +79,39 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final List<File> picked = await pickAttachmentFiles();
     if (!mounted || picked.isEmpty) return;
 
-    final int total = await _totalBytes();
+    // Sizes are read from the files in bytes, and anything that would push the
+    // message past the cap is left off rather than attached and refused later.
+    final List<int> sizes = <int>[
+      for (final File file in picked) await _sizeOf(file),
+    ];
+    final AttachPlan plan = planAttachments(
+      alreadyBytes: await _totalBytes(),
+      sizes: sizes,
+      limit: MailLimits.maxOutboundAttachmentBytes,
+    );
+    final List<File> accepted = <File>[
+      for (final int index in plan.accepted) picked[index],
+    ];
+
+    if (!mounted) return;
     setState(() {
-      _attachments.addAll(picked);
-      if (total + picked.fold<int>(0, (int sum, File f) => sum + f.path.length) >
-          MailLimits.maxOutboundAttachmentBytes) {
-        _error = 'Attachments are limited to '
-            '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB.';
-      }
+      _attachments.addAll(accepted);
+      _error = plan.rejected == 0
+          ? null
+          : '${plan.rejected} file(s) were left off: attachments are limited to '
+              '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB '
+              'in total.';
     });
+  }
+
+  Future<int> _sizeOf(File file) async {
+    try {
+      return await file.length();
+    } catch (_) {
+      // A file that has moved since it was picked contributes nothing here and
+      // will surface on send.
+      return 0;
+    }
   }
 
   Future<int> _totalBytes() async {

@@ -15,9 +15,11 @@ Widget _host(Widget child, {Brightness brightness = Brightness.light}) =>
 void main() {
   group('expressive scheme', () {
     test('keeps the brand orange as primary in both modes', () {
+      // A shade deeper than the pure brand orange in light mode: #FF6A1A is
+      // 2.80:1 against Milk, so a filled button did not read as a shape.
       expect(
         buildAstryxScheme(Brightness.light).primary,
-        const Color(0xFFFF6A1A),
+        const Color(0xFFF25C05),
       );
       expect(
         buildAstryxScheme(Brightness.dark).primary,

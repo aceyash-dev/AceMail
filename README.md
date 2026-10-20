@@ -73,6 +73,22 @@ flutter pub get
 flutter run                 # or: flutter build apk --release
 ```
 
+### What CI verifies, and what it does not
+
+CI runs `flutter analyze` and `flutter test` on every push and pull request, and
+builds two things:
+
+| Target | In CI | Notes |
+| --- | --- | --- |
+| Android (release APK) | **Yes** | arm only, signed, signer checked |
+| Linux desktop | **Yes** | needs the GTK toolchain, installed by the job |
+| iOS, macOS | No | need macOS runners |
+| Windows | No | needs a Windows runner |
+
+The app targets all five, but only the two above are built automatically, so
+those are the two that cannot silently rot. The rest need the runner projects
+generated first (below) and are built by hand.
+
 For iOS, macOS, Windows and Linux, generate those runner projects once and copy
 them in:
 
@@ -171,14 +187,18 @@ Every setting changes something real and survives a restart.
 | Group | Setting | Effect |
 | --- | --- | --- |
 | Account | Manage accounts | Add, switch or remove accounts |
-| Account | Sender pictures | Gravatar lookups. Off by default |
+| Account | Sender pictures | BIMI, then Gravatar. Off by default |
+| Account | Reconnect automatically | One retry after a backoff when the connection drops |
 | Reading | Mark as read when opened | Whether opening sets `\Seen` on the server |
 | Reading | Message view | Formatted (HTML) or plain text |
+| Reading | Messages per page | 20, 40 or 80 before "Load older messages" |
+| Reading | Ask before deleting | A permanent delete always asks |
 | Reading | Signature | Appended to new messages |
 | Gestures | Swipe right | Archive, delete, read/unread, flag or nothing |
 | Gestures | Swipe left | The same list, independently |
 | Appearance | Theme | System, Light or Dark |
 | Appearance | Text size | Multiplies the device setting |
+| Appearance | List density | Comfortable or compact |
 | Appearance | Ask before exiting | Whether leaving the mailbox asks first |
 | Support | How to sign in | The step-by-step tutorial |
 | Support | About Ace Mail | Version and what the app does with your credentials |
@@ -200,6 +220,19 @@ scheme policy and malformed, deeply nested and hostile markup.
 validation and account assembly — without a widget tree.
 `test/models_test.dart` covers folder roles, message parsing, the Gravatar URL,
 attachment filename sanitising, account JSON and date formatting.
+
+The service layer's **policy** is extracted and tested without a server:
+`test/backoff_test.dart` (the retry schedule), `test/request_queue_test.dart`
+(ordering, error propagation, outstanding depth), `test/mail_errors_test.dart`
+(classification by exception type and SMTP status code, plus the search
+criteria), `test/attach_plan_test.dart` (which attachments fit, in bytes), and
+`test/bimi_test.dart` (record parsing and the https-only rule).
+
+What is **not** covered: the IMAP and SMTP wire paths themselves. Exercising
+those needs a live or faked server, which this suite does not have — so the
+fixes to the search command and the expunge target are verified by reading and
+by the extracted policy around them, not by an end-to-end test. That is the
+honest gap.
 
 ## Design system
 
@@ -243,6 +276,19 @@ Expressive** supplies the colour, motion and shape behaviour.
   screen.
 - **Transitions.** Material's emphasised easing, a fade-through with a 92%
   scale, predictive back on Android.
+
+## Accessibility
+
+- **Contrast.** Text on the accent is 4.9:1 (dark ink on the brand orange —
+  white was 2.87:1 and failed AA on every filled button, badge and toggle).
+  Secondary text and hints are above 5:1, disabled ink above 5:1, body text
+  above 7:1. `test/contrast_test.dart` computes the ratios from the real theme
+  and asserts them, in both modes, so a palette change cannot quietly regress.
+- **Roles and names.** Every tap target carries a button role and an enabled
+  state; icon-only controls are named by their tooltip; form fields carry their
+  label, with the visible label excluded so it is not announced twice.
+- **Tests.** `test/semantics_test.dart` asserts the role, the name, the enabled
+  state and the tap action rather than trusting the markup.
 
 ## Hardening
 

@@ -14,6 +14,7 @@ import '../util/html_render.dart';
 import '../util/routes.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
+import 'skeleton.dart';
 import 'avatar.dart';
 
 class MessageReader extends StatefulWidget {
@@ -50,7 +51,7 @@ class _MessageReaderState extends State<MessageReader> {
     final MailController controller = context.watch<MailController>();
 
     if (controller.loadingMessage) {
-      return const Center(child: AceLoader());
+      return const MessageSkeleton();
     }
 
     final FullMessage? message = controller.openMessage;
@@ -427,6 +428,14 @@ class _MessageReaderState extends State<MessageReader> {
     // No Trash folder means a permanent delete, which has to be asked for
     // explicitly and said plainly.
     final bool safe = controller.canDeleteSafely;
+
+    // The user can turn the question off — but never for a permanent delete,
+    // which is the one case where asking is the whole point.
+    if (!context.read<Preferences>().confirmDelete && safe) {
+      await controller.deleteOpenMessage();
+      if (context.mounted) widget.onBack?.call();
+      return;
+    }
 
     final bool? confirmed = await showDialog<bool>(
       context: context,

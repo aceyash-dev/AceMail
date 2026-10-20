@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Dart packages. Grouped, so a routine week is one PR rather than fifteen.
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dart:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # The workflow's own actions — these are pinned by tag and go stale silently.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

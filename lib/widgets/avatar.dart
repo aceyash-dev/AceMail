@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
 import '../services/bimi.dart';
+import '../util/initials.dart';
 import 'astryx_widgets.dart';
 
 /// A sender's picture.
@@ -39,19 +40,6 @@ class MailAvatar extends StatefulWidget {
     final String hash =
         md5.convert(utf8.encode(email.trim().toLowerCase())).toString();
     return 'https://www.gravatar.com/avatar/$hash?d=404&s=$size';
-  }
-
-  static String initialsFor(String name, String email) {
-    final String source = name.trim().isEmpty ? email.trim() : name.trim();
-    if (source.isEmpty) return '?';
-    final List<String> parts =
-        source.split(RegExp(r'\s+')).where((String p) => p.isNotEmpty).toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) {
-      final String only = parts.first;
-      return only.substring(0, only.length >= 2 ? 2 : 1).toUpperCase();
-    }
-    return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
   @override
@@ -94,7 +82,7 @@ class _MailAvatarState extends State<MailAvatar> {
   Widget build(BuildContext context) {
     final String address = widget.email.trim();
     final Widget fallback = InitialsAvatar(
-      initials: MailAvatar.initialsFor(widget.name, widget.email),
+      initials: initialsFor(widget.name, widget.email),
       seed: address.isEmpty ? widget.name : address,
       size: widget.size,
     );

@@ -9,6 +9,7 @@ import '../models/ace_account.dart';
 import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
+import '../services/mail_errors.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
 import '../util/addresses.dart';
@@ -182,14 +183,25 @@ class MailController extends ChangeNotifier {
   Future<void> removeAccount(int index) => _serialize(() async {
         if (index < 0 || index >= _sessions.length) return;
 
+        final bool wasActive = index == _activeIndex;
         _detachAt(index);
+
         if (_sessions.isEmpty) {
           _activeIndex = 0;
           status = MailStatus.signedOut;
           final String? failure = await _store.clear();
           if (failure != null) errorMessage = failure;
         } else {
-          _activeIndex = _activeIndex.clamp(0, _sessions.length - 1);
+          if (index < _activeIndex) {
+            // Everything above the removed account shifted down by one, so the
+            // account that was in front is still in front. Clamping here would
+            // silently switch the mailbox to a different account.
+            _activeIndex -= 1;
+          } else if (wasActive) {
+            // The account in front was the one removed; fall back to whichever
+            // now occupies that position, or the one before it at the end.
+            _activeIndex = _activeIndex.clamp(0, _sessions.length - 1);
+          }
           final String? failure = await _persist();
           if (failure != null) errorMessage = failure;
         }
@@ -255,7 +267,7 @@ class MailController extends ChangeNotifier {
     String? references,
   }) async {
     final MailSession? session = active;
-    if (session == null) throw MailException('Not signed in.');
+    if (session == null) throw const MailConnectionException('Not signed in.');
     await session.send(
       to: to,
       body: body,

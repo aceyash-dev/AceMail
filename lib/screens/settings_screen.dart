@@ -39,6 +39,14 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => showAccountSheet(context),
                 ),
                 SettingsSwitchRow(
+                  icon: Icons.sync_rounded,
+                  title: 'Reconnect automatically',
+                  subtitle: 'Retry once, after a backoff, when the connection '
+                      'drops rather than the command failing.',
+                  value: prefs.autoReconnect,
+                  onChanged: prefs.setAutoReconnect,
+                ),
+                SettingsSwitchRow(
                   icon: Icons.account_circle_outlined,
                   title: 'Sender pictures',
                   subtitle: 'Off by default. Turning this on sends a hash of '
@@ -81,6 +89,32 @@ class SettingsScreen extends StatelessWidget {
                     );
                     if (chosen != null) await prefs.setMessageView(chosen);
                   },
+                ),
+                SettingsRow(
+                  icon: Icons.layers_outlined,
+                  title: 'Messages per page',
+                  subtitle: 'How many load before "Load older messages".',
+                  value: prefs.pageSize.label,
+                  onTap: () async {
+                    final PageSize? chosen = await showChoiceSheet<PageSize>(
+                      context,
+                      title: 'Messages per page',
+                      current: prefs.pageSize,
+                      choices: <SettingsChoice<PageSize>>[
+                        for (final PageSize size in PageSize.values)
+                          SettingsChoice<PageSize>(size, size.label),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setPageSize(chosen);
+                  },
+                ),
+                SettingsSwitchRow(
+                  icon: Icons.delete_outline_rounded,
+                  title: 'Ask before deleting',
+                  subtitle: 'A permanent delete always asks, whatever this is '
+                      'set to.',
+                  value: prefs.confirmDelete,
+                  onChanged: prefs.setConfirmDelete,
                 ),
                 SettingsRow(
                   icon: Icons.draw_outlined,
@@ -130,6 +164,30 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     );
                     if (chosen != null) await prefs.setThemeMode(chosen);
+                  },
+                ),
+                SettingsRow(
+                  icon: Icons.view_agenda_outlined,
+                  title: 'List density',
+                  value: prefs.density.label,
+                  onTap: () async {
+                    final ListDensity? chosen =
+                        await showChoiceSheet<ListDensity>(
+                      context,
+                      title: 'List density',
+                      current: prefs.density,
+                      choices: <SettingsChoice<ListDensity>>[
+                        for (final ListDensity density in ListDensity.values)
+                          SettingsChoice<ListDensity>(
+                            density,
+                            density.label,
+                            description: density == ListDensity.compact
+                                ? 'More messages on screen'
+                                : null,
+                          ),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setDensity(chosen);
                   },
                 ),
                 SettingsRow(

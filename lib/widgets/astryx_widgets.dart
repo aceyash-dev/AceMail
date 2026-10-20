@@ -21,12 +21,17 @@ class AceSpringy extends StatefulWidget {
     this.onTap,
     this.onLongPress,
     this.enabled = true,
+    this.semanticLabel,
   });
 
   final Widget Function(BuildContext context, double press, bool hover) builder;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool enabled;
+
+  /// The name a screen reader announces, for a control whose visible content is
+  /// only an icon.
+  final String? semanticLabel;
 
   @override
   State<AceSpringy> createState() => _AceSpringyState();
@@ -66,7 +71,15 @@ class _AceSpringyState extends State<AceSpringy>
   Widget build(BuildContext context) {
     final bool live = widget.enabled && widget.onTap != null;
 
-    return MouseRegion(
+    return Semantics(
+      // A tap target is a button to a screen reader, whichever component it is
+      // — and it stays a button when disabled, just not an enabled one. The
+      // label goes on this same node, or the role and the name end up as
+      // siblings and neither is announced properly.
+      button: true,
+      enabled: live,
+      label: widget.semanticLabel,
+      child: MouseRegion(
       cursor: live ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
@@ -82,6 +95,7 @@ class _AceSpringyState extends State<AceSpringy>
           builder: (BuildContext context, _) =>
               widget.builder(context, _press.value, _hover),
         ),
+      ),
       ),
     );
   }
@@ -338,6 +352,7 @@ class AceIconButton extends StatelessWidget {
     final Widget button = AceSpringy(
       enabled: onPressed != null,
       onTap: onPressed,
+      semanticLabel: tooltip,
       builder: (BuildContext context, double press, bool hover) {
         final double t = press.clamp(0.0, 1.0);
         // A circular button tightens into a squircle as it is pressed — the
@@ -733,7 +748,7 @@ class _AceLoaderState extends State<AceLoader>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2600),
+    duration: const Duration(milliseconds: 4200),
   );
 
   @override
@@ -778,14 +793,16 @@ class _AceLoaderState extends State<AceLoader>
   }
 }
 
-/// The shape families the indicator flows through. `exponent` is the
-/// superellipse power (2 is a circle, higher is squarer); `lobes` adds the
-/// clover ripple.
+/// One shape family the indicator flows through. `exponent` is the
+/// superellipse power (2 is a circle, higher is squarer); `lobes` is how deep
+/// the ripple is and `lobeCount` how many there are, which is what turns the
+/// same formula into a clover, a flower or a star.
 class _Form {
-  const _Form(this.exponent, this.lobes);
+  const _Form(this.exponent, this.lobes, this.lobeCount);
 
   final double exponent;
   final double lobes;
+  final double lobeCount;
 }
 
 class _ShapeMorphPainter extends CustomPainter {
@@ -795,14 +812,17 @@ class _ShapeMorphPainter extends CustomPainter {
   final Color color;
 
   static const List<_Form> _forms = <_Form>[
-    _Form(2.0, 0.00), // circle
-    _Form(5.2, 0.00), // soft square
-    _Form(2.4, 0.16), // clover
-    _Form(4.0, 0.05), // squircle
+    _Form(2.0, 0.00, 4), // circle
+    _Form(5.2, 0.00, 4), // soft square
+    _Form(2.4, 0.16, 4), // clover
+    _Form(4.0, 0.05, 4), // squircle
+    _Form(3.0, 0.12, 3), // rounded triangle
+    _Form(2.0, 0.22, 6), // flower
+    _Form(6.4, 0.00, 4), // square
+    _Form(2.6, 0.09, 5), // star
   ];
 
-  static const int _samples = 120;
-  static const int _lobeCount = 4;
+  static const int _samples = 132;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -816,6 +836,7 @@ class _ShapeMorphPainter extends CustomPainter {
     final _Form b = _forms[index + 1];
     final double exponent = lerpDouble(a.exponent, b.exponent, eased)!;
     final double lobes = lerpDouble(a.lobes, b.lobes, eased)!;
+    final double lobeCount = lerpDouble(a.lobeCount, b.lobeCount, eased)!;
 
     final double radius = size.width / 2;
     final Offset centre = size.center(Offset.zero);
@@ -834,8 +855,7 @@ class _ShapeMorphPainter extends CustomPainter {
         -1 / exponent,
       ).toDouble();
 
-      final double ripple =
-          1 + lobes * math.cos(_lobeCount * theta);
+      final double ripple = 1 + lobes * math.cos(lobeCount * theta);
 
       final double r = radius * superellipse * ripple;
       final double x = centre.dx + r * math.cos(theta + rotation);

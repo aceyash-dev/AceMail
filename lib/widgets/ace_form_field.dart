@@ -51,21 +51,32 @@ class AceFormField extends StatelessWidget {
       decoration: InputDecoration(hintText: hint, errorText: error),
     );
 
+    // The visible label is decoration; the field itself carries the name, so a
+    // screen reader announces "Email address, text field" instead of reading a
+    // stray word and then an unnamed box.
+    final Widget labelled = Semantics(
+      label: label,
+      textField: true,
+      child: field,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(left: AstryxSpace.s1),
-          child: Text(label, style: AstryxText.label(c.textSecondary)),
+        ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsets.only(left: AstryxSpace.s1),
+            child: Text(label, style: AstryxText.label(c.textSecondary)),
+          ),
         ),
         const SizedBox(height: AstryxSpace.s1_5),
         if (trailing == null)
-          field
+          labelled
         else
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Expanded(child: field),
+              Expanded(child: labelled),
               const SizedBox(width: AstryxSpace.s2),
               trailing!,
             ],
