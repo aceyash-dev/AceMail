@@ -1,4 +1,6 @@
+import 'package:ace_mail/data/limits.dart';
 import 'package:ace_mail/models/ace_account.dart';
+import 'package:ace_mail/util/file_names.dart';
 import 'package:ace_mail/models/mail_folder.dart';
 import 'package:ace_mail/models/message_summary.dart';
 import 'package:ace_mail/util/dates.dart';
@@ -133,6 +135,40 @@ void main() {
       expect(restored.email, account.email);
       expect(restored.imapHost, account.imapHost);
       expect(restored.smtpPort, account.smtpPort);
+    });
+  });
+
+  group('attachment file names', () {
+    test('a path-like name cannot escape the chosen folder', () {
+      for (final String raw in <String>[
+        '../../etc/passwd',
+        r'C:\Windows\evil.exe',
+        '/absolute/path',
+      ]) {
+        final String safe = sanitizeFileName(raw);
+        expect(safe, isNot(contains('/')), reason: raw);
+        expect(safe, isNot(contains(r'\')), reason: raw);
+        expect(safe.startsWith('.'), isFalse, reason: raw);
+      }
+    });
+
+    test('control characters are stripped', () {
+      expect(sanitizeFileName('in\u0000voice.pdf'), 'invoice.pdf');
+    });
+
+    test('an over-long name is capped', () {
+      final String safe = sanitizeFileName('a' * 500);
+      expect(safe.length, MailLimits.maxFileNameLength);
+    });
+
+    test('an empty or unusable name falls back', () {
+      expect(sanitizeFileName(''), 'attachment');
+      expect(sanitizeFileName('   '), 'attachment');
+      expect(sanitizeFileName('...'), 'attachment');
+    });
+
+    test('an ordinary name is left alone', () {
+      expect(sanitizeFileName('Q4 report (final).pdf'), 'Q4 report (final).pdf');
     });
   });
 

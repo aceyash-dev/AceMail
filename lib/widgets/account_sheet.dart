@@ -87,8 +87,9 @@ class AccountSheet extends StatelessWidget {
               style: AstryxText.body(c.textPrimary),
             ),
             subtitle: Text(
-              'Look sender addresses up on Gravatar. Turning this off keeps '
-              'their addresses off a third-party server.',
+              'Off by default. Turning this on sends a hash of every sender\'s '
+              'address to gravatar.com, which is not anonymous — addresses are '
+              'guessable and can be hashed by anyone.',
               style: AstryxText.supporting(c.textSecondary),
             ),
           ),

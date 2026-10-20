@@ -1,12 +1,14 @@
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/limits.dart';
+import '../services/mail_service.dart';
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/addresses.dart';
 import '../util/files.dart';
 import '../widgets/astryx_widgets.dart';
 
@@ -14,32 +16,40 @@ class ComposeScreen extends StatefulWidget {
   const ComposeScreen({
     super.key,
     this.initialTo = '',
+    this.initialCc = '',
     this.initialSubject = '',
     this.initialBody = '',
+    this.inReplyTo,
+    this.references,
   });
 
   final String initialTo;
+  final String initialCc;
   final String initialSubject;
   final String initialBody;
+
+  /// Threading headers, so a reply lands in the same conversation.
+  final String? inReplyTo;
+  final String? references;
 
   @override
   State<ComposeScreen> createState() => _ComposeScreenState();
 }
 
 class _ComposeScreenState extends State<ComposeScreen> {
-  late final TextEditingController _to = TextEditingController(
-    text: widget.initialTo,
-  );
-  late final TextEditingController _cc = TextEditingController();
-  late final TextEditingController _subject = TextEditingController(
-    text: widget.initialSubject,
-  );
-  late final TextEditingController _body = TextEditingController(
-    text: widget.initialBody,
-  );
+  late final TextEditingController _to =
+      TextEditingController(text: widget.initialTo);
+  late final TextEditingController _cc =
+      TextEditingController(text: widget.initialCc);
+  late final TextEditingController _subject =
+      TextEditingController(text: widget.initialSubject);
+  late final TextEditingController _body =
+      TextEditingController(text: widget.initialBody);
 
-  final List<XFile> _attachments = <XFile>[];
+  final List<File> _attachments = <File>[];
   bool _sending = false;
+  String? _toError;
+  String? _ccError;
   String? _error;
 
   @override
@@ -51,39 +61,83 @@ class _ComposeScreenState extends State<ComposeScreen> {
     super.dispose();
   }
 
-  Future<void> _pickAttachments() async {
-    final List<XFile> picked = await pickAttachmentFiles();
-    if (picked.isEmpty) return;
-    setState(() => _attachments.addAll(picked));
+  Future<void> _attach() async {
+    final List<File> picked = await pickAttachmentFiles();
+    if (!mounted || picked.isEmpty) return;
+
+    final int total = await _totalBytes();
+    setState(() {
+      _attachments.addAll(picked);
+      if (total + picked.fold<int>(0, (int sum, File f) => sum + f.path.length) >
+          MailLimits.maxOutboundAttachmentBytes) {
+        _error = 'Attachments are limited to '
+            '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB.';
+      }
+    });
+  }
+
+  Future<int> _totalBytes() async {
+    int total = 0;
+    for (final File file in _attachments) {
+      try {
+        total += await file.length();
+      } catch (_) {
+        // The file may have moved; it will surface on send.
+      }
+    }
+    return total;
   }
 
   Future<void> _send() async {
-    if (_to.text.trim().isEmpty) {
-      setState(() => _error = 'Add at least one recipient.');
-      return;
-    }
+    final String to = _to.text.trim();
+    final String cc = _cc.text.trim();
+
+    final String? toProblem = to.isEmpty
+        ? 'Add at least one recipient.'
+        : MailAddresses.validate(to, field: 'To');
+    final String? ccProblem =
+        cc.isEmpty ? null : MailAddresses.validate(cc, field: 'Cc');
+
     setState(() {
-      _sending = true;
+      _toError = toProblem;
+      _ccError = ccProblem;
       _error = null;
     });
+    if (toProblem != null || ccProblem != null) return;
+
+    final int total = await _totalBytes();
+    if (!mounted) return;
+    if (total > MailLimits.maxOutboundAttachmentBytes) {
+      setState(() {
+        _error = 'Attachments are limited to '
+            '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB.';
+      });
+      return;
+    }
+
+    setState(() => _sending = true);
     try {
       await context.read<MailController>().send(
-            to: _to.text.trim(),
-            cc: _cc.text.trim(),
-            subject: _subject.text.trim(),
+            to: to,
+            cc: cc,
+            subject: _subject.text,
             body: _body.text,
-            attachments:
-                _attachments.map((XFile file) => File(file.path)).toList(),
+            attachments: _attachments,
+            inReplyTo: widget.inReplyTo,
+            references: widget.references,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Message sent.')));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('Message sent.')),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _error = error is MailException
+            ? error.message
+            : 'The message could not be sent.';
         _sending = false;
-        _error = error.toString();
       });
     }
   }
@@ -95,116 +149,131 @@ class _ComposeScreenState extends State<ComposeScreen> {
     return Scaffold(
       backgroundColor: c.backgroundBody,
       appBar: AppBar(
-        title: const Text('New message'),
+        title: Text('New message', style: AstryxText.heading3(c.textPrimary)),
         actions: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(right: AstryxSpace.s4),
-            child: Center(
-              child: _sending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.4),
-                    )
-                  : AceButton(
-                      label: 'Send',
-                      variant: AceButtonVariant.primary,
-                      onPressed: _send,
-                    ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AstryxSpace.s3,
+              vertical: AstryxSpace.s2,
+            ),
+            child: AceButton(
+              label: _sending ? 'Sending…' : 'Send',
+              icon: Icons.send_rounded,
+              variant: AceButtonVariant.primary,
+              onPressed: _sending ? null : _send,
             ),
           ),
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: ListView(
-              padding: const EdgeInsets.all(AstryxSpace.s5),
-              children: <Widget>[
-                _field(
-                  label: 'To',
-                  controller: _to,
-                  hint: 'someone@example.com',
-                ),
-                const SizedBox(height: AstryxSpace.s3),
-                _field(label: 'Cc', controller: _cc, hint: 'optional'),
-                const SizedBox(height: AstryxSpace.s3),
-                _field(label: 'Subject', controller: _subject, hint: 'Subject'),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AstryxSpace.s5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _field('To', _to, hint: 'name@example.com', error: _toError),
+              const SizedBox(height: AstryxSpace.s3),
+              _field('Cc', _cc, hint: 'optional', error: _ccError),
+              const SizedBox(height: AstryxSpace.s3),
+              _field('Subject', _subject),
+              const SizedBox(height: AstryxSpace.s4),
+              TextField(
+                controller: _body,
+                maxLines: 14,
+                minLines: 8,
+                style: AstryxText.body(c.textPrimary),
+                decoration: const InputDecoration(hintText: 'Write a message'),
+              ),
+              const SizedBox(height: AstryxSpace.s4),
+              if (_attachments.isNotEmpty) ...<Widget>[
+                _attachmentList(c),
                 const SizedBox(height: AstryxSpace.s4),
-                TextField(
-                  controller: _body,
-                  minLines: 10,
-                  maxLines: 24,
-                  style: AstryxText.body(c.textPrimary),
-                  decoration: const InputDecoration(
-                    hintText: 'Write your message…',
-                  ),
-                ),
-                const SizedBox(height: AstryxSpace.s4),
-                if (_attachments.isNotEmpty) ...<Widget>[
-                  Wrap(
-                    spacing: AstryxSpace.s2,
-                    runSpacing: AstryxSpace.s2,
-                    children: _attachments.map((XFile file) {
-                      return Chip(
-                        label: Text(
-                          file.name,
-                          style: AstryxText.supporting(c.textPrimary),
-                        ),
-                        backgroundColor: c.accentMuted,
-                        side: BorderSide(color: c.border),
-                        onDeleted: () =>
-                            setState(() => _attachments.remove(file)),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: AstryxSpace.s4),
-                ],
-                Row(
-                  children: <Widget>[
-                    AceButton(
-                      label: 'Attach file',
-                      icon: Icons.attach_file_rounded,
-                      onPressed: _pickAttachments,
-                    ),
-                    const Spacer(),
-                    AceButton(
-                      label: 'Cancel',
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                if (_error != null) ...<Widget>[
-                  const SizedBox(height: AstryxSpace.s4),
-                  Text(_error!, style: AstryxText.body(c.error)),
-                ],
               ],
-            ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                alignment: Alignment.topCenter,
+                child: _error == null
+                    ? const SizedBox(width: double.infinity)
+                    : _errorBox(c, _error!),
+              ),
+              const SizedBox(height: AstryxSpace.s3),
+              AceButton(
+                label: 'Attach files',
+                icon: Icons.attach_file_rounded,
+                onPressed: _sending ? null : _attach,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _field({
-    required String label,
-    required TextEditingController controller,
+  Widget _attachmentList(AstryxColors c) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('Attachments', style: AstryxText.label(c.textSecondary)),
+        const SizedBox(height: AstryxSpace.s2),
+        for (final File file in _attachments)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AstryxSpace.s1),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.attach_file_rounded, size: 16, color: c.iconSecondary),
+                const SizedBox(width: AstryxSpace.s2),
+                Expanded(
+                  child: Text(
+                    file.uri.pathSegments.isEmpty
+                        ? file.path
+                        : file.uri.pathSegments.last,
+                    overflow: TextOverflow.ellipsis,
+                    style: AstryxText.supporting(c.textPrimary),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, size: 16, color: c.iconSecondary),
+                  tooltip: 'Remove',
+                  onPressed: () => setState(() => _attachments.remove(file)),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _errorBox(AstryxColors c, String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AstryxSpace.s3),
+      decoration: BoxDecoration(
+        color: c.errorMuted,
+        borderRadius: BorderRadius.circular(AstryxRadius.element),
+      ),
+      child: Text(message, style: AstryxText.supporting(c.error)),
+    );
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
     String? hint,
+    String? error,
   }) {
     final AstryxColors c = context.astryx;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        SizedBox(
-          width: 72,
-          child: Text(label, style: AstryxText.body(c.textSecondary)),
-        ),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            style: AstryxText.body(c.textPrimary),
-            decoration: InputDecoration(hintText: hint),
+        Text(label, style: AstryxText.label(c.textSecondary)),
+        const SizedBox(height: AstryxSpace.s1_5),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          style: AstryxText.body(c.textPrimary),
+          decoration: InputDecoration(
+            hintText: hint,
+            errorText: error,
           ),
         ),
       ],

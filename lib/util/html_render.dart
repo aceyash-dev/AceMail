@@ -2,18 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' as html_parser;
 import 'package:url_launcher/url_launcher.dart';
 
-/// A small, self-contained HTML → rich text converter.
+import '../data/limits.dart';
+
+/// Converts an HTML mail body into styled spans.
 ///
-/// Mail bodies are HTML, and a full browser-grade renderer is both heavy and
-/// the wrong shape for untrusted content. This handles the subset mail
-/// actually uses — paragraphs, line breaks, emphasis, links, lists, headings,
-/// quotes, preformatted text — and ignores everything else. No scripts, no
-/// remote layout, no surprises.
-///
-/// Call [dispose] when the spans are no longer needed: link spans carry tap
-/// recognisers that must be released.
+/// Parsing is done with `package:html`, a real HTML parser, rather than regular
+/// expressions: mail is full of unclosed tags and deeply nested tables, and a
+/// tokenizer that guesses at that produces wrong text and wrong style state.
+/// Scripts, styles, remote images and active content are dropped, links are
+/// restricted to schemes we are willing to open, and the document is capped.
 class HtmlRenderer {
   HtmlRenderer({
     required this.baseStyle,
@@ -27,6 +28,12 @@ class HtmlRenderer {
 
   final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
 
+  /// The only schemes Ace Mail will hand to the platform launcher. Everything
+  /// else — `javascript:`, `data:`, `file:`, `intent:`, and arbitrary app
+  /// schemes — is discarded. `mailto:` is a deliberate exception because this
+  /// is a mail client.
+  static const Set<String> _allowedSchemes = <String>{'http', 'https', 'mailto'};
+
   void dispose() {
     for (final TapGestureRecognizer recognizer in _recognizers) {
       recognizer.dispose();
@@ -34,312 +41,266 @@ class HtmlRenderer {
     _recognizers.clear();
   }
 
-  static final RegExp _tag = RegExp(r'<\s*/?\s*([a-zA-Z][a-zA-Z0-9]*)([^>]*)>');
-  static final RegExp _droppable = RegExp(
-    r'<(script|style|head|title)[^>]*>.*?</\1\s*>',
-    caseSensitive: false,
-    dotAll: true,
-  );
-  static final RegExp _comment = RegExp(r'<!--.*?-->', dotAll: true);
-  static final RegExp _whitespace = RegExp(r'[ \t\r\n]+');
-
-  static const Set<String> _block = <String>{
-    'p',
-    'div',
-    'section',
-    'article',
-    'header',
-    'footer',
-    'main',
-    'aside',
-    'blockquote',
-    'table',
-    'thead',
-    'tbody',
-    'tfoot',
-    'tr',
-    'ul',
-    'ol',
-    'pre',
-    'figure',
-    'figcaption',
-    'dl',
-    'dt',
-    'dd',
-  };
-  static const Set<String> _heading = <String>{
-    'h1',
-    'h2',
-    'h3',
-    'h4',
-    'h5',
-    'h6',
-  };
-
-  /// Converts [html] into styled spans.
   List<InlineSpan> render(String html) {
     dispose();
 
-    final String source =
-        html.replaceAll(_comment, '').replaceAll(_droppable, '');
+    final String source = html.length > MailLimits.maxHtmlBytes
+        ? html.substring(0, MailLimits.maxHtmlBytes)
+        : html;
 
-    final List<InlineSpan> spans = <InlineSpan>[];
-    final StringBuffer pending = StringBuffer();
-    final List<_Frame> frames = <_Frame>[const _Frame()];
-    final List<bool> lists = <bool>[];
-    final List<int> counters = <int>[];
-    int breaks = 0;
-    int position = 0;
-
-    void flush() {
-      if (pending.isEmpty) return;
-      final _Frame frame = frames.last;
-      TapGestureRecognizer? recognizer;
-      final String? href = frame.href;
-      if (href != null) {
-        recognizer = TapGestureRecognizer()..onTap = () => _open(href);
-        _recognizers.add(recognizer);
-      }
-      spans.add(TextSpan(
-        text: pending.toString(),
-        style: frame.resolve(baseStyle, linkColor, codeStyle),
-        recognizer: recognizer,
-      ));
-      pending.clear();
-    }
-
-    void write(String raw) {
-      String text = _decodeEntities(raw);
-      if (text.isEmpty) return;
-      if (!frames.last.pre) text = text.replaceAll(_whitespace, ' ');
-      if (text.isEmpty) return;
-      if (breaks > 0) {
-        // Never lead the document with blank lines.
-        if (!(spans.isEmpty && pending.isEmpty)) {
-          pending.write('\n' * (breaks > 2 ? 2 : breaks));
-        }
-        breaks = 0;
-      }
-      pending.write(text);
-    }
-
-    void lineBreak(int count) {
-      if (spans.isEmpty && pending.isEmpty) return;
-      if (count > breaks) breaks = count;
-    }
-
-    void handleTag(String raw, String name, String attributes, bool closing) {
-      flush();
-      if (name == 'br') {
-        lineBreak(1);
-        return;
-      }
-      if (name == 'hr') {
-        lineBreak(2);
-        pending.write('———');
-        lineBreak(2);
-        return;
-      }
-      if (name == 'li') {
-        if (closing) {
-          lineBreak(2);
-          return;
-        }
-        lineBreak(1);
-        if (lists.isNotEmpty && lists.last) {
-          counters[counters.length - 1] += 1;
-          pending.write('${counters.last}. ');
-        } else {
-          pending.write('• ');
-        }
-        return;
-      }
-      if (name == 'ul' || name == 'ol') {
-        if (closing) {
-          if (lists.isNotEmpty) lists.removeLast();
-          if (counters.isNotEmpty) counters.removeLast();
-          lineBreak(2);
-        } else {
-          lists.add(name == 'ol');
-          counters.add(0);
-          lineBreak(2);
-        }
-        return;
-      }
-      if (_heading.contains(name)) {
-        if (closing) {
-          frames.removeLast();
-          lineBreak(2);
-        } else {
-          lineBreak(2);
-          frames.add(frames.last.copyWith(bold: true, scale: 1.15));
-        }
-        return;
-      }
-      if (_block.contains(name)) {
-        if (closing) lineBreak(2);
-        return;
-      }
-      switch (name) {
-        case 'b':
-        case 'strong':
-          _toggle(frames, closing, bold: true);
-        case 'i':
-        case 'em':
-          _toggle(frames, closing, italic: true);
-        case 'u':
-        case 'ins':
-          _toggle(frames, closing, underline: true);
-        case 'code':
-        case 'tt':
-        case 'kbd':
-        case 'samp':
-          _toggle(frames, closing, code: true);
-        case 'pre':
-          _toggle(frames, closing, pre: true, code: true);
-        case 'a':
-          if (closing) {
-            frames.removeLast();
-          } else {
-            frames.add(frames.last.copyWith(href: _hrefOf(attributes)));
-          }
-        case 'img':
-          if (!closing) write(_altOf(attributes) ?? '[image]');
-      }
-    }
-
-    for (final RegExpMatch match in _tag.allMatches(source)) {
-      write(source.substring(position, match.start));
-      position = match.end;
-      handleTag(
-        match.group(0)!,
-        match.group(1)!.toLowerCase(),
-        match.group(2) ?? '',
-        match.group(0)!.startsWith('</'),
-      );
-    }
-    write(source.substring(position));
-    flush();
-
-    return spans;
-  }
-
-  static void _toggle(
-    List<_Frame> frames,
-    bool closing, {
-    bool bold = false,
-    bool italic = false,
-    bool underline = false,
-    bool code = false,
-    bool pre = false,
-  }) {
-    if (closing) {
-      if (frames.length > 1) frames.removeLast();
-      return;
-    }
-    frames.add(frames.last.copyWith(
-      bold: bold,
-      italic: italic,
-      underline: underline,
-      code: code,
-      pre: pre,
-    ));
-  }
-
-  static String? _hrefOf(String attributes) {
-    final RegExpMatch? match = RegExp(
-            r'''href\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))''',
-            caseSensitive: false)
-        .firstMatch(attributes);
-    if (match == null) return null;
-    return match.group(2) ?? match.group(3) ?? match.group(4);
-  }
-
-  static String? _altOf(String attributes) {
-    final RegExpMatch? match = RegExp(
-            r'''alt\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))''',
-            caseSensitive: false)
-        .firstMatch(attributes);
-    if (match == null) return null;
-    final String? value = match.group(2) ?? match.group(3) ?? match.group(4);
-    return (value == null || value.trim().isEmpty) ? null : value.trim();
-  }
-
-  static Uri? _normalize(String href) {
-    final String trimmed = href.trim();
-    if (trimmed.isEmpty) return null;
-    final Uri? uri = Uri.tryParse(trimmed);
-    if (uri == null) return null;
-    if (uri.hasScheme) return uri;
-    return Uri.tryParse('https://$trimmed');
-  }
-
-  static void _open(String href) {
-    final Uri? uri = _normalize(href);
-    if (uri == null) return;
-    unawaited(
-      launchUrl(uri, mode: LaunchMode.externalApplication)
-          .catchError((Object _) => false),
+    final _Builder builder = _Builder(
+      baseStyle: baseStyle,
+      linkColor: linkColor,
+      codeStyle: codeStyle,
     );
-  }
 
-  static String _decodeEntities(String input) {
-    if (!input.contains('&')) return input;
-    return input.replaceAllMapped(
-      RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'),
-      (Match match) {
-        final String body = match.group(1)!;
-        if (body.startsWith('#')) {
-          final bool hex = body.startsWith('#x') || body.startsWith('#X');
-          final int? code = int.tryParse(
-            body.substring(hex ? 2 : 1),
-            radix: hex ? 16 : 10,
-          );
-          if (code == null) return match.group(0)!;
-          return String.fromCharCode(code);
-        }
-        return _namedEntities[body.toLowerCase()] ?? match.group(0)!;
-      },
-    );
-  }
+    try {
+      final dom.Document document = html_parser.parse(source);
+      final dom.Element? body = document.body;
+      if (body != null) {
+        builder.walk(body);
+      } else {
+        builder.write(source);
+      }
+    } catch (_) {
+      // Parsing must never take the reader down; show the raw text instead.
+      builder.write(source.replaceAll(RegExp(r'<[^>]*>'), ' '));
+    }
 
-  static const Map<String, String> _namedEntities = <String, String>{
-    'amp': '&',
-    'lt': '<',
-    'gt': '>',
-    'quot': '"',
-    'apos': "'",
-    'nbsp': ' ',
-    'hellip': '…',
-    'mdash': '—',
-    'ndash': '–',
-    'lsquo': '‘',
-    'rsquo': '’',
-    'ldquo': '“',
-    'rdquo': '”',
-    'laquo': '«',
-    'raquo': '»',
-    'middot': '·',
-    'bull': '•',
-    'trade': '™',
-    'copy': '©',
-    'reg': '®',
-    'euro': '€',
-    'pound': '£',
-    'rupee': '₹',
-    'times': '×',
-    'deg': '°',
-  };
+    builder.finish();
+    _recognizers.addAll(builder.recognizers);
+    return builder.spans;
+  }
 }
 
+/// Walks the parsed document, accumulating text under a stack of styles and
+/// flushing a span whenever the style changes or a block boundary is reached.
+class _Builder {
+  _Builder({
+    required this.baseStyle,
+    required this.linkColor,
+    required this.codeStyle,
+  });
+
+  final TextStyle baseStyle;
+  final Color linkColor;
+  final TextStyle codeStyle;
+
+  final List<InlineSpan> spans = <InlineSpan>[];
+  final List<TapGestureRecognizer> recognizers = <TapGestureRecognizer>[];
+
+  final StringBuffer _text = StringBuffer();
+  final List<_Frame> _frames = <_Frame>[const _Frame()];
+  final List<bool> _ordered = <bool>[];
+  final List<int> _counters = <int>[];
+  int _breaks = 0;
+
+  static const Set<String> _skipped = <String>{
+    'script', 'style', 'head', 'title', 'noscript', 'template', 'svg', 'iframe',
+  };
+
+  static const Set<String> _blocks = <String>{
+    'address', 'article', 'aside', 'blockquote', 'dd', 'div', 'dl', 'dt',
+    'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3',
+    'h4', 'h5', 'h6', 'header', 'hr', 'li', 'main', 'nav', 'ol', 'p', 'pre',
+    'section', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'ul',
+  };
+
+  _Frame get _frame => _frames.last;
+
+  void walk(dom.Node node) {
+    for (final dom.Node child in node.nodes) {
+      if (child is dom.Text) {
+        write(child.text);
+      } else if (child is dom.Element) {
+        element(child);
+      }
+    }
+  }
+
+  void element(dom.Element node) {
+    final String tag = node.localName?.toLowerCase() ?? '';
+
+    if (_skipped.contains(tag)) return;
+
+    switch (tag) {
+      case 'br':
+        _break(1);
+        return;
+      case 'hr':
+        _break(2);
+        write('——————');
+        _break(2);
+        return;
+      case 'li':
+        _break(1);
+        write(_bullet());
+        _push(_frame.copyWith());
+        walk(node);
+        _pop();
+        _break(1);
+        return;
+      case 'ul':
+        _ordered.add(false);
+        _counters.add(0);
+        _break(2);
+        walk(node);
+        _ordered.removeLast();
+        _counters.removeLast();
+        _break(2);
+        return;
+      case 'ol':
+        _ordered.add(true);
+        _counters.add(0);
+        _break(2);
+        walk(node);
+        _ordered.removeLast();
+        _counters.removeLast();
+        _break(2);
+        return;
+      case 'img':
+        final String alt = node.attributes['alt']?.trim() ?? '';
+        if (alt.isNotEmpty) write('[$alt]');
+        return;
+    }
+
+    final bool block = _blocks.contains(tag);
+    if (block) _break(2);
+
+    final bool bold = tag == 'b' || tag == 'strong' || _isHeading(tag);
+    final bool italic = tag == 'i' || tag == 'em';
+    final bool underline = tag == 'u' || tag == 'ins';
+    final bool code = tag == 'code' || tag == 'pre' || tag == 'kbd' || tag == 'tt';
+    final String? href = tag == 'a' ? _safeHref(node.attributes['href']) : null;
+
+    _push(
+      _frame.copyWith(
+        bold: _frame.bold || bold,
+        italic: _frame.italic || italic,
+        underline: _frame.underline || underline,
+        code: _frame.code || code,
+        href: href ?? _frame.href,
+      ),
+    );
+    walk(node);
+    _pop();
+
+    if (block) _break(2);
+  }
+
+  /// Text already written belongs to the style it was written in, so the buffer
+  /// is closed before the style changes and after it changes back.
+  void _push(_Frame frame) {
+    _flush();
+    _frames.add(frame);
+  }
+
+  void _pop() {
+    _flush();
+    _frames.removeLast();
+  }
+
+  static bool _isHeading(String tag) =>
+      tag.length == 2 && tag.startsWith('h') && int.tryParse(tag[1]) != null;
+
+  String _bullet() {
+    if (_ordered.isEmpty || !_ordered.last) return '• ';
+    _counters[_counters.length - 1]++;
+    return '${_counters.last}. ';
+  }
+
+  void _break(int count) {
+    if (count > _breaks) _breaks = count;
+  }
+
+  void write(String raw) {
+    if (raw.isEmpty) return;
+
+    // Collapse runs of whitespace the way HTML does, except inside <pre>.
+    final String text = _frame.code
+        ? raw
+        : raw.replaceAll(RegExp(r'[ \t\r\n\u00a0]+'), ' ');
+    if (text.isEmpty) return;
+
+    if (_text.isEmpty && spans.isEmpty) {
+      _breaks = 0; // never start a document with blank lines
+    }
+    if (_breaks > 0) {
+      _text.write('\n' * _breaks);
+      _breaks = 0;
+    }
+    _text.write(text);
+  }
+
+  void finish() {
+    _flush();
+  }
+
+  void _flush() {
+    if (_text.isEmpty) return;
+
+    final _Frame frame = _frame;
+    TapGestureRecognizer? recognizer;
+    final String? href = frame.href;
+    if (href != null) {
+      recognizer = TapGestureRecognizer()..onTap = () => _open(href);
+      recognizers.add(recognizer);
+    }
+
+    spans.add(
+      TextSpan(
+        text: _text.toString(),
+        style: frame.styleFor(baseStyle, linkColor, codeStyle),
+        recognizer: recognizer,
+      ),
+    );
+    _text.clear();
+  }
+
+  /// Only http, https and mailto survive; anything else is dropped entirely.
+  static String? _safeHref(String? raw) {
+    if (raw == null) return null;
+
+    // Control characters can be used to smuggle a scheme past a naive check.
+    final String cleaned = raw.replaceAll(RegExp(r'[\x00-\x20\x7f]'), '');
+    if (cleaned.isEmpty) return null;
+
+    Uri? parsed = Uri.tryParse(cleaned);
+    if (parsed == null) return null;
+
+    if (!parsed.hasScheme) {
+      parsed = Uri.tryParse('https://$cleaned');
+      if (parsed == null) return null;
+    }
+
+    final String scheme = parsed.scheme.toLowerCase();
+    if (!HtmlRenderer._allowedSchemes.contains(scheme)) return null;
+
+    // A web link with no host is not a web link.
+    if (scheme != 'mailto' && parsed.host.isEmpty) return null;
+
+    return parsed.toString();
+  }
+
+  static Future<void> _open(String href) async {
+    final Uri? uri = Uri.tryParse(href);
+    if (uri == null) return;
+    if (!HtmlRenderer._allowedSchemes.contains(uri.scheme.toLowerCase())) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Nothing installed that can handle it.
+    }
+  }
+}
+
+/// One level of inline style.
 class _Frame {
   const _Frame({
     this.bold = false,
     this.italic = false,
     this.underline = false,
     this.code = false,
-    this.pre = false,
-    this.scale = 1,
     this.href,
   });
 
@@ -347,8 +308,6 @@ class _Frame {
   final bool italic;
   final bool underline;
   final bool code;
-  final bool pre;
-  final double scale;
   final String? href;
 
   _Frame copyWith({
@@ -356,8 +315,6 @@ class _Frame {
     bool? italic,
     bool? underline,
     bool? code,
-    bool? pre,
-    double? scale,
     String? href,
   }) =>
       _Frame(
@@ -365,20 +322,12 @@ class _Frame {
         italic: italic ?? this.italic,
         underline: underline ?? this.underline,
         code: code ?? this.code,
-        pre: pre ?? this.pre,
-        scale: scale ?? this.scale,
         href: href ?? this.href,
       );
 
-  TextStyle resolve(
-    TextStyle base,
-    Color linkColor,
-    TextStyle codeStyle,
-  ) {
-    TextStyle style = code ? codeStyle : base;
-    if (scale != 1) {
-      style = style.copyWith(fontSize: (style.fontSize ?? 14) * scale);
-    }
+  TextStyle styleFor(TextStyle base, Color linkColor, TextStyle codeStyle) {
+    if (code) return codeStyle;
+    TextStyle style = base;
     if (bold) style = style.copyWith(fontWeight: FontWeight.w600);
     if (italic) style = style.copyWith(fontStyle: FontStyle.italic);
     if (underline || href != null) {

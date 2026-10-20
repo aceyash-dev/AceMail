@@ -6,6 +6,7 @@ import '../screens/compose_screen.dart';
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/addresses.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
 import '../util/html_render.dart';
@@ -79,9 +80,19 @@ class _MessageReaderState extends State<MessageReader> {
                   ),
                   const SizedBox(height: AstryxSpace.s2),
                   _meta(c, message),
-                  if (message.attachments.isNotEmpty) ...<Widget>[
+                  if (message.attachments.isNotEmpty ||
+                      message.skippedAttachments > 0) ...<Widget>[
                     const SizedBox(height: AstryxSpace.s4),
                     _attachments(context, c, message),
+                    if (message.skippedAttachments > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AstryxSpace.s2),
+                        child: Text(
+                          '${message.skippedAttachments} attachment(s) were too '
+                          'large to open here.',
+                          style: AstryxText.supporting(c.textSecondary),
+                        ),
+                      ),
                   ],
                   const SizedBox(height: AstryxSpace.s4),
                   Divider(height: 1, color: c.border),
@@ -133,6 +144,12 @@ class _MessageReaderState extends State<MessageReader> {
             label: 'Reply',
             variant: AceButtonVariant.ghost,
             onPressed: () => _reply(context, message),
+          ),
+          const SizedBox(width: AstryxSpace.s2),
+          AceButton(
+            label: 'Reply all',
+            variant: AceButtonVariant.ghost,
+            onPressed: () => _reply(context, message, all: true),
           ),
           const SizedBox(width: AstryxSpace.s2),
           AceButton(
@@ -315,16 +332,54 @@ class _MessageReaderState extends State<MessageReader> {
     );
   }
 
-  Future<void> _reply(BuildContext context, FullMessage message) async {
+  /// `References` is the existing chain plus this message's id, which is what
+  /// keeps a reply in the same conversation in every client.
+  static String? _referencesFor(FullMessage message) {
+    final List<String> parts = <String>[
+      if (message.references != null && message.references!.trim().isNotEmpty)
+        message.references!.trim(),
+      if (message.messageId != null && message.messageId!.trim().isNotEmpty)
+        message.messageId!.trim(),
+    ];
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
+  Future<void> _reply(
+    BuildContext context,
+    FullMessage message, {
+    bool all = false,
+  }) async {
     final String subject = message.subject.toLowerCase().startsWith('re:')
         ? message.subject
         : 'Re: ${message.subject}';
+
+    String cc = '';
+    if (all) {
+      final String self = context.read<MailController>().account?.email ?? '';
+      // Everyone the original went to, minus this account and minus the
+      // person it is already addressed to.
+      final Set<String> others = <String>{
+        ...MailAddresses.excluding(
+          message.toEmails,
+          <String>[self, message.fromEmail],
+        ).map((a) => a.email),
+        ...MailAddresses.excluding(
+          message.ccEmails,
+          <String>[self, message.fromEmail],
+        ).map((a) => a.email),
+      };
+      cc = others.join(', ');
+    }
+
     await Navigator.of(context).push(
       aceRoute(
         ComposeScreen(
           initialTo: message.fromEmail,
+          initialCc: cc,
           initialSubject: subject,
           initialBody: '\n\n--- Original message ---\n${message.textBody}',
+          inReplyTo: message.messageId,
+          references: _referencesFor(message),
         ),
       ),
     );
@@ -332,13 +387,19 @@ class _MessageReaderState extends State<MessageReader> {
 
   Future<void> _confirmDelete(BuildContext context) async {
     final MailController controller = context.read<MailController>();
+    // No Trash folder means a permanent delete, which has to be asked for
+    // explicitly and said plainly.
+    final bool safe = controller.canDeleteSafely;
+
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Delete message?'),
-        content: const Text(
-          'It will be moved to Trash where your provider has one, '
-          'otherwise removed for good.',
+        title: Text(safe ? 'Move to Trash?' : 'Delete permanently?'),
+        content: Text(
+          safe
+              ? 'The message will be moved to Trash.'
+              : 'This account has no Trash folder, so the message will be '
+                  'deleted permanently and cannot be recovered.',
         ),
         actions: <Widget>[
           TextButton(
@@ -347,14 +408,14 @@ class _MessageReaderState extends State<MessageReader> {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(safe ? 'Move to Trash' : 'Delete permanently'),
           ),
         ],
       ),
     );
     if (confirmed ?? false) {
-      await controller.deleteOpenMessage();
-      widget.onBack?.call();
+      await controller.deleteOpenMessage(permanently: !safe);
+      if (context.mounted) widget.onBack?.call();
     }
   }
 

@@ -28,6 +28,15 @@ class MailSession extends ChangeNotifier {
   /// How many messages a page holds. The list grows a page at a time.
   static const int pageSize = 40;
 
+  /// Providers that file a copy of what you send without being asked. Adding a
+  /// second copy ourselves is how you end up with duplicates in Sent.
+  static const Set<String> _filesSentItself = <String>{
+    'gmail.com', 'googlemail.com',
+    'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+    'icloud.com', 'me.com', 'mac.com',
+    'yahoo.com', 'yahoo.in', 'ymail.com',
+  };
+
   late final MailTransport _transport = _injected ?? MailService(account);
 
   bool connecting = false;
@@ -50,11 +59,32 @@ class MailSession extends ChangeNotifier {
   String? searchQuery;
 
   bool _connected = false;
+  bool _disposed = false;
   Future<bool>? _connecting;
+
+  /// Request generations. Every listing carries the token it was started with,
+  /// and a response is only applied if it is still the newest one — otherwise
+  /// switching folders quickly lets a slow earlier request overwrite the newer
+  /// selection.
+  int _folderToken = 0;
+  int _messageToken = 0;
 
   bool get isReady => _connected;
 
   bool get hasMore => searchQuery == null && messages.length < _uids.length;
+
+  String? get trashPath => _folderPathFor(FolderRole.trash);
+
+  String? get sentPath => _folderPathFor(FolderRole.sent);
+
+  bool get canDeleteSafely => trashPath != null;
+
+  String? _folderPathFor(FolderRole role) {
+    for (final MailFolder folder in folders) {
+      if (folder.role == role) return folder.path;
+    }
+    return null;
+  }
 
   /// Connects at most once. A switch that arrives while the first attempt is
   /// still running joins that attempt instead of opening a second connection.
@@ -70,13 +100,22 @@ class MailSession extends ChangeNotifier {
   Future<bool> _connect() async {
     connecting = true;
     errorMessage = null;
-    notifyListeners();
+    _notify();
 
     try {
-      folders = await _transport.connect(password);
+      final List<MailFolder> loaded = await _transport.connect(password);
+
+      // The session may have been abandoned while we were connecting; do not
+      // leave a live connection behind for a screen that no longer exists.
+      if (_disposed) {
+        unawaited(_transport.disconnect());
+        return false;
+      }
+
+      folders = loaded;
       _connected = true;
       connecting = false;
-      notifyListeners();
+      _notify();
 
       final MailFolder? inbox =
           _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.inbox) ??
@@ -87,7 +126,7 @@ class MailSession extends ChangeNotifier {
       errorMessage = error.toString();
       connecting = false;
       _connecting = null; // let a later attempt try again
-      notifyListeners();
+      _notify();
       return false;
     }
   }
@@ -95,6 +134,7 @@ class MailSession extends ChangeNotifier {
   Future<void> openFolder(MailFolder folder) async {
     if (!_connected) return;
 
+    final int token = ++_folderToken;
     selectedFolder = folder;
     searchQuery = null;
     openMessage = null;
@@ -103,19 +143,25 @@ class MailSession extends ChangeNotifier {
     _uids = <int>[];
     loadingMessages = true;
     errorMessage = null;
-    notifyListeners();
+    _notify();
 
     try {
-      _uids = await _transport.listMessageUids(folder);
-      messages = await _transport.fetchSummariesByUid(
+      final List<int> uids = await _transport.listMessageUids(folder);
+      final List<MessageSummary> page = await _transport.fetchSummariesByUid(
         folder,
-        _uids.take(pageSize).toList(),
+        uids.take(pageSize).toList(),
       );
+      if (token != _folderToken) return; // a newer folder won
+      _uids = uids;
+      messages = page;
     } catch (error) {
+      if (token != _folderToken) return;
       errorMessage = error.toString();
     } finally {
-      loadingMessages = false;
-      notifyListeners();
+      if (token == _folderToken) {
+        loadingMessages = false;
+        _notify();
+      }
     }
   }
 
@@ -124,19 +170,24 @@ class MailSession extends ChangeNotifier {
     final MailFolder? folder = selectedFolder;
     if (!_connected || folder == null || loadingMore || !hasMore) return;
 
+    final int token = _folderToken;
     loadingMore = true;
-    notifyListeners();
+    _notify();
     try {
       final List<int> next =
           _uids.skip(messages.length).take(pageSize).toList();
       final List<MessageSummary> more =
           await _transport.fetchSummariesByUid(folder, next);
+      if (token != _folderToken) return;
       messages = <MessageSummary>[...messages, ...more];
     } catch (error) {
+      if (token != _folderToken) return;
       errorMessage = error.toString();
     } finally {
-      loadingMore = false;
-      notifyListeners();
+      if (token == _folderToken) {
+        loadingMore = false;
+        _notify();
+      }
     }
   }
 
@@ -151,8 +202,7 @@ class MailSession extends ChangeNotifier {
     }
   }
 
-  /// Searches subject, sender and recipient. An empty query returns to the
-  /// plain folder listing.
+  /// Searches sender and subject. An empty query returns to the plain listing.
   Future<void> search(String query) async {
     final MailFolder? folder = selectedFolder;
     final String trimmed = query.trim();
@@ -164,21 +214,28 @@ class MailSession extends ChangeNotifier {
       return;
     }
 
+    final int token = ++_folderToken;
     searchQuery = trimmed;
     openMessage = null;
     openSummary = null;
     messages = <MessageSummary>[];
     loadingMessages = true;
     errorMessage = null;
-    notifyListeners();
+    _notify();
 
     try {
-      messages = await _transport.search(folder, trimmed);
+      final List<MessageSummary> found =
+          await _transport.search(folder, trimmed);
+      if (token != _folderToken) return;
+      messages = found;
     } catch (error) {
+      if (token != _folderToken) return;
       errorMessage = error.toString();
     } finally {
-      loadingMessages = false;
-      notifyListeners();
+      if (token == _folderToken) {
+        loadingMessages = false;
+        _notify();
+      }
     }
   }
 
@@ -191,47 +248,66 @@ class MailSession extends ChangeNotifier {
   Future<void> open(MessageSummary summary) async {
     if (!_connected) return;
 
+    final int token = ++_messageToken;
     openSummary = summary;
     openMessage = null;
     loadingMessage = true;
-    notifyListeners();
+    _notify();
 
     try {
-      openMessage = await _transport.fetchMessage(summary);
+      final FullMessage loaded = await _transport.fetchMessage(summary);
+      if (token != _messageToken) return; // a newer message won
+      openMessage = loaded;
       _replace(summary.uid, summary.copyWith(isSeen: true));
+      // Set \Seen deliberately rather than as a side effect of reading, so the
+      // row and the server agree. Best effort: a failure must not hide the mail.
+      unawaited(_markSeenQuietly(summary));
     } catch (error) {
+      if (token != _messageToken) return;
       errorMessage = error.toString();
     } finally {
-      loadingMessage = false;
-      notifyListeners();
+      if (token == _messageToken) {
+        loadingMessage = false;
+        _notify();
+      }
+    }
+  }
+
+  Future<void> _markSeenQuietly(MessageSummary summary) async {
+    try {
+      await _transport.markSeen(summary);
+    } catch (_) {
+      // The message is readable either way.
     }
   }
 
   void closeMessage() {
+    _messageToken++; // anything in flight for the old message is now stale
     openMessage = null;
     openSummary = null;
-    notifyListeners();
+    _notify();
   }
 
-  Future<void> deleteOpenMessage() async {
+  Future<void> deleteOpenMessage({bool permanently = false}) async {
     final MessageSummary? summary = openSummary;
     if (!_connected || summary == null) return;
 
-    final String? trashPath =
-        _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.trash)
-            ?.path;
     try {
-      await _transport.deleteMessage(summary, trashPath: trashPath);
+      await _transport.deleteMessage(
+        summary,
+        trashPath: trashPath,
+        permanently: permanently,
+      );
       messages = messages
           .where((MessageSummary m) => m.uid != summary.uid)
           .toList();
       _uids = _uids.where((int uid) => uid != summary.uid).toList();
       openMessage = null;
       openSummary = null;
-      notifyListeners();
+      _notify();
     } catch (error) {
       errorMessage = error.toString();
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -242,10 +318,10 @@ class MailSession extends ChangeNotifier {
     try {
       await _transport.markUnread(summary);
       _replace(summary.uid, summary.copyWith(isSeen: false));
-      notifyListeners();
+      _notify();
     } catch (error) {
       errorMessage = error.toString();
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -257,10 +333,10 @@ class MailSession extends ChangeNotifier {
       await _transport.setFlagged(summary, next);
       _replace(summary.uid, summary.copyWith(isFlagged: next));
       openSummary = summary.copyWith(isFlagged: next);
-      notifyListeners();
+      _notify();
     } catch (error) {
       errorMessage = error.toString();
-      notifyListeners();
+      _notify();
     }
   }
 
@@ -270,6 +346,8 @@ class MailSession extends ChangeNotifier {
     String cc = '',
     String subject = '',
     List<File> attachments = const <File>[],
+    String? inReplyTo,
+    String? references,
   }) async {
     if (!_connected) throw MailException('Not connected.');
     await _transport.send(
@@ -279,6 +357,10 @@ class MailSession extends ChangeNotifier {
       subject: subject,
       password: password,
       attachments: attachments,
+      inReplyTo: inReplyTo,
+      references: references,
+      // Only file a copy ourselves when the provider will not.
+      sentPath: _filesSentItself.contains(account.domain) ? null : sentPath,
     );
   }
 
@@ -290,8 +372,18 @@ class MailSession extends ChangeNotifier {
     messages = List<MessageSummary>.of(messages)..[index] = updated;
   }
 
+  /// Never notify after disposal: listeners are gone and ChangeNotifier throws
+  /// in debug builds.
+  void _notify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
+    _disposed = true;
+    _messageToken++;
+    _folderToken++;
     if (_connected) unawaited(_transport.disconnect());
     _connected = false;
     super.dispose();

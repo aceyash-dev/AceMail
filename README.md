@@ -37,17 +37,20 @@ a custom theme, not a departure.
   connection error means.
 - Several accounts signed in at once, switchable from the account chip in the
   app bar or the header in the folder rail.
-- Sender pictures from Gravatar, falling back to an initials chip when there is
-  no picture — or no network. The lookup can be switched off, because it sends
-  a hash of the sender's address to a third party.
+- Sender pictures from Gravatar, falling back to an initials chip. **Off by
+  default**: the lookup sends a hash of every sender's address to a third
+  party, and a hash of an address is not anonymous.
 - Browse every folder, with unread counts, paged forty at a time. Non-selectable
   container folders such as Gmail's `[Gmail]` are filtered out.
-- Search the open folder across subject, sender and recipient.
+- Search the open folder across subject and sender.
 - Read mail: HTML rendered, a plain-text toggle, and attachments listed and
   saveable.
 - Compose, reply and send, with file attachments.
 - Mark as unread, and flag/unflag with the star.
-- Delete to Trash where the provider has one.
+- Delete moves to Trash. When a provider has no Trash folder, the app says so
+  and asks before deleting permanently — it never quietly destroys mail.
+- Reply and reply-all, with `In-Reply-To` and `References` set so the reply
+  threads correctly in every other client.
 - Credentials live in the platform keychain, never in plain files.
 - Gesture navigation: swipe right to leave a message, pull down to refresh, and
   a confirmation before the app closes.
@@ -162,10 +165,55 @@ flutter test
 ```
 
 `test/session_test.dart` drives the session and the multi-account controller
-through a `MailTransport` fake — connection de-duplication, paging, search,
-flags, deletion, switching, removal and disposal — so the parts that are hard to
-exercise by hand are covered. `test/models_test.dart` covers folder roles,
-message parsing, the Gravatar URL, account JSON and date formatting.
+through a `MailTransport` fake — connection de-duplication, stale-response
+discarding, disposal mid-connect, delete safety with and without a Trash folder,
+paging, search, flags, reply threading, the sent-copy rule, switching, removal
+and serialised account mutations. `test/html_render_test.dart` covers the link
+scheme policy and malformed, deeply nested and hostile markup.
+`test/addresses_test.dart` covers recipient parsing and validation.
+`test/models_test.dart` covers folder roles, message parsing, the Gravatar URL,
+attachment filename sanitising, account JSON and date formatting.
+
+## Hardening
+
+Mail is hostile input, so the client treats it that way.
+
+- **Links are restricted to `http`, `https` and `mailto`.** Everything else —
+  `javascript:`, `data:`, `file:`, `intent:`, arbitrary app schemes — is dropped
+  before it can reach the platform launcher, including when a scheme is
+  smuggled past a naive check with control characters.
+- **HTML is parsed with `package:html`**, a real parser, rather than regular
+  expressions. Unclosed tags, mis-nested markup and deep nesting render
+  correctly instead of producing wrong text and wrong style state. Scripts,
+  styles, iframes, SVG and remote images are dropped; an image contributes only
+  its alt text.
+- **Size limits** cap the HTML body (2 MB), a single attachment (25 MB), the
+  total decoded attachments (40 MB), attachment count (20) and outbound
+  attachment total (25 MB). Oversized parts are skipped before decoding, and the
+  reader says how many were left out.
+- **Attachment filenames are sanitised** before being offered to the save
+  dialog, so a name from a message cannot escape the chosen directory.
+- **Deletion cannot lose mail.** A failed move to Trash is reported, not
+  treated as "no Trash here" — a permanent delete happens only when the user
+  explicitly asks for one.
+- **Reading a message does not set `\Seen` as a side effect.** The flag is set
+  deliberately afterwards, so a failure cannot leave the list and the server
+  disagreeing.
+- **Stale responses are discarded.** Folder listings, searches and message
+  loads carry a request token and are dropped if a newer request has started,
+  so switching quickly cannot show one folder's mail under another's name.
+- **Connecting is atomic**: if the first folder listing fails, the client is
+  closed and nothing is left half-open.
+- **A session disposed mid-connection closes its transport** and stops
+  notifying.
+- **Sending distinguishes rejection from an unknown outcome.** If the
+  connection drops after the server has the message, the app says delivery is
+  unconfirmed and does not resend.
+- **Secure-storage failures are reported**, not swallowed. A keychain that
+  cannot be read, or an account that could not be saved, says so.
+- **Releases fail closed.** A publishing run with no keystore secret fails
+  rather than shipping a debug-signed APK, and the built APK's signer is
+  checked against the expected certificate fingerprint.
 
 ## Notes
 

@@ -10,6 +10,7 @@ import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
+import '../util/addresses.dart';
 import 'mail_session.dart';
 
 /// Builds the transport for an account. Tests inject a fake here.
@@ -36,6 +37,13 @@ class MailController extends ChangeNotifier {
   final MailTransportFactory? _transportFactory;
   final List<MailSession> _sessions = <MailSession>[];
   int _activeIndex = 0;
+
+  /// Serialises account mutations. Signing in, removing and signing out all
+  /// rewrite the same list, so letting two of them interleave produces a
+  /// session list and a keychain that disagree.
+  Future<void> _mutations = Future<void>.value();
+
+  bool _disposed = false;
 
   /// The most recent address, used to prefill the sign-in form.
   String? lastEmail;
@@ -67,15 +75,17 @@ class MailController extends ChangeNotifier {
   bool get loadingMore => active?.loadingMore ?? false;
   bool get hasMore => active?.hasMore ?? false;
   String? get searchQuery => active?.searchQuery;
+  bool get canDeleteSafely => active?.canDeleteSafely ?? false;
 
   /// The active account's most recent error, if any. Surfaced as a snack bar
   /// so failures do not disappear silently.
   String? get sessionError => active?.errorMessage;
 
   Future<void> restore() async {
-    final List<StoredAccount> saved = await _store.loadAll();
-    if (saved.isNotEmpty) {
-      for (final StoredAccount stored in saved) {
+    final AccountLoad loaded = await _store.loadAll();
+
+    if (loaded.accounts.isNotEmpty) {
+      for (final StoredAccount stored in loaded.accounts) {
         _attach(_newSession(stored.account, stored.password));
       }
 
@@ -84,14 +94,19 @@ class MailController extends ChangeNotifier {
       final int index = previous == null
           ? 0
           : _sessions.indexWhere(
-              (MailSession s) => s.account.email == previous,
+              (MailSession s) =>
+                  MailAccountsMatch.same(s.account.email, previous),
             );
       _activeIndex = index < 0 ? 0 : index;
       lastEmail = _sessions[_activeIndex].account.email;
       status = MailStatus.ready;
     }
+
+    // A keychain that could not be read is worth saying out loud.
+    if (loaded.error != null) errorMessage = loaded.error;
+
     restoring = false;
-    notifyListeners();
+    _notify();
 
     // Bring up only the active account. The rest connect the first time they
     // are switched to, so ten accounts do not mean ten IMAP connections.
@@ -103,77 +118,90 @@ class MailController extends ChangeNotifier {
     AceAccount candidate,
     String password, {
     bool remember = true,
-  }) async {
-    connecting = true;
-    errorMessage = null;
-    status = MailStatus.connecting;
-    notifyListeners();
+  }) =>
+      _serialize(() async {
+        connecting = true;
+        errorMessage = null;
+        status = MailStatus.connecting;
+        _notify();
 
-    final MailSession session = _newSession(candidate, password);
-    final bool ok = await session.connect();
+        final MailSession session = _newSession(candidate, password);
+        final bool ok = await session.connect();
+        if (_disposed) {
+          session.dispose();
+          return false;
+        }
 
-    connecting = false;
-    if (!ok) {
-      errorMessage = session.errorMessage;
-      status = _sessions.isEmpty ? MailStatus.failed : MailStatus.ready;
-      session.dispose();
-      notifyListeners();
-      return false;
-    }
+        connecting = false;
+        if (!ok) {
+          errorMessage = session.errorMessage;
+          status = _sessions.isEmpty ? MailStatus.failed : MailStatus.ready;
+          session.dispose();
+          _notify();
+          return false;
+        }
 
-    // Replace an existing session for the same address rather than duplicating.
-    final int existing = _sessions.indexWhere(
-      (MailSession s) => s.account.email == candidate.email,
-    );
-    if (existing != -1) {
-      _detachAt(existing);
-    }
+        // Replace an existing session for the same address rather than
+        // duplicating it. Addresses are compared case-insensitively.
+        final int existing = _sessions.indexWhere(
+          (MailSession s) =>
+              MailAccountsMatch.same(s.account.email, candidate.email),
+        );
+        if (existing != -1) _detachAt(existing);
 
-    _attach(session);
-    _activeIndex = _sessions.length - 1;
-    lastEmail = candidate.email;
-    status = MailStatus.ready;
-    if (remember) await _persist();
-    notifyListeners();
-    return true;
-  }
+        _attach(session);
+        _activeIndex = _sessions.length - 1;
+        lastEmail = candidate.email;
+        status = MailStatus.ready;
+
+        if (remember) {
+          final String? failure = await _persist();
+          if (failure != null) errorMessage = failure;
+        }
+        _notify();
+        return true;
+      });
 
   void switchTo(int index) {
     if (index < 0 || index >= _sessions.length || index == _activeIndex) return;
     _activeIndex = index;
     lastEmail = _sessions[index].account.email;
     unawaited(_store.saveActiveEmail(lastEmail));
-    notifyListeners();
+    _notify();
     // connect() is idempotent, so this is a no-op once the account is up.
     unawaited(_sessions[index].connect());
   }
 
-  Future<void> removeAccount(int index) async {
-    if (index < 0 || index >= _sessions.length) return;
-    _detachAt(index);
-    if (_sessions.isEmpty) {
-      _activeIndex = 0;
-      status = MailStatus.signedOut;
-      await _store.clear();
-    } else {
-      _activeIndex = _activeIndex.clamp(0, _sessions.length - 1);
-      await _persist();
-    }
-    notifyListeners();
-  }
+  Future<void> removeAccount(int index) => _serialize(() async {
+        if (index < 0 || index >= _sessions.length) return;
 
-  Future<void> signOut() async {
-    for (final MailSession session in List<MailSession>.of(_sessions)) {
-      session.removeListener(notifyListeners);
-      session.dispose();
-    }
-    _sessions.clear();
-    _activeIndex = 0;
-    lastEmail = null;
-    await _store.clear();
-    status = MailStatus.signedOut;
-    notifyListeners();
-  }
+        _detachAt(index);
+        if (_sessions.isEmpty) {
+          _activeIndex = 0;
+          status = MailStatus.signedOut;
+          final String? failure = await _store.clear();
+          if (failure != null) errorMessage = failure;
+        } else {
+          _activeIndex = _activeIndex.clamp(0, _sessions.length - 1);
+          final String? failure = await _persist();
+          if (failure != null) errorMessage = failure;
+        }
+        _notify();
+      });
+
+  Future<void> signOut() => _serialize(() async {
+        for (final MailSession session in List<MailSession>.of(_sessions)) {
+          session.removeListener(_notify);
+          session.dispose();
+        }
+        _sessions.clear();
+        _activeIndex = 0;
+        lastEmail = null;
+        status = MailStatus.signedOut;
+        final String? failure = await _store.clear();
+        if (failure != null) errorMessage = failure;
+        _notify();
+      });
 
   // --- actions, forwarded to the active session --------------------------
   Future<void> openFolder(MailFolder folder) async =>
@@ -191,7 +219,8 @@ class MailController extends ChangeNotifier {
 
   void closeMessage() => active?.closeMessage();
 
-  Future<void> deleteOpenMessage() async => active?.deleteOpenMessage();
+  Future<void> deleteOpenMessage({bool permanently = false}) async =>
+      active?.deleteOpenMessage(permanently: permanently);
 
   Future<void> markOpenUnread() async => active?.markOpenUnread();
 
@@ -203,6 +232,8 @@ class MailController extends ChangeNotifier {
     String cc = '',
     String subject = '',
     List<File> attachments = const <File>[],
+    String? inReplyTo,
+    String? references,
   }) async {
     final MailSession? session = active;
     if (session == null) throw MailException('Not signed in.');
@@ -212,6 +243,8 @@ class MailController extends ChangeNotifier {
       cc: cc,
       subject: subject,
       attachments: attachments,
+      inReplyTo: inReplyTo,
+      references: references,
     );
   }
 
@@ -224,32 +257,60 @@ class MailController extends ChangeNotifier {
       );
 
   void _attach(MailSession session) {
-    session.addListener(notifyListeners);
+    session.addListener(_notify);
     _sessions.add(session);
   }
 
   void _detachAt(int index) {
     final MailSession session = _sessions.removeAt(index);
-    session.removeListener(notifyListeners);
+    session.removeListener(_notify);
     session.dispose();
   }
 
-  Future<void> _persist() async {
-    await _store.saveAll(
+  Future<String?> _persist() async {
+    final String? failure = await _store.saveAll(
       _sessions
           .map((MailSession s) => (account: s.account, password: s.password))
           .toList(),
     );
-    await _store.saveActiveEmail(lastEmail);
+    if (failure == null) await _store.saveActiveEmail(lastEmail);
+    return failure;
+  }
+
+  /// Runs account mutations one at a time, in order.
+  Future<T> _serialize<T>(Future<T> Function() action) {
+    final Completer<T> result = Completer<T>();
+    _mutations = _mutations.then((_) async {
+      try {
+        result.complete(await action());
+      } catch (error, stack) {
+        result.completeError(error, stack);
+      }
+    });
+    return result.future;
+  }
+
+  void _notify() {
+    if (_disposed) return;
+    notifyListeners();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     for (final MailSession session in _sessions) {
-      session.removeListener(notifyListeners);
+      session.removeListener(_notify);
       session.dispose();
     }
     _sessions.clear();
     super.dispose();
   }
+}
+
+/// Address identity for account comparison. The local part of an address is
+/// technically case-sensitive, but every provider people use treats it as not,
+/// and comparing raw strings produced duplicate entries for the same mailbox.
+abstract final class MailAccountsMatch {
+  static bool same(String a, String b) =>
+      MailAddresses.normalize(a) == MailAddresses.normalize(b);
 }

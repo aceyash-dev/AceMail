@@ -7,16 +7,22 @@ import '../models/ace_account.dart';
 /// One stored account and its password.
 typedef StoredAccount = ({AceAccount account, String password});
 
+/// The outcome of reading stored accounts. [error] is non-null when something
+/// went wrong — an unreadable keychain, or a record whose password is missing —
+/// so the app can say so instead of silently starting signed out.
+typedef AccountLoad = ({List<StoredAccount> accounts, String? error});
+
 /// Persists every signed-in account in the platform keychain, so the app
 /// reopens with all of them and can switch between them offline.
 ///
-/// Best-effort by design: on a platform with no secure store, saving silently
-/// no-ops and the app simply starts signed out rather than crashing.
+/// Writes a versioned manifest, and reports failure rather than swallowing it:
+/// a user who is told an account was remembered should be able to rely on it.
 class AccountStore {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
   static const String _accountsKey = 'ace.accounts';
   static const String _passwordPrefix = 'ace.password.';
   static const String _activeKey = 'ace.active';
+  static const int _manifestVersion = 1;
 
   String _passwordKey(String email) => '$_passwordPrefix$email';
 
@@ -37,32 +43,72 @@ class AccountStore {
         await _storage.write(key: _activeKey, value: email);
       }
     } catch (_) {
-      // Nothing stored.
+      // Not worth interrupting the user for; the account order still stands.
     }
   }
 
-  Future<List<StoredAccount>> loadAll() async {
+  Future<AccountLoad> loadAll() async {
+    final String? raw;
     try {
-      final String? raw = await _storage.read(key: _accountsKey);
-      if (raw == null) return <StoredAccount>[];
-
-      final List<dynamic> decoded = jsonDecode(raw) as List<dynamic>;
-      final List<StoredAccount> accounts = <StoredAccount>[];
-      for (final dynamic entry in decoded) {
-        final AceAccount account =
-            AceAccount.fromJson(entry as Map<String, dynamic>);
-        final String? password = await _storage.read(key: _passwordKey(account.email));
-        if (password != null) {
-          accounts.add((account: account, password: password));
-        }
-      }
-      return accounts;
+      raw = await _storage.read(key: _accountsKey);
     } catch (_) {
-      return <StoredAccount>[];
+      return (
+        accounts: <StoredAccount>[],
+        error: 'This device\'s keychain could not be read, so saved accounts '
+            'were not loaded. Sign in again to continue.',
+      );
     }
+    if (raw == null) return (accounts: <StoredAccount>[], error: null);
+
+    List<Map<String, dynamic>> entries;
+    try {
+      entries = _decodeManifest(raw);
+    } catch (_) {
+      return (
+        accounts: <StoredAccount>[],
+        error: 'The saved account list could not be read. Sign in again.',
+      );
+    }
+
+    final List<StoredAccount> accounts = <StoredAccount>[];
+    final List<String> incomplete = <String>[];
+
+    for (final Map<String, dynamic> entry in entries) {
+      final AceAccount account;
+      try {
+        account = AceAccount.fromJson(entry);
+      } catch (_) {
+        continue;
+      }
+
+      final String? password;
+      try {
+        password = await _storage.read(key: _passwordKey(account.email));
+      } catch (_) {
+        incomplete.add(account.email);
+        continue;
+      }
+
+      // A record whose password is gone is incomplete, not absent: say so
+      // rather than quietly dropping the account.
+      if (password == null) {
+        incomplete.add(account.email);
+        continue;
+      }
+      accounts.add((account: account, password: password));
+    }
+
+    return (
+      accounts: accounts,
+      error: incomplete.isEmpty
+          ? null
+          : 'The saved password for ${incomplete.join(', ')} could not be '
+              'read. Sign in again to restore it.',
+    );
   }
 
-  Future<void> saveAll(List<StoredAccount> accounts) async {
+  /// Returns null on success, or a reason the credentials were not stored.
+  Future<String?> saveAll(List<StoredAccount> accounts) async {
     try {
       final Set<String> keep =
           accounts.map((StoredAccount a) => a.account.email).toSet();
@@ -70,46 +116,68 @@ class AccountStore {
       // Drop passwords for accounts that are no longer stored.
       final String? raw = await _storage.read(key: _accountsKey);
       if (raw != null) {
-        for (final dynamic entry in jsonDecode(raw) as List<dynamic>) {
-          final String email =
-              (entry as Map<String, dynamic>)['email'] as String;
-          if (!keep.contains(email)) {
+        for (final Map<String, dynamic> entry in _decodeManifest(raw)) {
+          final String? email = entry['email'] as String?;
+          if (email != null && !keep.contains(email)) {
             await _storage.delete(key: _passwordKey(email));
           }
         }
       }
 
-      await _storage.write(
-        key: _accountsKey,
-        value: jsonEncode(
-          accounts.map((StoredAccount a) => a.account.toJson()).toList(),
-        ),
-      );
+      // Passwords first: a manifest that names an account whose password was
+      // never written is the incomplete state we are trying to avoid.
       for (final StoredAccount a in accounts) {
         await _storage.write(
           key: _passwordKey(a.account.email),
           value: a.password,
         );
       }
+
+      await _storage.write(
+        key: _accountsKey,
+        value: jsonEncode(<String, dynamic>{
+          'version': _manifestVersion,
+          'accounts': accounts
+              .map((StoredAccount a) => a.account.toJson())
+              .toList(),
+        }),
+      );
+      return null;
     } catch (_) {
-      // No keychain available; stay signed out next launch.
+      return 'This device could not save the account, so it will not be '
+          'remembered next time.';
     }
   }
 
-  Future<void> clear() async {
+  /// Returns null on success, or a reason the credentials were not removed.
+  Future<String?> clear() async {
     try {
       final String? raw = await _storage.read(key: _accountsKey);
       if (raw != null) {
-        for (final dynamic entry in jsonDecode(raw) as List<dynamic>) {
-          final String email =
-              (entry as Map<String, dynamic>)['email'] as String;
-          await _storage.delete(key: _passwordKey(email));
+        for (final Map<String, dynamic> entry in _decodeManifest(raw)) {
+          final String? email = entry['email'] as String?;
+          if (email != null) {
+            await _storage.delete(key: _passwordKey(email));
+          }
         }
       }
       await _storage.delete(key: _accountsKey);
       await _storage.delete(key: _activeKey);
+      return null;
     } catch (_) {
-      // Nothing stored.
+      return 'The saved credentials could not be removed from this device.';
     }
+  }
+
+  /// Accepts the current `{version, accounts}` manifest and the older bare
+  /// array, so an upgrade does not lose anyone's accounts.
+  static List<Map<String, dynamic>> _decodeManifest(String raw) {
+    final Object? decoded = jsonDecode(raw);
+    final List<dynamic> list = decoded is Map<String, dynamic>
+        ? (decoded['accounts'] as List<dynamic>? ?? <dynamic>[])
+        : decoded as List<dynamic>;
+    return list
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
   }
 }

@@ -13,13 +13,15 @@ class Preferences extends ChangeNotifier {
 
   final FlutterSecureStorage _storage;
 
-  bool _showAvatars = true;
+  bool _showAvatars = false;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
-  /// On by default, but it can be turned off: a Gravatar lookup sends an MD5 of
-  /// every sender's address to a third party, which is not something a mail
-  /// client should do without saying so.
+  /// **Off by default, and deliberately so.** A Gravatar lookup sends an MD5 of
+  /// every sender's address to a third party. A hash of an address is not
+  /// anonymous — addresses are guessable and can be hashed by anyone — so this
+  /// is a disclosure the user opts into, not one the app makes for them. When
+  /// it is off, no network request is made at all.
   bool get showAvatars => _showAvatars;
 
   Future<void> load() async {
