@@ -215,8 +215,19 @@ Expressive** supplies the colour, motion and shape behaviour.
   shape morph on press: buttons go from a stadium to a rounded rectangle, icon
   buttons from a circle to a squircle, list rows tighten their corners.
 - **Components.** Pill buttons with tonal variants, an extended FAB, a floating
-  pill toolbar in the reader, grouped settings sections, a shape-morphing
-  loading indicator, and a large collapsing app bar over the message list.
+  pill toolbar in the reader, grouped settings sections, and a large
+  collapsing app bar over the message list.
+- **Loading.** Not a spinner: one form that continuously flows between shape
+  families — circle, soft square, four-lobed clover, squircle — while turning
+  slowly. The morph is a single continuous formula, so the surface deforms
+  rather than cross-fading, and it reads as "working" at any size.
+- **The mark.** A milk envelope on the brand orange, with the flap cut
+  *through* the envelope rather than stroked, so the background shows through
+  it. The in-app mark, the launcher icon, the splash mark and the themed
+  (monochrome) layer are one drawing at four sizes.
+- **No loading screen.** The keychain and the settings are read before the
+  first frame, so the app opens straight into the mailbox or the sign-in
+  screen; the native launch window covers the moment that takes.
 - **Transitions.** Material's emphasised easing, a fade-through with a 92%
   scale, predictive back on Android.
 

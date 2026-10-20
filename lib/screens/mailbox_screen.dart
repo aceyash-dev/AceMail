@@ -160,7 +160,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
           ],
         ),
         drawer: wide ? null : const Drawer(child: FolderRail()),
-        floatingActionButton: wide
+        // Not while a message is open: the reader's floating toolbar occupies
+        // the same corner, and the two overlap.
+        floatingActionButton: wide || reading
             ? null
             : AceFab(
                 label: 'Compose',

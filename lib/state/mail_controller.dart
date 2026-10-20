@@ -56,9 +56,6 @@ class MailController extends ChangeNotifier {
   /// The most recent address, used to prefill the sign-in form.
   String? lastEmail;
 
-  /// True until the saved accounts have been read back from the keychain.
-  bool restoring = true;
-
   MailStatus status = MailStatus.signedOut;
   String? errorMessage;
   bool connecting = false;
@@ -113,7 +110,6 @@ class MailController extends ChangeNotifier {
     // A keychain that could not be read is worth saying out loud.
     if (loaded.error != null) errorMessage = loaded.error;
 
-    restoring = false;
     _notify();
 
     // Bring up only the active account. The rest connect the first time they

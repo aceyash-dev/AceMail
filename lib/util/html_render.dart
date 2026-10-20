@@ -222,6 +222,11 @@ class _Builder {
         : raw.replaceAll(RegExp(r'[ \t\r\n\u00a0]+'), ' ');
     if (text.isEmpty) return;
 
+    // Whitespace-only content between two blocks carries no meaning, but it
+    // would still emit its paragraph break — and a layout table has hundreds of
+    // empty cells, which is how a short message ends up screens tall.
+    if (_breaks > 0 && text.trim().isEmpty) return;
+
     if (_text.isEmpty && spans.isEmpty) {
       _breaks = 0; // never start a document with blank lines
     }

@@ -88,6 +88,16 @@ abstract final class AstryxRadius {
   static const double pill = full;
 }
 
+/// The two colours that are the brand itself, independent of theme.
+///
+/// The launcher icon, the splash mark and the in-app mark are all the same
+/// tile, so they share one definition rather than three near-misses.
+abstract final class AstryxBrand {
+  static const Color orange = Color(0xFFFF6A1A);
+  static const Color orangeBright = Color(0xFFFF8A45);
+  static const Color milk = Color(0xFFFFFCF6);
+}
+
 /// Astryx's element sizes.
 abstract final class AstryxSize {
   static const double elementSm = 28;

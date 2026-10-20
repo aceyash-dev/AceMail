@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -117,42 +118,59 @@ class AceSurface extends StatelessWidget {
     );
 
     if (!squircle) {
-      return Container(padding: padding, decoration: decoration, child: child);
+      // Clipped, so a child with its own rounded background — a selected row in
+      // a group, say — cannot spill past the card's corners.
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Container(padding: padding, decoration: decoration, child: child),
+      );
     }
 
-    return CustomPaint(
-      painter: _SquircleSurface(
-        color: color ?? c.backgroundSurface,
-        border: border ? c.border : null,
-        padding: padding,
-      ),
-      child: Padding(
-        padding: padding ?? EdgeInsets.zero,
-        child: child,
+    return ClipPath(
+      clipper: const AceSquircleClipper(),
+      child: CustomPaint(
+        painter: _SquircleSurface(
+          color: color ?? c.backgroundSurface,
+          border: border ? c.border : null,
+        ),
+        child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
       ),
     );
   }
 }
 
+/// Clips to a continuous corner. Shared by every surface that wants the shape.
+class AceSquircleClipper extends CustomClipper<Path> {
+  const AceSquircleClipper({this.exponent = 4});
+
+  final double exponent;
+
+  @override
+  Path getClip(Size size) =>
+      AstryxShape.squircle(Offset.zero & size, exponent: exponent);
+
+  @override
+  bool shouldReclip(covariant AceSquircleClipper oldClipper) =>
+      oldClipper.exponent != exponent;
+}
+
 class _SquircleSurface extends CustomPainter {
-  const _SquircleSurface({
-    required this.color,
-    required this.border,
-    required this.padding,
-  });
+  const _SquircleSurface({required this.color, required this.border});
 
   final Color color;
   final Color? border;
-  final EdgeInsetsGeometry? padding;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
-    final Path path = AstryxShape.squircle(rect.deflate(0.5));
-    canvas.drawPath(path, Paint()..color = color);
+    canvas.drawPath(
+      AstryxShape.squircle(rect),
+      Paint()..color = color,
+    );
     if (border != null) {
+      // Inset by a full pixel so the clip does not shave the stroke.
       canvas.drawPath(
-        path,
+        AstryxShape.squircle(rect.deflate(1)),
         Paint()
           ..color = border!
           ..style = PaintingStyle.stroke
@@ -620,50 +638,13 @@ class AceToolbar extends StatelessWidget {
   }
 }
 
-/// The Ace Mail envelope, filled, expressed on a 108-unit grid so the in-app
-/// mark and `ic_launcher_foreground.xml` stay in step. The flap is cut out in
-/// [foldColor] — whatever surface the mark sits on.
-class EnvelopePainter extends CustomPainter {
-  const EnvelopePainter({required this.color, required this.foldColor});
-
-  final Color color;
-  final Color foldColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double u = size.width / 108.0;
-
-    // Body 29..79 x 38..70, corner radius 5 — the same numbers as
-    // ic_launcher_foreground.xml.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(29 * u, 38 * u, 50 * u, 32 * u),
-        Radius.circular(5 * u),
-      ),
-      Paint()..color = color,
-    );
-
-    canvas.drawPath(
-      Path()
-        ..moveTo(33 * u, 43 * u)
-        ..lineTo(54 * u, 58.5 * u)
-        ..lineTo(75 * u, 43 * u),
-      Paint()
-        ..color = foldColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5.5 * u
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant EnvelopePainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.foldColor != foldColor;
-}
-
-/// The Ace Mail mark: the filled envelope on a milk tile, the same mark as the
-/// launcher icon.
+/// The Ace Mail mark: the milk envelope on the brand orange, expressed on a
+/// 108-unit grid so the in-app mark, the launcher icon and the splash mark are
+/// one drawing rather than three near-misses.
+///
+/// The flap is a real notch cut out of the envelope, so whatever is behind it
+/// shows through — which is what lets the same path sit on a gradient launcher
+/// tile and on a flat one.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 44});
 
@@ -671,71 +652,73 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-    return CustomPaint(
-      painter: _BrandTile(
-        background: c.backgroundBody,
-        border: c.border,
-        accent: c.accent,
-      ),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: CustomPaint(
-          painter: EnvelopePainter(
-            color: c.accent,
-            foldColor: c.backgroundBody,
-          ),
-        ),
-      ),
+    return SizedBox(
+      width: size,
+      height: size,
+      child: const CustomPaint(painter: _BrandMarkPainter()),
     );
   }
 }
 
-class _BrandTile extends CustomPainter {
-  const _BrandTile({
-    required this.background,
-    required this.border,
-    required this.accent,
-  });
+class _BrandMarkPainter extends CustomPainter {
+  const _BrandMarkPainter();
 
-  final Color background;
-  final Color border;
-  final Color accent;
+  /// The envelope, with the flap removed. Shared with the vector drawables by
+  /// using the same numbers.
+  static Path envelopePath(double unit) {
+    final Path body = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(28 * unit, 37 * unit, 52 * unit, 34 * unit),
+          Radius.circular(6 * unit),
+        ),
+      );
+    // The flap is a chevron band: the outer triangle minus the inner one. The
+    // vector drawable expresses the same thing as three subpaths with evenOdd.
+    final Path outer = Path()
+      ..moveTo(28 * unit, 37 * unit)
+      ..lineTo(54 * unit, 58 * unit)
+      ..lineTo(80 * unit, 37 * unit)
+      ..close();
+    final Path inner = Path()
+      ..moveTo(33 * unit, 37 * unit)
+      ..lineTo(54 * unit, 53 * unit)
+      ..lineTo(75 * unit, 37 * unit)
+      ..close();
+    final Path band = Path.combine(PathOperation.difference, outer, inner);
+    return Path.combine(PathOperation.difference, body, band);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset.zero & size;
-    final Path path = AstryxShape.squircle(rect.deflate(0.5));
-    canvas.drawPath(path, Paint()..color = background);
+    final double unit = size.width / 108.0;
     canvas.drawPath(
-      path,
-      Paint()
-        ..color = border
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+      AstryxShape.squircle(Offset.zero & size),
+      Paint()..color = AstryxBrand.orange,
+    );
+    canvas.drawPath(
+      envelopePath(unit),
+      Paint()..color = AstryxBrand.milk,
     );
   }
 
   @override
-  bool shouldRepaint(covariant _BrandTile old) =>
-      old.background != background || old.border != border;
+  bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) => false;
 }
 
-/// The Ace Mail mark, breathing — and morphing between a circle and a squircle.
+/// The Material 3 Expressive loading indicator: a shape that morphs.
 ///
-/// At small sizes it drops the envelope and becomes the shape-morphing
-/// indicator Material 3 Expressive uses for loading.
+/// Expressive loading is not a spinner. It is a single form that continuously
+/// flows between shape families — circle, soft square, a four-lobed clover,
+/// squircle — while turning slowly. The morph is one continuous formula rather
+/// than a cross-fade, so the surface genuinely deforms.
+///
+/// It is deliberately not the envelope: at 18px inside a button there is no
+/// room for a mark, and a morphing shape reads as "working" at any size.
 class AceLoader extends StatefulWidget {
-  const AceLoader({
-    super.key,
-    this.size = 46,
-    this.foldColor,
-    this.color,
-  });
+  const AceLoader({super.key, this.size = 40, this.color});
 
   final double size;
-  final Color? foldColor;
   final Color? color;
 
   @override
@@ -746,8 +729,8 @@ class _AceLoaderState extends State<AceLoader>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1500),
-  )..repeat(reverse: true);
+    duration: const Duration(milliseconds: 2600),
+  )..repeat();
 
   @override
   void dispose() {
@@ -758,8 +741,6 @@ class _AceLoaderState extends State<AceLoader>
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final Color shape = widget.color ?? c.accent;
-    final Color fold = widget.foldColor ?? c.backgroundBody;
 
     return SizedBox(
       width: widget.size,
@@ -767,11 +748,9 @@ class _AceLoaderState extends State<AceLoader>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (BuildContext context, _) => CustomPaint(
-          painter: _LoaderPainter(
+          painter: _ShapeMorphPainter(
             t: _controller.value,
-            color: shape,
-            foldColor: fold,
-            withEnvelope: widget.size >= 28,
+            color: widget.color ?? c.accent,
           ),
         ),
       ),
@@ -779,61 +758,83 @@ class _AceLoaderState extends State<AceLoader>
   }
 }
 
-class _LoaderPainter extends CustomPainter {
-  const _LoaderPainter({
-    required this.t,
-    required this.color,
-    required this.foldColor,
-    required this.withEnvelope,
-  });
+/// The shape families the indicator flows through. `exponent` is the
+/// superellipse power (2 is a circle, higher is squarer); `lobes` adds the
+/// clover ripple.
+class _Form {
+  const _Form(this.exponent, this.lobes);
+
+  final double exponent;
+  final double lobes;
+}
+
+class _ShapeMorphPainter extends CustomPainter {
+  const _ShapeMorphPainter({required this.t, required this.color});
 
   final double t;
   final Color color;
-  final Color foldColor;
-  final bool withEnvelope;
+
+  static const List<_Form> _forms = <_Form>[
+    _Form(2.0, 0.00), // circle
+    _Form(5.2, 0.00), // soft square
+    _Form(2.4, 0.16), // clover
+    _Form(4.0, 0.05), // squircle
+  ];
+
+  static const int _samples = 120;
+  static const int _lobeCount = 4;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double eased = Curves.easeInOut.transform(t);
-    final double exponent = lerpDouble(2.0, 5.0, eased)!;
-    final double breathe = 1 - 0.06 * eased;
-    final double inset = size.width * 0.06;
+    // Walk the form list and back again, so the loop has no seam.
+    final double cycle = t * 2 * (_forms.length - 1);
+    final int index = cycle.floor().clamp(0, _forms.length - 2);
+    final double raw = cycle - index;
+    final double eased = Curves.easeInOut.transform(raw);
 
-    final Rect rect = Rect.fromCenter(
-      center: size.center(Offset.zero),
-      width: (size.width - inset * 2) * breathe,
-      height: (size.height - inset * 2) * breathe,
-    );
+    final _Form a = _forms[index];
+    final _Form b = _forms[index + 1];
+    final double exponent = lerpDouble(a.exponent, b.exponent, eased)!;
+    final double lobes = lerpDouble(a.lobes, b.lobes, eased)!;
 
-    canvas.drawPath(
-      AstryxShape.squircle(rect, exponent: exponent),
-      Paint()..color = color,
-    );
+    final double radius = size.width / 2;
+    final Offset centre = size.center(Offset.zero);
+    // A slow, constant turn, so the morph never looks like a pulse.
+    final double rotation = t * 2 * math.pi;
 
-    if (!withEnvelope) return;
+    final Path path = Path();
+    for (int i = 0; i <= _samples; i++) {
+      final double theta = (i / _samples) * 2 * math.pi;
+      final double cosT = math.cos(theta);
+      final double sinT = math.sin(theta);
 
-    // The flap, cut out of the body, scaled from the 108-unit grid.
-    final double u = rect.width / 108.0;
-    final Offset origin = rect.topLeft;
-    Offset at(double x, double y) => origin + Offset(x * u, y * u);
+      // The radial form of a superellipse: |cos|^n + |sin|^n raised to -1/n.
+      final double superellipse = math.pow(
+        math.pow(cosT.abs(), exponent) + math.pow(sinT.abs(), exponent),
+        -1 / exponent,
+      ).toDouble();
 
-    canvas.drawPath(
-      Path()
-        ..moveTo(at(33, 43).dx, at(33, 43).dy)
-        ..lineTo(at(54, 58.5).dx, at(54, 58.5).dy)
-        ..lineTo(at(75, 43).dx, at(75, 43).dy),
-      Paint()
-        ..color = foldColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5.5 * u
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
+      final double ripple =
+          1 + lobes * math.cos(_lobeCount * theta);
+
+      final double r = radius * superellipse * ripple;
+      final double x = centre.dx + r * math.cos(theta + rotation);
+      final double y = centre.dy + r * math.sin(theta + rotation);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+
+    canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(covariant _LoaderPainter old) =>
-      old.t != t || old.color != color || old.foldColor != foldColor;
+  bool shouldRepaint(covariant _ShapeMorphPainter old) =>
+      old.t != t || old.color != color;
 }
 
 /// A sender's initials on a tonal tile, used wherever there is no picture.

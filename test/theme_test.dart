@@ -236,13 +236,27 @@ void main() {
       expect(find.byTooltip('Delete'), findsOneWidget);
     });
 
-    testWidgets('AceLoader animates and keeps its envelope above 28px', (
+    testWidgets('AceLoader morphs continuously without settling', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(_host(const AceLoader()));
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(AceLoader), findsOneWidget);
-      // It repeats, so settle would never return; pumping is the assertion.
+      await tester.pump(const Duration(milliseconds: 400));
+      final CustomPaint first = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(AceLoader),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      final CustomPaint later = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(AceLoader),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      // It repeats forever, so settle would never return — and the painter
+      // must actually be handed a new value as time passes.
+      expect(first.painter, isNot(same(later.painter)));
     });
 
     testWidgets('InitialsAvatar paints inside a continuous corner', (

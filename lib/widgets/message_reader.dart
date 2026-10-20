@@ -11,6 +11,7 @@ import '../util/dates.dart';
 import '../util/files.dart';
 import '../util/html_render.dart';
 import '../util/routes.dart';
+import '../util/text.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 
@@ -299,7 +300,7 @@ class _MessageReaderState extends State<MessageReader> {
           SelectableText(
             message.textBody.isEmpty
                 ? '(This message has no text.)'
-                : message.textBody,
+                : collapseBlankLines(message.textBody),
             style: AstryxText.body(c.textPrimary),
           ),
       ],

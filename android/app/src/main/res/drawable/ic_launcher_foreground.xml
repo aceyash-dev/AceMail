@@ -1,32 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ace Mail launcher foreground: the filled envelope, in orange.
+<!-- Ace Mail launcher foreground: the milk envelope.
 
-     This is the same geometry the in-app BrandMark draws, on the same 108-unit
-     grid, so the launcher icon and the logo inside the app are one mark rather
-     than two similar ones.
+     The flap is a real notch cut through the envelope, drawn as one path with
+     evenOdd: the body, then a chevron, then the inside of that chevron. The
+     band between the two chevrons is even-odd, so it drops out and the orange
+     background shows through — no flap-coloured stroke that would only match
+     one background.
 
      Adaptive icons are a 108dp canvas of which only the central 72dp is
-     guaranteed visible, so the mark stays inside 29..79 on both axes.
-
-     The flap is cut out in the icon background colour, so it must match the
-     adaptive-icon background below. -->
+     guaranteed visible, so the mark stays inside 28..80. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- envelope body, filled -->
     <path
-        android:pathData="M34,38 L74,38 Q79,38 79,43 L79,65 Q79,70 74,70 L34,70 Q29,70 29,65 L29,43 Q29,38 34,38 Z"
-        android:fillColor="@color/ace_orange" />
-
-    <!-- flap, cut out of the body so it reads at 48dp -->
-    <path
-        android:pathData="M33,43 L54,58.5 L75,43"
-        android:fillColor="#00000000"
-        android:strokeColor="@color/ace_milk"
-        android:strokeWidth="5.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:pathData="M34,37 L74,37 Q80,37 80,43 L80,65 Q80,71 74,71 L34,71 Q28,71 28,65 L28,43 Q28,37 34,37 Z M28,37 L54,58 L80,37 Z M33,37 L54,53 L75,37 Z"
+        android:fillColor="@color/ace_milk"
+        android:fillType="evenOdd" />
 </vector>
