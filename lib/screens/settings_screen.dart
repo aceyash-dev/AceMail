@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/app_info.dart';
 import '../data/preferences.dart';
+import '../models/swipe_action.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
@@ -12,9 +14,6 @@ import 'tutorial_screen.dart';
 /// The app's settings. Every row here changes something real.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  /// Mirrors `version:` in pubspec.yaml. Shown in About.
-  static const String version = '0.3.1';
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +62,27 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setMarkAsReadOnOpen,
                 ),
                 SettingsRow(
+                  icon: Icons.article_outlined,
+                  title: 'Message view',
+                  subtitle: prefs.messageView == MessageView.formatted
+                      ? 'Show the HTML version when the sender provided one.'
+                      : 'Show the plain-text version.',
+                  value: prefs.messageView.label,
+                  onTap: () async {
+                    final MessageView? chosen =
+                        await showChoiceSheet<MessageView>(
+                      context,
+                      title: 'Message view',
+                      current: prefs.messageView,
+                      choices: <SettingsChoice<MessageView>>[
+                        for (final MessageView view in MessageView.values)
+                          SettingsChoice<MessageView>(view, view.label),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setMessageView(chosen);
+                  },
+                ),
+                SettingsRow(
                   icon: Icons.draw_outlined,
                   title: 'Signature',
                   subtitle: prefs.signature.isEmpty
@@ -70,6 +90,25 @@ class SettingsScreen extends StatelessWidget {
                       : 'Added to new messages',
                   value: prefs.signature.isEmpty ? 'None' : 'Set',
                   onTap: () => _editSignature(context, prefs),
+                ),
+              ],
+            ),
+            SettingsSection(
+              title: 'Gestures',
+              children: <Widget>[
+                SettingsRow(
+                  icon: Icons.swipe_right_alt,
+                  title: 'Swipe right',
+                  subtitle: 'Across a message in the list',
+                  value: prefs.swipeStart.label,
+                  onTap: () => _chooseSwipe(context, prefs, start: true),
+                ),
+                SettingsRow(
+                  icon: Icons.swipe_left_alt,
+                  title: 'Swipe left',
+                  subtitle: 'Across a message in the list',
+                  value: prefs.swipeEnd.label,
+                  onTap: () => _chooseSwipe(context, prefs, start: false),
                 ),
               ],
             ),
@@ -139,7 +178,9 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: Icons.info_outline_rounded,
                   title: 'About Ace Mail',
-                  value: version,
+                  // Read from the installed package, so it cannot drift from
+                  // what is actually on the device.
+                  value: AppInfo.label,
                   onTap: () => _about(context),
                 ),
               ],
@@ -148,6 +189,38 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _chooseSwipe(
+    BuildContext context,
+    Preferences prefs, {
+    required bool start,
+  }) async {
+    final SwipeAction? chosen = await showChoiceSheet<SwipeAction>(
+      context,
+      title: start ? 'Swipe right' : 'Swipe left',
+      current: start ? prefs.swipeStart : prefs.swipeEnd,
+      choices: <SettingsChoice<SwipeAction>>[
+        for (final SwipeAction action in SwipeAction.values)
+          SettingsChoice<SwipeAction>(
+            action,
+            action.label,
+            description: switch (action) {
+              SwipeAction.archive => 'Move it out of the inbox',
+              SwipeAction.trash => 'Move it to Trash',
+              SwipeAction.toggleRead => 'Without opening it',
+              SwipeAction.flag => 'Star it, or clear the star',
+              SwipeAction.none => 'Leave this direction alone',
+            },
+          ),
+      ],
+    );
+    if (chosen == null) return;
+    if (start) {
+      await prefs.setSwipeStart(chosen);
+    } else {
+      await prefs.setSwipeEnd(chosen);
+    }
   }
 
   Future<void> _editSignature(
@@ -190,8 +263,8 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text('Ace Mail'),
-        content: const Text(
-          'Version $version\n\n'
+        content: Text(
+          'Version ${AppInfo.label}\n\n'
           'A native IMAP and SMTP client for mobile and desktop. '
           'Your credentials stay in this device\'s keychain and go only to '
           'your mail provider.',

@@ -34,6 +34,10 @@ abstract interface class MailTransport {
 
   Future<void> setFlagged(MessageSummary summary, bool flagged);
 
+  /// Copies the message to [targetPath] and removes it from the folder it was
+  /// in. Used for archive.
+  Future<void> moveMessage(MessageSummary summary, String targetPath);
+
   /// Moves the message to [trashPath]. When [permanently] is false and there is
   /// no Trash folder, this throws rather than destroying the message.
   Future<void> deleteMessage(

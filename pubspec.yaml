@@ -1,7 +1,7 @@
 name: ace_mail
 description: A fast, native IMAP/SMTP mail client for mobile and desktop.
 publish_to: "none"
-version: 0.3.3+7
+version: 0.3.4+8
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -13,7 +13,9 @@ dependencies:
   enough_mail: ^2.1.6
   file_selector: ^1.0.3
   flutter_secure_storage: ^9.2.2
+  flutter_svg: ^2.0.10
   html: ^0.15.5
+  package_info_plus: ^8.0.0
   provider: ^6.1.2
   url_launcher: ^6.3.1
 

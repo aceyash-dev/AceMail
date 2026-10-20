@@ -39,9 +39,10 @@ a custom theme, not a departure.
   the folder rail.
 - Search in the app bar; settings and help at the foot of the rail. The top of
   the screen is about the mail.
-- Sender pictures from Gravatar, falling back to an initials chip. **Off by
-  default**: the lookup sends a hash of every sender's address to a third
-  party, and a hash of an address is not anonymous.
+- Sender pictures, best source first: the sender's own **BIMI** logo when the
+  domain publishes one, then Gravatar, then an initials chip. **Off by
+  default**, because both remote lookups tell a third party which domains are in
+  your mail.
 - Browse every folder, with unread counts, paged forty at a time. Non-selectable
   container folders such as Gmail's `[Gmail]` are filtered out.
 - Search the open folder across subject and sender.
@@ -53,6 +54,9 @@ a custom theme, not a departure.
   and asks before deleting permanently — it never quietly destroys mail.
 - Reply and reply-all, with `In-Reply-To` and `References` set so the reply
   threads correctly in every other client.
+- Swipe a message either way to act on it — archive, delete, read/unread or
+  flag — with both directions configurable in settings.
+- Messages open as HTML, with a per-message toggle to the plain-text version.
 - Credentials live in the platform keychain, never in plain files.
 - Gesture navigation: swipe right to leave a message, pull down to refresh, and
   a confirmation before the app closes.
@@ -169,7 +173,10 @@ Every setting changes something real and survives a restart.
 | Account | Manage accounts | Add, switch or remove accounts |
 | Account | Sender pictures | Gravatar lookups. Off by default |
 | Reading | Mark as read when opened | Whether opening sets `\Seen` on the server |
+| Reading | Message view | Formatted (HTML) or plain text |
 | Reading | Signature | Appended to new messages |
+| Gestures | Swipe right | Archive, delete, read/unread, flag or nothing |
+| Gestures | Swipe left | The same list, independently |
 | Appearance | Theme | System, Light or Dark |
 | Appearance | Text size | Multiplies the device setting |
 | Appearance | Ask before exiting | Whether leaving the mailbox asks first |
@@ -211,23 +218,29 @@ Expressive** supplies the colour, motion and shape behaviour.
   here: spatial springs (which settle with a little overshoot) for anything that
   moves, critically-damped effects springs for colour and opacity, and a
   deliberately under-damped `press` spring. `AceSpringy` drives them.
-- **Shape.** A true superellipse — a squircle — for large surfaces, plus a
-  shape morph on press: buttons go from a stadium to a rounded rectangle, icon
-  buttons from a circle to a squircle, list rows tighten their corners.
+- **Shape.** Rounded rectangles whose corners are quarter superellipses, so the
+  join between a straight edge and the curve is imperceptible. It is *not* one
+  superellipse stretched over the rectangle: on a wide, short card that has no
+  straight edges at all and renders as an oval. Plus a shape morph on press:
+  buttons go from a stadium to a rounded rectangle, icon buttons from a circle
+  to a squircle, list rows tighten their corners.
 - **Components.** Pill buttons with tonal variants, an extended FAB, a floating
   pill toolbar in the reader, grouped settings sections, and a large
   collapsing app bar over the message list.
 - **Loading.** Not a spinner: one form that continuously flows between shape
   families — circle, soft square, four-lobed clover, squircle — while turning
   slowly. The morph is a single continuous formula, so the surface deforms
-  rather than cross-fading, and it reads as "working" at any size.
+  rather than cross-fading, and it reads as "working" at any size. Pulling the
+  list down drives the same morph from the drag instead of looping it.
 - **The mark.** A milk envelope on the brand orange, with the flap cut
   *through* the envelope rather than stroked, so the background shows through
   it. The in-app mark, the launcher icon, the splash mark and the themed
   (monochrome) layer are one drawing at four sizes.
-- **No loading screen.** The keychain and the settings are read before the
-  first frame, so the app opens straight into the mailbox or the sign-in
-  screen; the native launch window covers the moment that takes.
+- **No init screen.** The keychain, the settings and the version are read before
+  the first frame, so there is no blank screen on the way in. Opening the first
+  mailbox shows a splash instead: the shape morph and a line that changes while
+  it waits, which hands over to the mailbox rather than replacing a blank
+  screen.
 - **Transitions.** Material's emphasised easing, a fade-through with a 92%
   scale, predictive back on Android.
 

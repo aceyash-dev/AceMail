@@ -227,6 +227,66 @@ void main() {
       expect(session.messages.any((MessageSummary m) => m.uid == uid), isFalse);
     });
 
+    test('archive moves the row out and into the Archive folder', () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(4));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+      final int uid = session.messages.first.uid;
+
+      await session.archive(session.messages.first);
+
+      expect(transport.movedTo, 'Archive');
+      expect(session.messages.any((MessageSummary m) => m.uid == uid), isFalse);
+      expect(session.errorMessage, isNull);
+    });
+
+    test('archive says so, and keeps the row, when there is no Archive folder',
+        () async {
+      final FakeTransport transport =
+          FakeTransport(archiveFolder: false)..uids.addAll(uidRange(4));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+      final int uid = session.messages.first.uid;
+
+      await session.archive(session.messages.first);
+
+      expect(transport.movedTo, isNull);
+      expect(session.errorMessage, isNotNull);
+      expect(
+        session.messages.any((MessageSummary m) => m.uid == uid),
+        isTrue,
+        reason: 'a failed move must not lose the message',
+      );
+    });
+
+    test('toggleRead flips the row and tells the server', () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(3));
+      transport.unread.add(1);
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+
+      await session.toggleRead(session.messages.first);
+      expect(session.messages.first.isSeen, isTrue);
+      expect(transport.markedSeen, 1);
+
+      await session.toggleRead(session.messages.first);
+      expect(session.messages.first.isSeen, isFalse);
+      expect(transport.unread, contains(1));
+    });
+
+    test('toggleFlag flips the star', () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(3));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+
+      await session.toggleFlag(session.messages.first);
+      expect(session.messages.first.isFlagged, isTrue);
+      expect(transport.flagged, contains(1));
+
+      await session.toggleFlag(session.messages.first);
+      expect(session.messages.first.isFlagged, isFalse);
+    });
+
     test('search narrows the list and clearing restores the folder', () async {
       final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(60));
       final MailSession session = sessionWith(transport);

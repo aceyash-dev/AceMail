@@ -716,10 +716,14 @@ class _BrandMarkPainter extends CustomPainter {
 /// It is deliberately not the envelope: at 18px inside a button there is no
 /// room for a mark, and a morphing shape reads as "working" at any size.
 class AceLoader extends StatefulWidget {
-  const AceLoader({super.key, this.size = 40, this.color});
+  const AceLoader({super.key, this.size = 40, this.color, this.progress});
 
   final double size;
   final Color? color;
+
+  /// When set (0..1), the morph is driven by that value instead of looping —
+  /// which is how pull-to-refresh turns a drag into a shape change.
+  final double? progress;
 
   @override
   State<AceLoader> createState() => _AceLoaderState();
@@ -730,7 +734,23 @@ class _AceLoaderState extends State<AceLoader>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat();
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.progress == null) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant AceLoader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.progress == null && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (widget.progress != null && _controller.isAnimating) {
+      _controller.stop();
+    }
+  }
 
   @override
   void dispose() {
@@ -749,7 +769,7 @@ class _AceLoaderState extends State<AceLoader>
         animation: _controller,
         builder: (BuildContext context, _) => CustomPaint(
           painter: _ShapeMorphPainter(
-            t: _controller.value,
+            t: widget.progress?.clamp(0.0, 1.0) ?? _controller.value,
             color: widget.color ?? c.accent,
           ),
         ),

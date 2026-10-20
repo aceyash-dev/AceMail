@@ -82,6 +82,9 @@ class MailController extends ChangeNotifier {
   String? get searchQuery => active?.searchQuery;
   bool get canDeleteSafely => active?.canDeleteSafely ?? false;
 
+  /// Whether the active account has finished connecting and loading.
+  bool get isReady => active?.isReady ?? false;
+
   /// The active account's most recent error, if any. Surfaced as a snack bar
   /// so failures do not disappear silently.
   String? get sessionError => active?.errorMessage;
@@ -225,6 +228,18 @@ class MailController extends ChangeNotifier {
 
   Future<void> deleteOpenMessage({bool permanently = false}) async =>
       active?.deleteOpenMessage(permanently: permanently);
+
+  Future<void> delete(MessageSummary summary, {bool permanently = false}) async =>
+      active?.delete(summary, permanently: permanently);
+
+  Future<void> archive(MessageSummary summary) async =>
+      active?.archive(summary);
+
+  Future<void> toggleRead(MessageSummary summary) async =>
+      active?.toggleRead(summary);
+
+  Future<void> toggleFlag(MessageSummary summary) async =>
+      active?.toggleFlag(summary);
 
   Future<void> markOpenUnread() async => active?.markOpenUnread();
 

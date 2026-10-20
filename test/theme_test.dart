@@ -107,15 +107,38 @@ void main() {
       expect(squircle.getBounds().height, closeTo(100, 0.5));
     });
 
-    test('a squircle is fuller at the corner than a circle of the same size',
-        () {
+    test('a squircle corner reaches further than a circular one', () {
       const Rect rect = Rect.fromLTWH(0, 0, 100, 100);
-      // On the diagonal a circle of radius 50 reaches 14.64 from the edge; a
-      // squircle reaches 7.96, so a probe at 10 is outside one and inside the
-      // other. That is the shape doing its job.
-      const Offset probe = Offset(10, 10);
+      // Corner radius 25 either way. On the diagonal the circular arc's
+      // boundary sits at 25 from the corner centre and the superellipse's at
+      // 29.7, so a probe at 28.3 is outside one and inside the other.
+      const Offset probe = Offset(5, 5);
       expect(AstryxShape.squircle(rect, exponent: 2).contains(probe), isFalse);
       expect(AstryxShape.squircle(rect, exponent: 4).contains(probe), isTrue);
+    });
+
+    test('a wide card keeps straight edges instead of going oval', () {
+      // This is the bug the shape was rebuilt for: one superellipse stretched
+      // over a wide, short rect has no straight edges at all, so a settings
+      // card rendered as an oval. The corners are superelliptical now; the
+      // edges between them are straight.
+      const Rect card = Rect.fromLTWH(0, 0, 300, 100);
+      final Path path = AstryxShape.squircle(card);
+
+      expect(path.contains(const Offset(30, 2)), isTrue,
+          reason: 'the top edge is straight');
+      expect(path.contains(const Offset(150, 1)), isTrue);
+      expect(path.contains(const Offset(2, 50)), isTrue,
+          reason: 'the left edge is straight');
+      // ...and the corner is still cut.
+      expect(path.contains(const Offset(1, 1)), isFalse);
+    });
+
+    test('an explicit radius is honoured', () {
+      final Path tight =
+          AstryxShape.squircle(const Rect.fromLTWH(0, 0, 100, 100), radius: 0);
+      expect(tight.contains(const Offset(1, 1)), isTrue,
+          reason: 'a zero radius is a plain rectangle');
     });
 
     test('the squircle border is a valid ShapeBorder', () {

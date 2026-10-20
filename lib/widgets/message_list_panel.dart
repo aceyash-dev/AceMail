@@ -1,18 +1,26 @@
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/cupertino.dart'
+    show CupertinoSliverRefreshControl, RefreshIndicatorMode;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import '../models/message_summary.dart';
+import '../models/swipe_action.dart';
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
+import 'swipe_action.dart';
 
 /// The message list, under a large title that collapses as it scrolls — the
 /// Material 3 Expressive large app bar, scoped to this pane.
+///
+/// Pulling down turns into a shape morph rather than a spinner, and rows can be
+/// swiped either way to act on them.
 class MessageListPanel extends StatelessWidget {
   const MessageListPanel({super.key});
 
@@ -23,36 +31,60 @@ class MessageListPanel extends StatelessWidget {
 
     return Container(
       color: c.backgroundBody,
-      child: RefreshIndicator(
-        onRefresh: () => context.read<MailController>().refreshMessages(),
-        color: c.accent,
-        backgroundColor: c.backgroundSurface,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: <Widget>[
-            SliverAppBar.large(
-              pinned: true,
-              automaticallyImplyLeading: false,
-              backgroundColor: c.backgroundBody,
-              surfaceTintColor: Colors.transparent,
-              foregroundColor: c.textPrimary,
-              expandedHeight: 132,
-              title: Text(
-                controller.selectedFolder?.label ?? 'Mail',
-                style: AstryxText.heading2(c.textPrimary),
-              ),
-              actions: <Widget>[
-                AceIconButton(
-                  icon: Icons.refresh_rounded,
-                  tooltip: 'Refresh',
-                  onPressed: () =>
-                      context.read<MailController>().refreshMessages(),
-                ),
-                const SizedBox(width: AstryxSpace.s2),
-              ],
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: <Widget>[
+          CupertinoSliverRefreshControl(
+            onRefresh: () => context.read<MailController>().refreshMessages(),
+            refreshTriggerPullDistance: 110,
+            refreshIndicatorExtent: 58,
+            builder: _refreshIndicator,
+          ),
+          SliverAppBar.large(
+            pinned: true,
+            automaticallyImplyLeading: false,
+            backgroundColor: c.backgroundBody,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: c.textPrimary,
+            expandedHeight: 132,
+            title: Text(
+              controller.selectedFolder?.label ?? 'Mail',
+              style: AstryxText.heading2(c.textPrimary),
             ),
-            ..._slivers(context, controller),
-          ],
+            actions: <Widget>[
+              AceIconButton(
+                icon: Icons.refresh_rounded,
+                tooltip: 'Refresh',
+                onPressed: () =>
+                    context.read<MailController>().refreshMessages(),
+              ),
+              const SizedBox(width: AstryxSpace.s2),
+            ],
+          ),
+          ..._slivers(context, controller),
+        ],
+      ),
+    );
+  }
+
+  /// The pull is a drag, so the indicator is driven by it: the shape morphs as
+  /// you pull, and only starts looping once the refresh is actually running.
+  Widget _refreshIndicator(
+    BuildContext context,
+    RefreshIndicatorMode mode,
+    double pulled,
+    double trigger,
+    double extent,
+  ) {
+    final bool running = mode == RefreshIndicatorMode.refresh ||
+        mode == RefreshIndicatorMode.done;
+
+    return SizedBox(
+      height: extent,
+      child: Center(
+        child: AceLoader(
+          size: 32,
+          progress: running ? null : (pulled / trigger).clamp(0.0, 1.0),
         ),
       ),
     );
@@ -106,6 +138,8 @@ class MessageListPanel extends StatelessWidget {
       ];
     }
 
+    final Preferences prefs = context.watch<Preferences>();
+
     return <Widget>[
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
@@ -113,12 +147,30 @@ class MessageListPanel extends StatelessWidget {
           itemCount: controller.messages.length,
           itemBuilder: (BuildContext context, int index) {
             final MessageSummary summary = controller.messages[index];
-            return MessageTile(
+            return AceSwipeTile(
               key: ValueKey<int>(summary.uid),
-              summary: summary,
-              index: index,
-              selected: controller.openSummary?.uid == summary.uid,
-              onTap: () => context.read<MailController>().open(summary),
+              start: prefs.swipeStart,
+              end: prefs.swipeEnd,
+              startAppearance: swipeAppearance(
+                prefs.swipeStart,
+                c,
+                isSeen: summary.isSeen,
+                isFlagged: summary.isFlagged,
+              ),
+              endAppearance: swipeAppearance(
+                prefs.swipeEnd,
+                c,
+                isSeen: summary.isSeen,
+                isFlagged: summary.isFlagged,
+              ),
+              onAction: (SwipeAction action) =>
+                  _applySwipe(context, summary, action),
+              child: MessageTile(
+                summary: summary,
+                index: index,
+                selected: controller.openSummary?.uid == summary.uid,
+                onTap: () => context.read<MailController>().open(summary),
+              ),
             );
           },
         ),
@@ -142,6 +194,26 @@ class MessageListPanel extends StatelessWidget {
         ),
       const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s10)),
     ];
+  }
+
+  void _applySwipe(
+    BuildContext context,
+    MessageSummary summary,
+    SwipeAction action,
+  ) {
+    final MailController controller = context.read<MailController>();
+    switch (action) {
+      case SwipeAction.archive:
+        controller.archive(summary);
+      case SwipeAction.trash:
+        controller.delete(summary);
+      case SwipeAction.toggleRead:
+        controller.toggleRead(summary);
+      case SwipeAction.flag:
+        controller.toggleFlag(summary);
+      case SwipeAction.none:
+        break;
+    }
   }
 }
 
@@ -210,7 +282,8 @@ class MessageTile extends StatelessWidget {
       curve: AstryxMotion.emphasizedDecelerate,
       builder: (BuildContext context, double t, Widget? child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(0, (1 - t) * 10), child: child),
+        child:
+            Transform.translate(offset: Offset(0, (1 - t) * 10), child: child),
       ),
       child: AceSpringy(
         onTap: onTap,

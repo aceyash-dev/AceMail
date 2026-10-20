@@ -60,6 +60,20 @@ class FullMessage {
 
   bool get hasHtml => htmlBody != null && htmlBody!.trim().isNotEmpty;
 
+  static final RegExp _htmlTag = RegExp(
+    r'<\s*(html|body|div|p|table|br|span|a|td|tr)\b',
+    caseSensitive: false,
+  );
+
+  /// The HTML to render: the real HTML part when there is one, otherwise a
+  /// plain-text body that is plainly HTML. Senders do mislabel these, and
+  /// rendering tags as text is worse than trusting the shape of the content.
+  String? get htmlSource {
+    if (hasHtml) return htmlBody;
+    if (textBody.contains('<') && _htmlTag.hasMatch(textBody)) return textBody;
+    return null;
+  }
+
   /// Used to thread a reply: the message being answered, and its chain.
   final String? messageId;
   final String? references;

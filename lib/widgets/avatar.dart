@@ -1,17 +1,25 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../services/bimi.dart';
 import 'astryx_widgets.dart';
 
 /// A sender's picture.
 ///
-/// Looks the address up on Gravatar and falls back to the initials chip — which
-/// is also what you get offline, or for the many people who have no Gravatar.
-class MailAvatar extends StatelessWidget {
+/// In order of preference: the sender's **BIMI** logo — published by the domain
+/// itself, so it is the brand's own mark rather than a guess — then Gravatar,
+/// then the initials chip, which is also what you get offline or for the many
+/// people who have neither.
+///
+/// Both remote lookups are gated on the same setting, because both tell a third
+/// party which domains are in your mail.
+class MailAvatar extends StatefulWidget {
   const MailAvatar({
     super.key,
     required this.email,
@@ -47,48 +55,101 @@ class MailAvatar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final String address = email.trim();
-    final Widget fallback = InitialsAvatar(
-      initials: initialsFor(name, email),
-      seed: address.isEmpty ? name : address,
-      size: size,
-    );
+  State<MailAvatar> createState() => _MailAvatarState();
+}
 
-    // A Gravatar lookup sends a hash of the sender's address to a third party,
-    // so it only happens when the user has left it switched on.
-    if (!context.watch<Preferences>().showAvatars) return fallback;
+class _MailAvatarState extends State<MailAvatar> {
+  /// address -> BIMI logo URL, or null when the domain publishes none.
+  static final Map<String, String?> _bimi = <String, String?>{};
 
-    if (address.isEmpty || !address.contains('@') || _missing.contains(address)) {
-      return fallback;
+  String? _logoUrl;
+  bool _looked = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Gated on the setting, so switching pictures off means no lookup at all —
+    // not a lookup whose result is thrown away.
+    if (_looked || !context.read<Preferences>().showAvatars) return;
+    _looked = true;
+    unawaited(_resolveBimi());
+  }
+
+  Future<void> _resolveBimi() async {
+    final String address = widget.email.trim();
+    if (address.isEmpty || !address.contains('@')) return;
+
+    String? url = _bimi[address];
+    if (!_bimi.containsKey(address)) {
+      url = await BimiResolver.logoFor(address);
+      if (_bimi.length > 300) _bimi.clear();
+      _bimi[address] = url;
     }
 
-    return SizedBox(
-      width: size,
-      height: size,
-      // A continuous corner rather than a circle, to match the initials tile
-      // and the rest of the expressive shape language.
-      child: ClipPath(
-        clipper: const AceSquircleClipper(),
-        child: Image.network(
-          gravatarUrl(address, size: (size * 3).round()),
-          width: size,
-          height: size,
+    if (!mounted || url == null) return;
+    setState(() => _logoUrl = url);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String address = widget.email.trim();
+    final Widget fallback = InitialsAvatar(
+      initials: MailAvatar.initialsFor(widget.name, widget.email),
+      seed: address.isEmpty ? widget.name : address,
+      size: widget.size,
+    );
+
+    if (!context.watch<Preferences>().showAvatars) return fallback;
+    if (address.isEmpty || !address.contains('@')) return fallback;
+
+    final String? logo = _logoUrl;
+    if (logo != null) {
+      return _clipped(
+        SvgPicture.network(
+          logo,
+          width: widget.size,
+          height: widget.size,
           fit: BoxFit.cover,
-          // Show the initials until the picture is in, then swap.
-          loadingBuilder: (BuildContext context, Widget child,
-                  ImageChunkEvent? progress) =>
-              progress == null ? child : fallback,
+          placeholderBuilder: (BuildContext context) => fallback,
           errorBuilder: (BuildContext context, Object error,
-              StackTrace? stackTrace) {
-            // Remember the miss so the list does not retry it, but keep the
-            // set bounded over a long session.
-            if (_missing.length > 500) _missing.clear();
-            _missing.add(address);
-            return fallback;
-          },
+                  StackTrace? stackTrace) =>
+              fallback,
         ),
+      );
+    }
+
+    if (MailAvatar._missing.contains(address)) return fallback;
+
+    return _clipped(
+      Image.network(
+        MailAvatar.gravatarUrl(address, size: (widget.size * 3).round()),
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.cover,
+        // Show the initials until the picture is in, then swap.
+        loadingBuilder:
+            (BuildContext context, Widget child, ImageChunkEvent? progress) =>
+                progress == null ? child : fallback,
+        errorBuilder:
+            (BuildContext context, Object error, StackTrace? stackTrace) {
+          // Remember the miss so the list does not retry it, but keep the set
+          // bounded over a long session.
+          if (MailAvatar._missing.length > 500) MailAvatar._missing.clear();
+          MailAvatar._missing.add(address);
+          return fallback;
+        },
       ),
     );
   }
+
+  /// A continuous corner rather than a circle, to match the initials tile and
+  /// the rest of the expressive shape language.
+  Widget _clipped(Widget child) => SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: ClipPath(
+          clipper: const AceSquircleClipper(),
+          child: child,
+        ),
+      );
 }

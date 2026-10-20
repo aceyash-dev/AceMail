@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../models/swipe_action.dart';
+
 /// Which appearance the app follows.
 enum AceThemeMode {
   system('System'),
@@ -24,6 +26,16 @@ enum AceTextSize {
   final double scale;
 }
 
+/// Which representation of a message the reader opens with.
+enum MessageView {
+  formatted('Formatted'),
+  plainText('Plain text');
+
+  const MessageView(this.label);
+
+  final String label;
+}
+
 /// The app's settings.
 ///
 /// Kept in the same store as the accounts because it is already there and works
@@ -39,6 +51,9 @@ class Preferences extends ChangeNotifier {
   static const String _keyConfirmExit = 'ace.confirmExit';
   static const String _keyMarkRead = 'ace.markAsReadOnOpen';
   static const String _keySignature = 'ace.signature';
+  static const String _keySwipeStart = 'ace.swipeStart';
+  static const String _keySwipeEnd = 'ace.swipeEnd';
+  static const String _keyMessageView = 'ace.messageView';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -47,6 +62,9 @@ class Preferences extends ChangeNotifier {
     _keyConfirmExit,
     _keyMarkRead,
     _keySignature,
+    _keySwipeStart,
+    _keySwipeEnd,
+    _keyMessageView,
   ];
 
   final FlutterSecureStorage _storage;
@@ -57,6 +75,9 @@ class Preferences extends ChangeNotifier {
   bool _confirmExit = true;
   bool _markAsReadOnOpen = true;
   String _signature = '';
+  SwipeAction _swipeStart = SwipeAction.toggleRead;
+  SwipeAction _swipeEnd = SwipeAction.archive;
+  MessageView _messageView = MessageView.formatted;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -81,6 +102,15 @@ class Preferences extends ChangeNotifier {
   /// Appended to a new message's body.
   String get signature => _signature;
 
+  /// What dragging a message row to the right does.
+  SwipeAction get swipeStart => _swipeStart;
+
+  /// What dragging a message row to the left does.
+  SwipeAction get swipeEnd => _swipeEnd;
+
+  /// Whether the reader opens formatted or as plain text.
+  MessageView get messageView => _messageView;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -98,6 +128,11 @@ class Preferences extends ChangeNotifier {
     _themeMode = _decodeEnum(raw[_keyTheme], AceThemeMode.values, _themeMode);
     _textSize = _decodeEnum(raw[_keyTextSize], AceTextSize.values, _textSize);
     _signature = raw[_keySignature] ?? _signature;
+    _swipeStart =
+        _decodeEnum(raw[_keySwipeStart], SwipeAction.values, _swipeStart);
+    _swipeEnd = _decodeEnum(raw[_keySwipeEnd], SwipeAction.values, _swipeEnd);
+    _messageView =
+        _decodeEnum(raw[_keyMessageView], MessageView.values, _messageView);
 
     notifyListeners();
   }
@@ -119,6 +154,15 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setSignature(String value) =>
       _write(_keySignature, value, () => _signature = value);
+
+  Future<void> setSwipeStart(SwipeAction value) =>
+      _write(_keySwipeStart, value.name, () => _swipeStart = value);
+
+  Future<void> setSwipeEnd(SwipeAction value) =>
+      _write(_keySwipeEnd, value.name, () => _swipeEnd = value);
+
+  Future<void> setMessageView(MessageView value) =>
+      _write(_keyMessageView, value.name, () => _messageView = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

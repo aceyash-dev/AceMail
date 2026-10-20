@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'data/preferences.dart';
 import 'screens/mailbox_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
@@ -37,11 +38,20 @@ class AceMailApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      // No loading screen: the keychain is read before the first frame, so
-      // this is already the answer.
-      home: controller.isSignedIn
-          ? const MailboxScreen()
-          : const SignInScreen(),
+      home: _home(controller),
     );
+  }
+}
+
+extension on AceMailApp {
+  /// The splash covers the first connection only. A *failed* connection must
+  /// not trap anyone behind it, so the mailbox takes over as soon as there is
+  /// an error to show.
+  Widget _home(MailController controller) {
+    if (!controller.isSignedIn) return const SignInScreen();
+    if (!controller.isReady && controller.sessionError == null) {
+      return const SplashScreen();
+    }
+    return const MailboxScreen();
   }
 }

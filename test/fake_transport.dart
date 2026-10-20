@@ -10,12 +10,19 @@ import 'package:ace_mail/services/mail_transport.dart';
 /// A mail server that exists only in memory, so the session and controller can
 /// be exercised without a network.
 class FakeTransport implements MailTransport {
-  FakeTransport({this.failConnect = false, this.trash = true});
+  FakeTransport({
+    this.failConnect = false,
+    this.trash = true,
+    this.archiveFolder = true,
+  });
 
   final bool failConnect;
 
   /// Whether this account has a Trash folder.
   final bool trash;
+
+  /// Whether this account has an Archive folder.
+  final bool archiveFolder;
 
   final List<int> uids = <int>[];
   final Set<int> unread = <int>{};
@@ -34,6 +41,7 @@ class FakeTransport implements MailTransport {
   int searches = 0;
   bool disconnected = false;
   bool deletedPermanently = false;
+  String? movedTo;
   String? lastSearch;
   String? lastInReplyTo;
   String? lastReferences;
@@ -50,7 +58,7 @@ class FakeTransport implements MailTransport {
   MailFolder get archive => const MailFolder(
         name: 'Archive',
         path: 'Archive',
-        role: FolderRole.folder,
+        role: FolderRole.archive,
         unseen: 0,
       );
 
@@ -92,7 +100,7 @@ class FakeTransport implements MailTransport {
       inbox,
       if (trash) trashFolder,
       sentFolder,
-      archive,
+      if (archiveFolder) archive,
     ];
   }
 
@@ -166,6 +174,12 @@ class FakeTransport implements MailTransport {
     } else {
       flagged.remove(summary.uid);
     }
+  }
+
+  @override
+  Future<void> moveMessage(MessageSummary summary, String targetPath) async {
+    movedTo = targetPath;
+    uids.remove(summary.uid);
   }
 
   @override

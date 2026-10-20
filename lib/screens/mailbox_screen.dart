@@ -209,15 +209,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
   }
 
-  Widget _brand(AstryxColors c) {
-    return Row(
-      children: <Widget>[
-        const BrandMark(size: 30),
-        const SizedBox(width: AstryxSpace.s3),
-        Text('Ace Mail', style: AstryxText.heading3(c.textPrimary)),
-      ],
-    );
-  }
+  /// The mark alone. The name is on the launcher, in the store and on the
+  /// splash; repeating it here only takes room from the search field.
+  Widget _brand(AstryxColors c) => const BrandMark(size: 32);
 
   Widget _searchField(AstryxColors c) {
     // A pill, matching every other control in the expressive layer.

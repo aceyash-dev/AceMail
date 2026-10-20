@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'data/app_info.dart';
 import 'data/preferences.dart';
 import 'state/mail_controller.dart';
 
@@ -19,6 +20,7 @@ Future<void> main() async {
   await Future.wait<void>(<Future<void>>[
     preferences.load(),
     controller.restore(),
+    AppInfo.load(),
   ]);
 
   runApp(

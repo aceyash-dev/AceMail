@@ -300,22 +300,82 @@ class MailSession extends ChangeNotifier {
     _notify();
   }
 
+  /// Deletes any row, not just the open one, so a swipe can call it.
+  Future<void> delete(MessageSummary summary, {bool permanently = false}) =>
+      _runOn(
+        summary,
+        () => _transport.deleteMessage(
+          summary,
+          trashPath: trashPath,
+          permanently: permanently,
+        ),
+        remove: true,
+      );
+
   Future<void> deleteOpenMessage({bool permanently = false}) async {
     final MessageSummary? summary = openSummary;
     if (!_connected || summary == null) return;
+    await delete(summary, permanently: permanently);
+  }
 
+  /// Moves a message out of the way. Needs an Archive folder to move it to.
+  Future<void> archive(MessageSummary summary) async {
+    final String? path = _folderPathFor(FolderRole.archive);
+    if (path == null) {
+      errorMessage = 'This account has no Archive folder.';
+      _notify();
+      return;
+    }
+    await _runOn(summary, () => _transport.moveMessage(summary, path),
+        remove: true);
+  }
+
+  /// Flips a message's read state from the list.
+  Future<void> toggleRead(MessageSummary summary) async {
+    final bool next = !summary.isSeen;
+    await _runOn(
+      summary,
+      () => next
+          ? _transport.markSeen(summary)
+          : _transport.markUnread(summary),
+      updated: summary.copyWith(isSeen: next),
+    );
+  }
+
+  /// Flips a message's flag from the list.
+  Future<void> toggleFlag(MessageSummary summary) async {
+    final bool next = !summary.isFlagged;
+    await _runOn(
+      summary,
+      () => _transport.setFlagged(summary, next),
+      updated: summary.copyWith(isFlagged: next),
+    );
+  }
+
+  /// Runs an action against one row and reconciles the list with the result.
+  /// Either the row leaves, or it is replaced in place — never both, and never
+  /// a silent no-op.
+  Future<void> _runOn(
+    MessageSummary summary,
+    Future<void> Function() action, {
+    MessageSummary? updated,
+    bool remove = false,
+  }) async {
+    if (!_connected) return;
     try {
-      await _transport.deleteMessage(
-        summary,
-        trashPath: trashPath,
-        permanently: permanently,
-      );
-      messages = messages
-          .where((MessageSummary m) => m.uid != summary.uid)
-          .toList();
-      _uids = _uids.where((int uid) => uid != summary.uid).toList();
-      openMessage = null;
-      openSummary = null;
+      await action();
+      if (remove) {
+        messages =
+            messages.where((MessageSummary m) => m.uid != summary.uid).toList();
+        _uids = _uids.where((int uid) => uid != summary.uid).toList();
+        if (openSummary?.uid == summary.uid) {
+          openMessage = null;
+          openSummary = null;
+        }
+      } else if (updated != null) {
+        _replace(summary.uid, updated);
+        if (openSummary?.uid == summary.uid) openSummary = updated;
+      }
       _notify();
     } catch (error) {
       errorMessage = error.toString();

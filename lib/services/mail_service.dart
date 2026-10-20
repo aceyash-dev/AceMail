@@ -218,6 +218,32 @@ class MailService implements MailTransport {
         action: flagged ? StoreAction.add : StoreAction.remove,
       );
 
+  @override
+  Future<void> moveMessage(MessageSummary summary, String targetPath) async {
+    final MessageSequence sequence =
+        MessageSequence.fromId(summary.uid, isUid: true);
+
+    try {
+      await _client.uidCopy(sequence, targetMailboxPath: targetPath);
+    } catch (error) {
+      throw MailException(
+        _describe(
+          error,
+          fallback: 'Could not move the message, so it was left where it was.',
+        ),
+      );
+    }
+
+    try {
+      await _client.uidStore(sequence, <String>[MessageFlags.deleted]);
+      await _client.expunge();
+    } catch (error) {
+      throw MailException(
+        _describe(error, fallback: 'The message could not be removed.'),
+      );
+    }
+  }
+
   /// Moves the message to Trash, then expunges it.
   ///
   /// It deliberately does **not** fall back to a permanent delete when the move

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import '../models/full_message.dart';
 import '../screens/compose_screen.dart';
 import '../state/mail_controller.dart';
@@ -27,6 +28,18 @@ class MessageReader extends StatefulWidget {
 
 class _MessageReaderState extends State<MessageReader> {
   bool _plainText = false;
+  bool _viewInitialised = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_viewInitialised) return;
+    _viewInitialised = true;
+    // The setting decides how a message opens; the toggle above the body is
+    // then a per-message override.
+    _plainText =
+        context.read<Preferences>().messageView == MessageView.plainText;
+  }
 
   /// Accumulated horizontal drag, for the swipe-right-to-go-back gesture.
   double _drag = 0;
@@ -271,11 +284,14 @@ class _MessageReaderState extends State<MessageReader> {
   }
 
   Widget _body(AstryxColors c, FullMessage message) {
-    final bool showHtml = message.hasHtml && !_plainText;
+    // HTML first: it is what most mail is, and a plain-text body that is
+    // plainly HTML is rendered as HTML rather than as tags.
+    final String? html = message.htmlSource;
+    final bool showHtml = html != null && !_plainText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (message.hasHtml)
+        if (html != null)
           Row(
             children: <Widget>[
               _segmented(
@@ -293,9 +309,9 @@ class _MessageReaderState extends State<MessageReader> {
               ),
             ],
           ),
-        if (message.hasHtml) const SizedBox(height: AstryxSpace.s4),
+        if (html != null) const SizedBox(height: AstryxSpace.s4),
         if (showHtml)
-          _HtmlBody(html: message.htmlBody!)
+          _HtmlBody(html: html)
         else
           SelectableText(
             message.textBody.isEmpty

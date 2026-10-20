@@ -108,34 +108,64 @@ abstract final class AstryxSize {
 }
 
 /// Continuous corners — the squircle Material 3 Expressive favours for large
-/// surfaces, where a plain rounded rectangle reads too sharp.
+/// surfaces.
 abstract final class AstryxShape {
-  /// A true superellipse: `|x/a|^n + |y/b|^n = 1`.
+  /// A rounded rectangle whose corners are quarter **superellipses** rather
+  /// than circular arcs.
   ///
-  /// `exponent` 2 is a circle, 4 is the classic squircle, higher is squarer.
-  static Path squircle(Rect rect, {double exponent = 4, int samples = 72}) {
-    final double a = rect.width / 2;
-    final double b = rect.height / 2;
-    final double cx = rect.center.dx;
-    final double cy = rect.center.dy;
-    final double power = 2 / exponent;
+  /// That is what makes the join between a straight edge and the curve
+  /// imperceptible, which is the whole point of the shape. It is emphatically
+  /// *not* a single superellipse stretched over the rectangle: on a wide, short
+  /// card that produces an oval with no straight edges at all, which is the bug
+  /// this replaces.
+  static Path squircle(
+    Rect rect, {
+    double? radius,
+    double exponent = 4,
+    int samples = 10,
+  }) {
+    final double limit = math.min(rect.width, rect.height) / 2;
+    final double r =
+        (radius ?? math.min(limit * 0.5, AstryxRadius.xxl)).clamp(0.0, limit);
+    if (r <= 0) return Path()..addRect(rect);
 
-    final Path path = Path();
-    for (int i = 0; i <= samples; i++) {
-      final double t = (i / samples) * 2 * math.pi;
-      final double ct = math.cos(t);
-      final double st = math.sin(t);
-      final double x =
-          cx + a * ct.sign * math.pow(ct.abs(), power).toDouble();
-      final double y =
-          cy + b * st.sign * math.pow(st.abs(), power).toDouble();
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
+    final double l = rect.left;
+    final double t = rect.top;
+    final double right = rect.right;
+    final double bottom = rect.bottom;
+
+    final Path path = Path()..moveTo(l + r, t);
+    path.lineTo(right - r, t);
+    _corner(path, Offset(right - r, t + r), r, 3 * math.pi / 2, 2 * math.pi, exponent, samples);
+    path.lineTo(right, bottom - r);
+    _corner(path, Offset(right - r, bottom - r), r, 0, math.pi / 2, exponent, samples);
+    path.lineTo(l + r, bottom);
+    _corner(path, Offset(l + r, bottom - r), r, math.pi / 2, math.pi, exponent, samples);
+    path.lineTo(l, t + r);
+    _corner(path, Offset(l + r, t + r), r, math.pi, 3 * math.pi / 2, exponent, samples);
     return path..close();
+  }
+
+  /// One quarter superellipse, walked by angle. `exponent` 2 is a circular arc.
+  static void _corner(
+    Path path,
+    Offset centre,
+    double radius,
+    double from,
+    double to,
+    double exponent,
+    int samples,
+  ) {
+    final double power = 2 / exponent;
+    for (int i = 1; i <= samples; i++) {
+      final double angle = from + (to - from) * (i / samples);
+      final double cosA = math.cos(angle);
+      final double sinA = math.sin(angle);
+      path.lineTo(
+        centre.dx + radius * cosA.sign * math.pow(cosA.abs(), power).toDouble(),
+        centre.dy + radius * sinA.sign * math.pow(sinA.abs(), power).toDouble(),
+      );
+    }
   }
 }
 
