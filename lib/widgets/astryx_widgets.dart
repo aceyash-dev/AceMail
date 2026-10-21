@@ -2,10 +2,12 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
-import 'shape_morph.dart';
 import '../theme/astryx_tokens.dart';
+import 'shape_morph.dart';
 
 /// A press that springs, and a shape that morphs while it does.
 ///
@@ -217,7 +219,7 @@ class AceButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final AceButtonVariant variant;
-  final IconData? icon;
+  final AceIcon? icon;
   final bool expand;
   final bool loading;
   final AceButtonSize size;
@@ -257,7 +259,7 @@ class AceButton extends StatelessWidget {
             child: AceLoader(size: iconSize, color: foreground),
           )
         else if (icon != null) ...<Widget>[
-          Icon(icon, size: iconSize, color: foreground),
+          HugeIcon(icon: icon!, size: iconSize, color: foreground),
           const SizedBox(width: AstryxSpace.s2),
         ],
         Text(
@@ -325,7 +327,7 @@ class AceIconButton extends StatelessWidget {
     this.size = AstryxSize.touchTarget,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final VoidCallback? onPressed;
   final String? tooltip;
   final AceIconButtonVariant variant;
@@ -371,7 +373,7 @@ class AceIconButton extends StatelessWidget {
                   : background,
               borderRadius: shape,
             ),
-            child: Icon(icon, size: size * 0.5, color: foreground),
+            child: HugeIcon(icon: icon, size: size * 0.5, color: foreground),
           ),
         );
       },
@@ -395,7 +397,7 @@ class AceFab extends StatelessWidget {
   });
 
   final String label;
-  final IconData icon;
+  final AceIcon icon;
   final VoidCallback? onPressed;
   final bool extended;
 
@@ -425,7 +427,7 @@ class AceFab extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(icon, size: 22, color: c.onAccentMuted),
+                HugeIcon(icon: icon, size: 22, color: c.onAccentMuted),
                 if (extended) ...<Widget>[
                   const SizedBox(width: AstryxSpace.s3),
                   Text(
@@ -455,7 +457,7 @@ class AceChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback? onTap;
-  final IconData? icon;
+  final AceIcon? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -485,7 +487,7 @@ class AceChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 if (icon != null) ...<Widget>[
-                  Icon(icon, size: 16, color: foreground),
+                  HugeIcon(icon: icon!, size: 16, color: foreground),
                   const SizedBox(width: AstryxSpace.s1_5),
                 ],
                 Text(label, style: AstryxText.label(foreground)),
@@ -602,7 +604,7 @@ class AceToolbarAction {
     this.destructive = false,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final String tooltip;
   final VoidCallback? onPressed;
   final bool selected;

@@ -99,6 +99,16 @@ class MailController extends ChangeNotifier {
   List<MessageSummary> get visibleMessages =>
       active?.visibleMessages ?? const <MessageSummary>[];
 
+  bool get selecting => active?.selecting ?? false;
+  int get selectedCount => active?.selected.length ?? 0;
+  bool isSelected(int uid) => active?.isSelected(uid) ?? false;
+  void toggleSelect(int uid) => active?.toggleSelect(uid);
+  void clearSelection() => active?.clearSelection();
+  Future<void> forEachSelected(
+    Future<void> Function(MessageSummary message) action,
+  ) async =>
+      active?.forEachSelected(action);
+
   MessageFilter get filter => active?.filter ?? MessageFilter.all;
   MessageSort get sort => active?.sort ?? MessageSort.newest;
   MessageSummary? get openSummary => active?.openSummary;

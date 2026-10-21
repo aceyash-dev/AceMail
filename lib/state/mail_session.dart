@@ -83,6 +83,48 @@ class MailSession extends ChangeNotifier {
   /// Every UID in the selected folder, newest first — the paging cursor.
   List<int> _uids = <int>[];
 
+  /// The uids picked out by long-press. Non-empty means the list is in
+  /// selection mode, and a tap toggles rather than opens.
+  final Set<int> selected = <int>{};
+
+  bool get selecting => selected.isNotEmpty;
+
+  bool isSelected(int uid) => selected.contains(uid);
+
+  void toggleSelect(int uid) {
+    if (!selected.remove(uid)) selected.add(uid);
+    _notify();
+  }
+
+  void clearSelection() {
+    if (selected.isEmpty) return;
+    selected.clear();
+    _notify();
+  }
+
+  /// The picked messages, in the order they appear on screen.
+  List<MessageSummary> get selectedMessages =>
+      visibleMessages.where((MessageSummary m) => selected.contains(m.uid)).toList();
+
+  /// Runs [action] over everything picked, then clears the selection.
+  ///
+  /// Sequential on purpose: the transport serialises these anyway, and a
+  /// failure part-way through leaves the ones that succeeded selected, so it is
+  /// obvious what did not happen.
+  Future<void> forEachSelected(
+    Future<void> Function(MessageSummary message) action,
+  ) async {
+    for (final MessageSummary message in List<MessageSummary>.of(selectedMessages)) {
+      try {
+        await action(message);
+        selected.remove(message.uid);
+      } catch (_) {
+        // Left selected, so the failure is visible rather than silent.
+      }
+    }
+    _notify();
+  }
+
   /// Which quick filter is applied to the page. Transient by design: it is a
   /// way of looking at what is loaded, not a saved preference.
   MessageFilter filter = MessageFilter.all;
@@ -353,6 +395,7 @@ class MailSession extends ChangeNotifier {
   }
 
   Future<void> open(MessageSummary summary) async {
+    clearSelection();
     if (!_connected) return;
 
     final int token = ++_messageToken;

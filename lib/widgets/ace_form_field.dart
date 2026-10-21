@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'astryx_widgets.dart';
@@ -131,8 +132,8 @@ class AcePasswordField extends StatelessWidget {
       autofillHints: autofillHints,
       trailing: AceIconButton(
         icon: obscure
-            ? Icons.visibility_outlined
-            : Icons.visibility_off_outlined,
+            ? AceIcons.visibility
+            : AceIcons.visibilityOff,
         tooltip: obscure ? 'Show' : 'Hide',
         onPressed: onToggleObscure,
       ),

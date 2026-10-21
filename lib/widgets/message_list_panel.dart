@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart'
     show CupertinoSliverRefreshControl, RefreshIndicatorMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
@@ -11,6 +12,7 @@ import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../models/swipe_action.dart';
 import '../state/mail_controller.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
@@ -114,12 +116,12 @@ class MessageListPanel extends StatelessWidget {
         SliverFillRemaining(
           hasScrollBody: false,
           child: _Centred(
-            icon: Icons.error_outline_rounded,
+            icon: AceIcons.error,
             iconColor: c.error,
             message: error,
             action: AceButton(
               label: 'Try again',
-              icon: Icons.refresh_rounded,
+              icon: AceIcons.refresh,
               variant: AceButtonVariant.tonal,
               onPressed: () => context.read<MailController>().refreshMessages(),
             ),
@@ -134,8 +136,8 @@ class MessageListPanel extends StatelessWidget {
           hasScrollBody: false,
           child: _Centred(
             icon: controller.filter == MessageFilter.all
-                ? Icons.mark_email_read_outlined
-                : Icons.filter_alt_off_outlined,
+                ? AceIcons.mailOpen
+                : AceIcons.filterOff,
             iconColor: c.iconDisabled,
             message: _emptyMessage(controller),
           ),
@@ -177,7 +179,20 @@ class MessageListPanel extends StatelessWidget {
                 summary: summary,
                 index: index,
                 selected: controller.openSummary?.uid == summary.uid,
-                onTap: () => context.read<MailController>().open(summary),
+                picked: controller.isSelected(summary.uid),
+                selecting: controller.selecting,
+                onLongPress: () =>
+                    context.read<MailController>().toggleSelect(summary.uid),
+                onTap: () {
+                  final MailController mail = context.read<MailController>();
+                  // While picking, a tap picks; it does not open a message the
+                  // reader did not ask for.
+                  if (mail.selecting) {
+                    mail.toggleSelect(summary.uid);
+                  } else {
+                    mail.open(summary);
+                  }
+                },
               ),
               ),
             );
@@ -193,7 +208,7 @@ class MessageListPanel extends StatelessWidget {
                   ? const AceLoader(size: 34)
                   : AceButton(
                       label: 'Load older messages',
-                      icon: Icons.expand_more_rounded,
+                      icon: AceIcons.expandMore,
                       variant: AceButtonVariant.tonal,
                       onPressed: () =>
                           context.read<MailController>().loadMore(),
@@ -277,7 +292,7 @@ class _ChipRow extends StatelessWidget {
           ),
           AceChip(
             label: controller.sort.label,
-            icon: Icons.swap_vert_rounded,
+            icon: AceIcons.sort,
             onTap: () => _chooseSort(context),
           ),
         ],
@@ -312,8 +327,8 @@ class _ChipRow extends StatelessWidget {
                 icon: _sortIcon(sort),
                 title: sort.label,
                 trailing: sort == prefs.messageSort
-                    ? Icon(
-                        Icons.check_rounded,
+                    ? HugeIcon(icon: 
+                        AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,
                       )
@@ -331,12 +346,12 @@ class _ChipRow extends StatelessWidget {
     if (chosen != null) await prefs.setMessageSort(chosen);
   }
 
-  static IconData _sortIcon(MessageSort sort) => switch (sort) {
-        MessageSort.newest => Icons.south_rounded,
-        MessageSort.oldest => Icons.north_rounded,
-        MessageSort.sender => Icons.person_outline_rounded,
-        MessageSort.subject => Icons.subject_rounded,
-        MessageSort.unread => Icons.mark_email_unread_outlined,
+  static AceIcon _sortIcon(MessageSort sort) => switch (sort) {
+        MessageSort.newest => AceIcons.sortNewest,
+        MessageSort.oldest => AceIcons.sortOldest,
+        MessageSort.sender => AceIcons.person,
+        MessageSort.subject => AceIcons.sortSubject,
+        MessageSort.unread => AceIcons.mailUnread,
       };
 }
 
@@ -348,7 +363,7 @@ class _Centred extends StatelessWidget {
     this.action,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final Color iconColor;
   final String message;
   final Widget? action;
@@ -361,7 +376,7 @@ class _Centred extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Icon(icon, size: 32, color: iconColor),
+          HugeIcon(icon: icon, size: 32, color: iconColor),
           const SizedBox(height: AstryxSpace.s3),
           Text(
             message,
@@ -388,12 +403,24 @@ class MessageTile extends StatelessWidget {
     required this.index,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
+    this.picked = false,
+    this.selecting = false,
   });
 
   final MessageSummary summary;
   final int index;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Long-press picks a message out; a second one starts a selection.
+  final VoidCallback? onLongPress;
+
+  /// Whether this row is one of the picked ones.
+  final bool picked;
+
+  /// Whether the list is in selection mode at all.
+  final bool selecting;
 
   @override
   Widget build(BuildContext context) {
@@ -412,6 +439,7 @@ class MessageTile extends StatelessWidget {
       ),
       child: AceSpringy(
         onTap: onTap,
+        onLongPress: onLongPress,
         builder: (BuildContext context, double press, bool hover) {
           final double t = press.clamp(0.0, 1.0);
           final BorderRadius shape = BorderRadius.circular(
@@ -427,19 +455,56 @@ class MessageTile extends StatelessWidget {
                 vertical: density.verticalPadding,
               ),
               decoration: BoxDecoration(
-                color: selected
+                color: picked
                     ? c.accentMuted
-                    : (hover ? c.surfaceHighest : Colors.transparent),
+                    : (selected
+                        ? c.accentMuted
+                        : (hover ? c.surfaceHighest : Colors.transparent)),
                 borderRadius: shape,
+                border: picked
+                    ? Border.all(color: c.accent, width: 1.5)
+                    : null,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  MailAvatar(
-                    email: summary.fromEmail,
-                    name: summary.fromName,
-                    size: density.avatarSize,
-                  ),
+                  // In selection mode the picture becomes the tick, so the
+                  // gesture that started it is visible where it happened.
+                  if (selecting)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AstryxSpace.s2),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 160),
+                        child: picked
+                            ? HugeIcon(
+                                key: const ValueKey<String>('on'),
+                                icon: AceIcons.checkCircle,
+                                size: density.avatarSize,
+                                color: c.accent,
+                              )
+                            : SizedBox(
+                                key: const ValueKey<String>('off'),
+                                width: density.avatarSize,
+                                height: density.avatarSize,
+                                child: Center(
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: c.border, width: 1.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    )
+                  else
+                    MailAvatar(
+                      email: summary.fromEmail,
+                      name: summary.fromName,
+                      size: density.avatarSize,
+                    ),
                   const SizedBox(width: AstryxSpace.s3),
                   Expanded(
                     child: Column(
@@ -467,8 +532,8 @@ class MessageTile extends StatelessWidget {
                         Row(
                           children: <Widget>[
                             if (summary.isFlagged) ...<Widget>[
-                              Icon(
-                                Icons.star_rounded,
+                              HugeIcon(icon: 
+                                AceIcons.star,
                                 size: 15,
                                 color: c.tertiary,
                               ),
@@ -551,8 +616,8 @@ class _OtpChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(
-                Icons.password_rounded,
+              HugeIcon(icon: 
+                AceIcons.password,
                 size: 14,
                 color: c.onAccentMuted,
               ),
@@ -564,8 +629,8 @@ class _OtpChip extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AstryxSpace.s2),
-              Icon(
-                Icons.copy_rounded,
+              HugeIcon(icon: 
+                AceIcons.copy,
                 size: 13,
                 color: c.onAccentMuted,
               ),

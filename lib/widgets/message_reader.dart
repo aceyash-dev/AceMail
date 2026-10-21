@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
 import '../models/full_message.dart';
 import '../screens/compose_screen.dart';
 import '../state/mail_controller.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
@@ -14,8 +16,8 @@ import '../util/html_render.dart';
 import '../util/routes.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
-import 'skeleton.dart';
 import 'avatar.dart';
+import 'skeleton.dart';
 
 class MessageReader extends StatefulWidget {
   const MessageReader({super.key, this.onBack});
@@ -152,7 +154,7 @@ class _MessageReaderState extends State<MessageReader> {
       child: Row(
         children: <Widget>[
           AceIconButton(
-            icon: Icons.chevron_left_rounded,
+            icon: AceIcons.chevronLeft,
             tooltip: 'Back',
             onPressed: widget.onBack,
           ),
@@ -169,23 +171,23 @@ class _MessageReaderState extends State<MessageReader> {
     return AceToolbar(
       actions: <AceToolbarAction>[
         AceToolbarAction(
-          icon: Icons.reply_rounded,
+          icon: AceIcons.reply,
           tooltip: 'Reply',
           onPressed: () => _reply(context, message),
         ),
         AceToolbarAction(
-          icon: Icons.reply_all_rounded,
+          icon: AceIcons.replyAll,
           tooltip: 'Reply all',
           onPressed: () => _reply(context, message, all: true),
         ),
         AceToolbarAction(
-          icon: flagged ? Icons.star_rounded : Icons.star_border_rounded,
+          icon: flagged ? AceIcons.star : AceIcons.star,
           tooltip: flagged ? 'Remove flag' : 'Flag',
           selected: flagged,
           onPressed: () => context.read<MailController>().toggleOpenFlagged(),
         ),
         AceToolbarAction(
-          icon: Icons.mark_email_unread_outlined,
+          icon: AceIcons.mailUnread,
           tooltip: 'Mark as unread',
           onPressed: () {
             context.read<MailController>().markOpenUnread();
@@ -193,7 +195,7 @@ class _MessageReaderState extends State<MessageReader> {
           },
         ),
         AceToolbarAction(
-          icon: Icons.delete_outline_rounded,
+          icon: AceIcons.trash,
           tooltip: 'Delete',
           destructive: true,
           onPressed: () => _confirmDelete(context),
@@ -256,7 +258,7 @@ class _MessageReaderState extends State<MessageReader> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.data_object_rounded, size: 15, color: c.iconSecondary),
+              HugeIcon(icon: AceIcons.headers, size: 15, color: c.iconSecondary),
               const SizedBox(width: AstryxSpace.s2),
               Text('Headers', style: AstryxText.label(c.textSecondary)),
             ],
@@ -302,8 +304,8 @@ class _MessageReaderState extends State<MessageReader> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(
-                    Icons.attach_file_rounded,
+                  HugeIcon(icon: 
+                    AceIcons.attachment,
                     size: 15,
                     color: c.textAccent,
                   ),

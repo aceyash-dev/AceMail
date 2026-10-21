@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../models/sign_in_form.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'ace_form_field.dart';
@@ -37,8 +39,8 @@ class AdvancedServerPanel extends StatelessWidget {
                 AnimatedRotation(
                   turns: form.advanced ? 0.25 : 0,
                   duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.keyboard_arrow_right_rounded,
+                  child: HugeIcon(icon: 
+                    AceIcons.chevronRight,
                     size: 18,
                     color: c.textAccent,
                   ),

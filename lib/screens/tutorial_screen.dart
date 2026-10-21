@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../widgets/astryx_widgets.dart';
@@ -228,7 +229,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       if (_index > 0)
                         AceButton(
                           label: 'Back',
-                          icon: Icons.chevron_left_rounded,
+                          icon: AceIcons.chevronLeft,
                           onPressed: _back,
                         )
                       else
@@ -240,7 +241,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       AceButton(
                         label: isLast ? 'Got it' : 'Next',
                         variant: AceButtonVariant.primary,
-                        icon: isLast ? Icons.check_rounded : null,
+                        icon: isLast ? AceIcons.check : null,
                         onPressed: _advance,
                       ),
                     ],

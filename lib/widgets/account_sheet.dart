@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/settings_screen.dart';
 import '../screens/sign_in_screen.dart';
 import '../state/mail_controller.dart';
 import '../state/mail_session.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
@@ -59,7 +61,7 @@ class AccountSheet extends StatelessWidget {
             _Group(
               children: <Widget>[
                 AceListTile(
-                  leading: Icon(Icons.add_rounded, color: c.accent),
+                  leading: HugeIcon(icon: AceIcons.add, color: c.accent),
                   title: 'Add another account',
                   onTap: () {
                     final NavigatorState nav = Navigator.of(context);
@@ -68,8 +70,8 @@ class AccountSheet extends StatelessWidget {
                   },
                 ),
                 AceListTile(
-                  leading: Icon(
-                    Icons.settings_outlined,
+                  leading: HugeIcon(icon: 
+                    AceIcons.settings,
                     color: c.iconSecondary,
                   ),
                   title: 'Settings',
@@ -162,9 +164,9 @@ class _AccountTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (active)
-            Icon(Icons.check_circle_rounded, size: 20, color: c.accent),
+            HugeIcon(icon: AceIcons.checkCircle, size: 20, color: c.accent),
           AceIconButton(
-            icon: Icons.delete_outline_rounded,
+            icon: AceIcons.trash,
             tooltip: 'Remove account',
             variant: AceIconButtonVariant.danger,
             size: AstryxSize.elementMd,

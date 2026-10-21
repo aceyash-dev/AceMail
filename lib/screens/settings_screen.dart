@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
-import '../data/app_info.dart';
 import '../data/accents.dart';
+import '../data/app_info.dart';
 import '../data/preferences.dart';
 import '../models/swipe_action.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
-import '../widgets/astryx_widgets.dart';
 import '../widgets/account_sheet.dart';
+import '../widgets/astryx_widgets.dart';
 import '../widgets/settings_group.dart';
 import 'tutorial_screen.dart';
 
@@ -36,13 +38,13 @@ class SettingsScreen extends StatelessWidget {
               title: 'Account',
               children: <Widget>[
                 SettingsRow(
-                  icon: Icons.alternate_email_rounded,
+                  icon: AceIcons.at,
                   title: 'Manage accounts',
                   subtitle: 'Add, switch or remove accounts',
                   onTap: () => showAccountSheet(context),
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.sync_rounded,
+                  icon: AceIcons.reconnect,
                   title: 'Reconnect automatically',
                   subtitle: 'Retry once, after a backoff, when the connection '
                       'drops rather than the command failing.',
@@ -50,7 +52,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setAutoReconnect,
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.account_circle_outlined,
+                  icon: AceIcons.account,
                   title: 'Sender pictures',
                   subtitle: 'Off by default. Turning this on sends a hash of '
                       'every sender\'s address to gravatar.com, which is not '
@@ -64,7 +66,7 @@ class SettingsScreen extends StatelessWidget {
               title: 'Reading',
               children: <Widget>[
                 SettingsSwitchRow(
-                  icon: Icons.mark_email_read_outlined,
+                  icon: AceIcons.mailOpen,
                   title: 'Mark as read when opened',
                   subtitle: prefs.markAsReadOnOpen
                       ? 'Opening a message sets it read on the server.'
@@ -73,7 +75,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setMarkAsReadOnOpen,
                 ),
                 SettingsRow(
-                  icon: Icons.article_outlined,
+                  icon: AceIcons.news,
                   title: 'Message view',
                   subtitle: prefs.messageView == MessageView.formatted
                       ? 'Show the HTML version when the sender provided one.'
@@ -94,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsRow(
-                  icon: Icons.layers_outlined,
+                  icon: AceIcons.folder,
                   title: 'Messages per page',
                   subtitle: 'How many load before "Load older messages".',
                   value: prefs.pageSize.label,
@@ -112,7 +114,7 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.data_object_rounded,
+                  icon: AceIcons.headers,
                   title: 'Show raw headers',
                   subtitle: 'Show the message headers as the server sent them, '
                       'at the foot of the message.',
@@ -120,7 +122,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setShowRawHeaders,
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.image_outlined,
+                  icon: AceIcons.image,
                   title: 'Load images in messages',
                   subtitle: 'Off by default: fetching an image tells the '
                       'sender\u2019s server the message was opened.',
@@ -128,7 +130,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setLoadRemoteImages,
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.password_rounded,
+                  icon: AceIcons.password,
                   title: 'Show one-time codes',
                   subtitle: 'Pick codes out of messages and show them in the '
                       'list, so they can be used without opening the mail.',
@@ -136,7 +138,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setDetectCodes,
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.delete_outline_rounded,
+                  icon: AceIcons.trash,
                   title: 'Ask before deleting',
                   subtitle: 'A permanent delete always asks, whatever this is '
                       'set to.',
@@ -144,7 +146,7 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setConfirmDelete,
                 ),
                 SettingsRow(
-                  icon: Icons.draw_outlined,
+                  icon: AceIcons.signature,
                   title: 'Signature',
                   subtitle: prefs.signature.isEmpty
                       ? 'Not set'
@@ -158,14 +160,14 @@ class SettingsScreen extends StatelessWidget {
               title: 'Gestures',
               children: <Widget>[
                 SettingsRow(
-                  icon: Icons.swipe_right_alt,
+                  icon: AceIcons.swipeRight,
                   title: 'Swipe right',
                   subtitle: 'Across a message in the list',
                   value: prefs.swipeStart.label,
                   onTap: () => _chooseSwipe(context, prefs, start: true),
                 ),
                 SettingsRow(
-                  icon: Icons.swipe_left_alt,
+                  icon: AceIcons.swipeLeft,
                   title: 'Swipe left',
                   subtitle: 'Across a message in the list',
                   value: prefs.swipeEnd.label,
@@ -177,7 +179,7 @@ class SettingsScreen extends StatelessWidget {
               title: 'Appearance',
               children: <Widget>[
                 SettingsRow(
-                  icon: Icons.brightness_6_outlined,
+                  icon: AceIcons.brightness,
                   title: 'Theme',
                   value: prefs.themeMode.label,
                   onTap: () async {
@@ -194,14 +196,14 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsRow(
-                  icon: Icons.palette_outlined,
+                  icon: AceIcons.palette,
                   title: 'Accent',
                   value: prefs.accent.label,
                   trailing: _AccentSwatch(accent: prefs.accent),
                   onTap: () => _chooseAccent(context, prefs),
                 ),
                 SettingsRow(
-                  icon: Icons.view_agenda_outlined,
+                  icon: AceIcons.density,
                   title: 'List density',
                   value: prefs.density.label,
                   onTap: () async {
@@ -225,7 +227,7 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsRow(
-                  icon: Icons.format_size_rounded,
+                  icon: AceIcons.textSize,
                   title: 'Text size',
                   value: prefs.textSize.label,
                   onTap: () async {
@@ -248,7 +250,7 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsSwitchRow(
-                  icon: Icons.logout_rounded,
+                  icon: AceIcons.logout,
                   title: 'Ask before exiting',
                   subtitle: 'Show a confirmation before the app closes.',
                   value: prefs.confirmExit,
@@ -260,7 +262,7 @@ class SettingsScreen extends StatelessWidget {
               title: 'Support',
               children: <Widget>[
                 SettingsRow(
-                  icon: Icons.help_outline_rounded,
+                  icon: AceIcons.help,
                   title: 'How to sign in',
                   subtitle: 'Step-by-step, including app passwords',
                   onTap: () => Navigator.of(context).push(
@@ -268,7 +270,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
                 SettingsRow(
-                  icon: Icons.info_outline_rounded,
+                  icon: AceIcons.info,
                   title: 'About Ace Mail',
                   // Read from the installed package, so it cannot drift from
                   // what is actually on the device.
@@ -332,8 +334,8 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                           child: selected
-                              ? Icon(
-                                  Icons.check_rounded,
+                              ? HugeIcon(icon: 
+                                  AceIcons.check,
                                   color: contrastingInk(accent.seed),
                                 )
                               : null,

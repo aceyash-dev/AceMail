@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'astryx_widgets.dart';
@@ -76,7 +78,7 @@ class SettingsRow extends StatelessWidget {
     this.trailing,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final String title;
   final String? subtitle;
 
@@ -97,7 +99,7 @@ class SettingsRow extends StatelessWidget {
         horizontal: AstryxSpace.s3,
         vertical: AstryxSpace.s3,
       ),
-      leading: Icon(icon, size: 20, color: c.iconSecondary),
+      leading: HugeIcon(icon: icon, size: 20, color: c.iconSecondary),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -107,8 +109,8 @@ class SettingsRow extends StatelessWidget {
           if (onTap != null)
             Padding(
               padding: const EdgeInsets.only(left: AstryxSpace.s1),
-              child: Icon(
-                Icons.chevron_right_rounded,
+              child: HugeIcon(icon: 
+                AceIcons.chevronRight,
                 size: 20,
                 color: c.iconDisabled,
               ),
@@ -130,7 +132,7 @@ class SettingsSwitchRow extends StatelessWidget {
     this.subtitle,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final String title;
   final String? subtitle;
   final bool value;
@@ -160,7 +162,7 @@ class SettingsSwitchRow extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                Icon(icon, size: 20, color: c.iconSecondary),
+                HugeIcon(icon: icon, size: 20, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Column(
@@ -237,7 +239,7 @@ Future<T?> showChoiceSheet<T>(
                     subtitle: choice.description,
                     selected: choice.value == current,
                     trailing: choice.value == current
-                        ? Icon(Icons.check_rounded, color: c.accent)
+                        ? HugeIcon(icon: AceIcons.check, color: c.accent)
                         : null,
                   ),
               ],

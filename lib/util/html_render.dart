@@ -64,6 +64,15 @@ class HtmlRenderer {
 
     try {
       final dom.Document document = html_parser.parse(source);
+
+      // Read every stylesheet in the document first. `<style>` almost always
+      // sits in the head, which the walk below never reaches — which is why a
+      // rule in a style block was being ignored while the same rule written in
+      // a style attribute worked.
+      for (final dom.Element style in document.querySelectorAll('style')) {
+        builder.stylesheet.add(style.text);
+      }
+
       final dom.Element? body = document.body;
       if (body != null) {
         builder.walk(body);
@@ -96,6 +105,11 @@ class _Builder {
   final TextStyle codeStyle;
   final bool loadRemoteImages;
 
+  final _Stylesheet _stylesheet = _Stylesheet();
+
+  /// The message's stylesheet, filled from the document before the walk.
+  _Stylesheet get stylesheet => _stylesheet;
+
   final List<InlineSpan> spans = <InlineSpan>[];
   final List<TapGestureRecognizer> recognizers = <TapGestureRecognizer>[];
 
@@ -108,7 +122,9 @@ class _Builder {
   bool _inRow = false;
 
   static const Set<String> _skipped = <String>{
-    'script', 'style', 'head', 'title', 'noscript', 'template', 'svg', 'iframe',
+    // `style` is deliberately absent: its rules are read into the stylesheet
+    // rather than thrown away. `script` stays: no JavaScript, ever.
+    'script', 'head', 'title', 'noscript', 'template', 'svg', 'iframe',
   };
 
   /// Emphasis stated in a `style` attribute rather than a tag — which is how a
@@ -187,6 +203,10 @@ class _Builder {
       case 'img':
         writeImage(node);
         return;
+      case 'style':
+        // Already read from the document; a second one in the body counts too.
+        _stylesheet.add(node.text);
+        return;
       // A table is a grid on the web and a column here, so rows break and cells
       // are separated. Without this every cell ran into the next one.
       case 'tr':
@@ -211,14 +231,20 @@ class _Builder {
     if (block) _break(2);
 
     final String style = node.attributes['style'] ?? '';
-    final bool bold = tag == 'b' ||
-        tag == 'strong' ||
-        _isHeading(tag) ||
-        _boldStyle.hasMatch(style);
-    final bool italic =
-        tag == 'i' || tag == 'em' || _italicStyle.hasMatch(style);
-    final bool underline =
-        tag == 'u' || tag == 'ins' || _underlineStyle.hasMatch(style);
+    // The stylesheet first, then the element's own attribute over it — the same
+    // order a browser resolves them in.
+    final _CssStyle css =
+        _stylesheet.forElement(node).over(_Stylesheet.declarationsFor(style));
+
+    final bool bold = css.bold ??
+        (tag == 'b' ||
+            tag == 'strong' ||
+            _isHeading(tag) ||
+            _boldStyle.hasMatch(style));
+    final bool italic = css.italic ??
+        (tag == 'i' || tag == 'em' || _italicStyle.hasMatch(style));
+    final bool underline = css.underline ??
+        (tag == 'u' || tag == 'ins' || _underlineStyle.hasMatch(style));
     final bool code = tag == 'code' || tag == 'pre' || tag == 'kbd' || tag == 'tt';
     final String? href = tag == 'a' ? _safeHref(node.attributes['href']) : null;
 
@@ -229,6 +255,9 @@ class _Builder {
         underline: _frame.underline || underline,
         code: _frame.code || code,
         href: href ?? _frame.href,
+        color: css.color,
+        sizeScale: css.sizeScale,
+        upper: css.upper ?? false,
       ),
     );
     _depth++;
@@ -324,10 +353,11 @@ class _Builder {
     if (raw.isEmpty) return;
 
     // Collapse runs of whitespace the way HTML does, except inside <pre>.
-    final String text = _frame.code
+    String text = _frame.code
         ? raw
         : _breakLongTokens(raw.replaceAll(RegExp(r'[ \t\r\n\u00a0]+'), ' '));
     if (text.isEmpty) return;
+    if (_frame.upper) text = text.toUpperCase();
 
     // Whitespace-only content between two blocks carries no meaning, but it
     // would still emit its paragraph break — and a layout table has hundreds of
@@ -414,6 +444,9 @@ class _Frame {
     this.underline = false,
     this.code = false,
     this.href,
+    this.color,
+    this.sizeScale = 1,
+    this.upper = false,
   });
 
   final bool bold;
@@ -422,12 +455,24 @@ class _Frame {
   final bool code;
   final String? href;
 
+  /// From CSS, when the message states one.
+  final Color? color;
+
+  /// A multiplier on the base size, from a CSS `font-size`.
+  final double sizeScale;
+
+  /// From a CSS `text-transform`.
+  final bool upper;
+
   _Frame copyWith({
     bool? bold,
     bool? italic,
     bool? underline,
     bool? code,
     String? href,
+    Color? color,
+    double? sizeScale,
+    bool? upper,
   }) =>
       _Frame(
         bold: bold ?? this.bold,
@@ -435,17 +480,286 @@ class _Frame {
         underline: underline ?? this.underline,
         code: code ?? this.code,
         href: href ?? this.href,
+        color: color ?? this.color,
+        sizeScale: sizeScale ?? this.sizeScale,
+        upper: upper ?? this.upper,
       );
 
   TextStyle styleFor(TextStyle base, Color linkColor, TextStyle codeStyle) {
     if (code) return codeStyle;
     TextStyle style = base;
+    if (sizeScale != 1) {
+      style = style.copyWith(fontSize: (base.fontSize ?? 14) * sizeScale);
+    }
+    if (color != null) style = style.copyWith(color: color);
     if (bold) style = style.copyWith(fontWeight: FontWeight.w600);
     if (italic) style = style.copyWith(fontStyle: FontStyle.italic);
     if (underline || href != null) {
       style = style.copyWith(decoration: TextDecoration.underline);
     }
-    if (href != null) style = style.copyWith(color: linkColor);
+    // A link keeps the link colour unless the message coloured it itself.
+    if (href != null && color == null) style = style.copyWith(color: linkColor);
     return style;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A small CSS engine.
+//
+// Mail is styled with CSS, and ignoring it means ignoring how the sender laid
+// the message out — which is most of why a rendered message does not look like
+// the one that was sent. This reads `<style>` blocks and the `style` attribute
+// and applies the handful of properties that survive being turned into styled
+// text: weight, italic, underline, colour, size, and case.
+//
+// Deliberately not a browser. No layout, no selectors beyond a tag, a class or
+// an id, no cascade beyond "later rules win", and — as everywhere else in this
+// renderer — no JavaScript.
+// ---------------------------------------------------------------------------
+
+/// The properties a rule can set, as the renderer understands them.
+class _CssStyle {
+  const _CssStyle({
+    this.bold,
+    this.italic,
+    this.underline,
+    this.color,
+    this.sizeScale,
+    this.upper,
+  });
+
+  final bool? bold;
+  final bool? italic;
+  final bool? underline;
+  final Color? color;
+  final double? sizeScale;
+  final bool? upper;
+
+  bool get isEmpty =>
+      bold == null &&
+      italic == null &&
+      underline == null &&
+      color == null &&
+      sizeScale == null &&
+      upper == null;
+
+  /// Later declarations win, so the second one is applied over the first.
+  _CssStyle over(_CssStyle other) => _CssStyle(
+        bold: other.bold ?? bold,
+        italic: other.italic ?? italic,
+        underline: other.underline ?? underline,
+        color: other.color ?? color,
+        sizeScale: other.sizeScale ?? sizeScale,
+        upper: other.upper ?? upper,
+      );
+}
+
+/// A tag, a class or an id. Enough for the selectors mail actually uses.
+class _CssSelector {
+  const _CssSelector({this.tag, this.clazz, this.id});
+
+  final String? tag;
+  final String? clazz;
+  final String? id;
+
+  bool matches(dom.Element node) {
+    if (id != null && node.id != id) return false;
+    if (clazz != null && !node.classes.contains(clazz)) return false;
+    if (tag != null && node.localName?.toLowerCase() != tag) return false;
+    return true;
+  }
+}
+
+class _CssRule {
+  const _CssRule(this.selectors, this.style);
+
+  final List<_CssSelector> selectors;
+  final _CssStyle style;
+}
+
+/// The message's stylesheet, in source order.
+class _Stylesheet {
+  _Stylesheet();
+
+  final List<_CssRule> _rules = <_CssRule>[];
+
+  static final RegExp _comments = RegExp(r'/\*.*?\*/', dotAll: true);
+  static final RegExp _blocks = RegExp(r'([^{}]+)\{([^{}]*)\}');
+
+  /// A few names, so `color: red` is not silently dropped.
+  static const Map<String, Color> _named = <String, Color>{
+    'black': Color(0xFF000000),
+    'white': Color(0xFFFFFFFF),
+    'red': Color(0xFFD32F2F),
+    'green': Color(0xFF2E7D32),
+    'blue': Color(0xFF1565C0),
+    'gray': Color(0xFF616161),
+    'grey': Color(0xFF616161),
+    'silver': Color(0xFF9E9E9E),
+    'orange': Color(0xFFEF6C00),
+    'purple': Color(0xFF6A1B9A),
+    'maroon': Color(0xFF7B1FA2),
+    'navy': Color(0xFF0D47A1),
+    'teal': Color(0xFF00695C),
+    'olive': Color(0xFF827717),
+    'yellow': Color(0xFFF9A825),
+  };
+
+  void add(String css) {
+    if (css.trim().isEmpty) return;
+    final String clean = css.replaceAll(_comments, ' ');
+
+    for (final RegExpMatch block in _blocks.allMatches(clean)) {
+      final List<_CssSelector> selectors = <_CssSelector>[];
+      for (final String part in block.group(1)!.split(',')) {
+        final _CssSelector? selector = _selectorFor(part.trim());
+        if (selector != null) selectors.add(selector);
+      }
+      final _CssStyle style = _styleFor(block.group(2)!);
+      if (selectors.isNotEmpty && !style.isEmpty) {
+        _rules.add(_CssRule(selectors, style));
+      }
+    }
+  }
+
+  /// The style that applies to [node], with later rules winning.
+  _CssStyle forElement(dom.Element node) {
+    _CssStyle result = const _CssStyle();
+    for (final _CssRule rule in _rules) {
+      if (rule.selectors.any((_CssSelector s) => s.matches(node))) {
+        result = result.over(rule.style);
+      }
+    }
+    return result;
+  }
+
+  /// Takes the last part of a descendant selector — `div.footer a` matches an
+  /// `a` — because that is the part that decides which element is styled.
+  static _CssSelector? _selectorFor(String raw) {
+    if (raw.isEmpty) return null;
+    final String last = raw.split(RegExp(r'\s+')).last;
+
+    final RegExpMatch? id = RegExp(r'#([\w-]+)').firstMatch(last);
+    final RegExpMatch? cls = RegExp(r'\.([\w-]+)').firstMatch(last);
+    final RegExpMatch? tag = RegExp(r'^([a-zA-Z][\w-]*)').firstMatch(last);
+    // A pseudo-class or attribute selector is not understood, so it is not
+    // applied rather than applied wrongly.
+    if (last.contains('[') || last.contains(':')) return null;
+
+    return _CssSelector(
+      tag: tag?.group(1)?.toLowerCase(),
+      clazz: cls?.group(1),
+      id: id?.group(1),
+    );
+  }
+
+  /// The `style` attribute, parsed by the same code as a rule body.
+  static _CssStyle declarationsFor(String declarations) =>
+      declarations.trim().isEmpty
+          ? const _CssStyle()
+          : _styleFor(declarations);
+
+  static _CssStyle _styleFor(String declarations) {
+    bool? bold;
+    bool? italic;
+    bool? underline;
+    Color? color;
+    double? sizeScale;
+    bool? upper;
+
+    for (final String declaration in declarations.split(';')) {
+      final int colon = declaration.indexOf(':');
+      if (colon < 0) continue;
+      final String name = declaration.substring(0, colon).trim().toLowerCase();
+      final String value = declaration.substring(colon + 1).trim().toLowerCase();
+      if (value.isEmpty) continue;
+
+      switch (name) {
+        case 'font-weight':
+          final int? weight = int.tryParse(value);
+          if (value.contains('bold') || (weight != null && weight >= 600)) {
+            bold = true;
+          } else if (value.contains('normal') || (weight != null && weight < 600)) {
+            bold = false;
+          }
+        case 'font-style':
+          italic = value.contains('italic') || value.contains('oblique');
+        case 'text-decoration':
+        case 'text-decoration-line':
+          if (value.contains('none')) {
+            underline = false;
+          } else if (value.contains('underline')) {
+            underline = true;
+          }
+        case 'color':
+          color = _colorFor(value);
+        case 'font-size':
+          sizeScale = _scaleFor(value);
+        case 'text-transform':
+          upper = value.contains('uppercase');
+      }
+    }
+
+    return _CssStyle(
+      bold: bold,
+      italic: italic,
+      underline: underline,
+      color: color,
+      sizeScale: sizeScale,
+      upper: upper,
+    );
+  }
+
+  static Color? _colorFor(String value) {
+    if (value.startsWith('#')) {
+      String hex = value.substring(1);
+      if (hex.length == 3) {
+        hex = hex.split('').map((String c) => '$c$c').join();
+      }
+      if (hex.length >= 6) {
+        final int? rgb = int.tryParse(hex.substring(0, 6), radix: 16);
+        if (rgb != null) return Color(0xFF000000 | rgb);
+      }
+      return null;
+    }
+    if (value.startsWith('rgb')) {
+      final List<String> parts =
+          RegExp(r'\d+').allMatches(value).map((RegExpMatch m) => m.group(0)!).toList();
+      if (parts.length >= 3) {
+        return Color.fromARGB(
+          255,
+          int.parse(parts[0]).clamp(0, 255),
+          int.parse(parts[1]).clamp(0, 255),
+          int.parse(parts[2]).clamp(0, 255),
+        );
+      }
+      return null;
+    }
+    // `inherit`, `initial`, `currentcolor` and anything unrecognised: no
+    // opinion, rather than a wrong one.
+    return _named[value];
+  }
+
+  /// A font size as a multiplier on the base.
+  ///
+  /// Capped at 2×: a sender who writes `font-size: 400px` should not be able to
+  /// take over the reader.
+  static double? _scaleFor(String value) {
+    final RegExpMatch? number = RegExp(r'([\d.]+)').firstMatch(value);
+    if (number == null) return null;
+    final double? amount = double.tryParse(number.group(1)!);
+    if (amount == null || amount <= 0) return null;
+
+    double scale;
+    if (value.contains('%')) {
+      scale = amount / 100;
+    } else if (value.contains('em') || value.contains('rem')) {
+      scale = amount;
+    } else if (value.contains('px')) {
+      scale = amount / 16; // against a nominal 16px base
+    } else {
+      return null;
+    }
+    return scale.clamp(0.5, 2.0);
   }
 }

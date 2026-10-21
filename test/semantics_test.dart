@@ -6,6 +6,7 @@ import 'package:ace_mail/widgets/skeleton.dart';
 import 'package:ace_mail/widgets/swipe_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ace_mail/theme/ace_icons.dart';
 
 Widget host(Widget child) => MaterialApp(
       theme: buildAstryxTheme(Brightness.light),
@@ -65,7 +66,7 @@ void main() {
     await tester.pumpWidget(
       host(
         AceIconButton(
-          icon: Icons.refresh_rounded,
+          icon: AceIcons.refresh,
           tooltip: 'Refresh',
           onPressed: () {},
         ),

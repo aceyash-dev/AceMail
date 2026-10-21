@@ -1,9 +1,11 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/app_info.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'astryx_widgets.dart';
@@ -91,19 +93,19 @@ class _AboutSheet extends StatelessWidget {
             Text('Find us', style: AstryxText.label(c.textSecondary)),
             const SizedBox(height: AstryxSpace.s2),
             _Handle(
-              icon: Icons.public_rounded,
+              icon: AceIcons.globe,
               platform: 'Website',
               handle: 'ace-base.cc',
               onTap: () => _open(sheetContext, _website),
             ),
             _Handle(
-              icon: Icons.code_rounded,
+              icon: AceIcons.github,
               platform: 'GitHub',
               handle: '@tab-gl',
               onTap: () => _open(sheetContext, _github),
             ),
             _Handle(
-              icon: Icons.photo_camera_outlined,
+              icon: AceIcons.instagram,
               platform: 'Instagram',
               handle: '@tab.gl',
               onTap: () => _open(sheetContext, _instagram),
@@ -140,7 +142,7 @@ class _Handle extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final String platform;
   final String handle;
   final VoidCallback onTap;
@@ -168,7 +170,7 @@ class _Handle extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              Icon(icon, size: 19, color: c.textAccent),
+              HugeIcon(icon: icon, size: 19, color: c.textAccent),
               const SizedBox(width: AstryxSpace.s3),
               Expanded(
                 child: Text(platform, style: AstryxText.body(c.textPrimary)),
@@ -178,7 +180,7 @@ class _Handle extends StatelessWidget {
                 style: AstryxText.bodyStrong(c.textAccent),
               ),
               const SizedBox(width: AstryxSpace.s2),
-              Icon(Icons.open_in_new_rounded, size: 15, color: c.iconSecondary),
+              HugeIcon(icon: AceIcons.openInNew, size: 15, color: c.iconSecondary),
             ],
           ),
         );

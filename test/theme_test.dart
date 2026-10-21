@@ -6,6 +6,7 @@ import 'package:ace_mail/theme/astryx_tokens.dart';
 import 'package:ace_mail/widgets/astryx_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ace_mail/theme/ace_icons.dart';
 
 Widget _host(Widget child, {Brightness brightness = Brightness.light}) =>
     MaterialApp(
@@ -268,7 +269,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        _host(AceIconButton(icon: Icons.star, onPressed: () {}, tooltip: 'Flag')),
+        _host(AceIconButton(icon: AceIcons.star, onPressed: () {}, tooltip: 'Flag')),
       );
       expect(find.byTooltip('Flag'), findsOneWidget);
     });
@@ -277,7 +278,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        _host(AceFab(label: 'Compose', icon: Icons.edit, onPressed: () {})),
+        _host(AceFab(label: 'Compose', icon: AceIcons.edit, onPressed: () {})),
       );
       expect(find.text('Compose'), findsOneWidget);
     });
@@ -290,12 +291,12 @@ void main() {
           AceToolbar(
             actions: <AceToolbarAction>[
               AceToolbarAction(
-                icon: Icons.reply,
+                icon: AceIcons.reply,
                 tooltip: 'Reply',
                 onPressed: () {},
               ),
               AceToolbarAction(
-                icon: Icons.delete_outline,
+                icon: AceIcons.trash,
                 tooltip: 'Delete',
                 destructive: true,
                 onPressed: () {},

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 
@@ -83,8 +85,8 @@ class HtmlImage extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(
-              loading ? Icons.hourglass_empty_rounded : Icons.image_outlined,
+            HugeIcon(icon: 
+              loading ? AceIcons.loading : AceIcons.image,
               size: 15,
               color: c.iconSecondary,
             ),

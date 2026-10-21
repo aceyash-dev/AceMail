@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../models/swipe_action.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_tokens.dart';
 
 /// The icon and tone a swipe action shows while it is being revealed.
-({IconData icon, Color background, Color foreground}) swipeAppearance(
+({AceIcon icon, Color background, Color foreground}) swipeAppearance(
   SwipeAction action,
   AstryxColors c, {
   bool isSeen = true,
@@ -14,33 +16,33 @@ import '../theme/astryx_tokens.dart';
   switch (action) {
     case SwipeAction.archive:
       return (
-        icon: Icons.archive_outlined,
+        icon: AceIcons.archive,
         background: c.tertiaryContainer,
         foreground: c.onTertiaryContainer,
       );
     case SwipeAction.trash:
       return (
-        icon: Icons.delete_outline_rounded,
+        icon: AceIcons.trash,
         background: c.errorMuted,
         foreground: c.onErrorMuted,
       );
     case SwipeAction.toggleRead:
       return (
         icon: isSeen
-            ? Icons.mark_email_unread_outlined
-            : Icons.mark_email_read_outlined,
+            ? AceIcons.mailUnread
+            : AceIcons.mailOpen,
         background: c.secondaryContainer,
         foreground: c.onSecondaryContainer,
       );
     case SwipeAction.flag:
       return (
-        icon: isFlagged ? Icons.star_border_rounded : Icons.star_rounded,
+        icon: isFlagged ? AceIcons.star : AceIcons.star,
         background: c.accentMuted,
         foreground: c.onAccentMuted,
       );
     case SwipeAction.none:
       return (
-        icon: Icons.close_rounded,
+        icon: AceIcons.close,
         background: Colors.transparent,
         foreground: Colors.transparent,
       );
@@ -74,8 +76,8 @@ class AceSwipeTile extends StatefulWidget {
   final void Function(SwipeAction action) onAction;
 
   /// Overrides so a row can say what the action will do to *this* message.
-  final ({IconData icon, Color background, Color foreground})? startAppearance;
-  final ({IconData icon, Color background, Color foreground})? endAppearance;
+  final ({AceIcon icon, Color background, Color foreground})? startAppearance;
+  final ({AceIcon icon, Color background, Color foreground})? endAppearance;
 
   @override
   State<AceSwipeTile> createState() => _AceSwipeTileState();
@@ -173,7 +175,7 @@ class _Reveal extends StatelessWidget {
     required this.reveal,
   });
 
-  final ({IconData icon, Color background, Color foreground}) appearance;
+  final ({AceIcon icon, Color background, Color foreground}) appearance;
   final bool fromLeft;
   final double reveal;
 
@@ -193,7 +195,7 @@ class _Reveal extends StatelessWidget {
       ),
       child: Transform.scale(
         scale: 0.7 + 0.3 * reveal,
-        child: Icon(
+        child: HugeIcon(icon: 
           appearance.icon,
           size: 22,
           color: appearance.foreground,

@@ -3,6 +3,38 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.1+16
+
+### Added
+- **Hugeicons, throughout.** Every icon in the app is a Hugeicon now — 57
+  distinct icons across 92 call sites. They go through `lib/theme/ace_icons.dart`,
+  which names them by meaning (`AceIcons.search`, `AceIcons.trash`) and is the
+  only file that names a Hugeicons icon, so the choice lives in one place.
+  Hugeicons is a widget-based library rather than a font, so the icon parameters
+  on the app's own widgets changed type with it.
+- **CSS in the HTML renderer.** `<style>` blocks are read and applied, along
+  with the `style` attribute: tag, class and id selectors, the last part of a
+  descendant selector, later rules winning, and declarations beating the tag's
+  own default the way a browser resolves them. Weight, italic, underline,
+  colour (hex, `rgb()`, a few names), `font-size` as a multiplier capped at 2×,
+  and `text-transform`. Still no JavaScript, and a `url()` in a rule never
+  becomes a request.
+- **Long-press to select.** Long-press picks a message out; the list goes into
+  selection mode, a tap then picks rather than opens, and the app bar becomes a
+  selection bar with mark-as-read, archive and delete. Bulk actions run one at a
+  time and leave anything that failed selected, so a partial failure is visible
+  rather than silent.
+
+### Note on what the migration cost
+Three bugs in my own tooling, all caught before shipping: the migration script
+built its edits and never wrote them; the import rewriter dropped the
+continuation line of a multi-line import; and the style blocks were being
+ignored because `<style>` lives in the head and the renderer only walked the
+body — which the CSS tests caught, not the analyzer.
+
+### Still not done
+- The sorting and folder pass, and the gesture-navigation pass.
+
 ## 0.4.0+15
 
 The first 0.4. Patches follow from here until asked otherwise.

@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../models/message_summary.dart';
 import '../state/mail_controller.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
@@ -148,11 +151,51 @@ class _MailboxScreenState extends State<MailboxScreen> {
         },
         child: Scaffold(
         backgroundColor: c.backgroundBody,
-        appBar: AppBar(
+        appBar: controller.selecting
+            ? AppBar(
+                leading: AceIconButton(
+                  icon: AceIcons.close,
+                  tooltip: 'Cancel selection',
+                  onPressed: () => context.read<MailController>().clearSelection(),
+                ),
+                title: Text(
+                  '${controller.selectedCount} selected',
+                  style: AstryxText.heading3(c.textPrimary),
+                ),
+                actions: <Widget>[
+                  AceIconButton(
+                    icon: AceIcons.mailOpen,
+                    tooltip: 'Mark as read',
+                    onPressed: () => context
+                        .read<MailController>()
+                        .forEachSelected((MessageSummary m) => context
+                            .read<MailController>()
+                            .toggleRead(m)),
+                  ),
+                  AceIconButton(
+                    icon: AceIcons.archive,
+                    tooltip: 'Archive',
+                    onPressed: () => context
+                        .read<MailController>()
+                        .forEachSelected((MessageSummary m) =>
+                            context.read<MailController>().archive(m)),
+                  ),
+                  AceIconButton(
+                    icon: AceIcons.trash,
+                    tooltip: 'Delete',
+                    onPressed: () => context
+                        .read<MailController>()
+                        .forEachSelected((MessageSummary m) =>
+                            context.read<MailController>().delete(m)),
+                  ),
+                  const SizedBox(width: AstryxSpace.s2),
+                ],
+              )
+            : AppBar(
           titleSpacing: AstryxSpace.s4,
           leading: _searching
               ? AceIconButton(
-                  icon: Icons.chevron_left_rounded,
+                  icon: AceIcons.chevronLeft,
                   tooltip: 'Close search',
                   onPressed: _exitSearch,
                 )
@@ -169,7 +212,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
           actions: <Widget>[
             if (!_searching && !(reading && !wide))
               AceIconButton(
-                icon: Icons.search_rounded,
+                icon: AceIcons.search,
                 tooltip: 'Search',
                 onPressed: _openSearch,
               ),
@@ -191,7 +234,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
             ? null
             : AceFab(
                 label: 'Compose',
-                icon: Icons.edit_outlined,
+                icon: AceIcons.edit,
                 onPressed: () => _compose(context),
               ),
         body: wide
@@ -246,7 +289,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.search_rounded, size: 18, color: c.iconSecondary),
+          HugeIcon(icon: AceIcons.search, size: 18, color: c.iconSecondary),
           const SizedBox(width: AstryxSpace.s2),
           Expanded(
             child: TextField(

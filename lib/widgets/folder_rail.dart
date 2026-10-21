@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../models/mail_folder.dart';
 import '../screens/settings_screen.dart';
 import '../screens/tutorial_screen.dart';
 import '../state/mail_controller.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
@@ -73,7 +75,7 @@ class FolderRail extends StatelessWidget {
               child: Column(
                 children: <Widget>[
                   _RailAction(
-                    icon: Icons.settings_outlined,
+                    icon: AceIcons.settings,
                     label: 'Settings',
                     onTap: () {
                       _closeDrawerIfOpen(context);
@@ -81,12 +83,12 @@ class FolderRail extends StatelessWidget {
                     },
                   ),
                   _RailAction(
-                    icon: Icons.info_outline_rounded,
+                    icon: AceIcons.info,
                     label: 'About Ace Mail',
                     onTap: () => showAceAbout(context),
                   ),
                   _RailAction(
-                    icon: Icons.help_outline_rounded,
+                    icon: AceIcons.help,
                     label: 'How to sign in',
                     onTap: () {
                       _closeDrawerIfOpen(context);
@@ -111,7 +113,7 @@ class _RailAction extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final AceIcon icon;
   final String label;
   final VoidCallback onTap;
 
@@ -139,7 +141,7 @@ class _RailAction extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                Icon(icon, size: 18, color: c.iconSecondary),
+                HugeIcon(icon: icon, size: 18, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Text(
@@ -208,8 +210,8 @@ class _AccountHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.unfold_more_rounded,
+                HugeIcon(icon: 
+                  AceIcons.unfold,
                   size: 18,
                   color: c.iconSecondary,
                 ),

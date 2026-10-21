@@ -1,23 +1,24 @@
 import 'dart:io';
-
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/limits.dart';
 import '../data/preferences.dart';
 import '../services/mail_service.dart';
 import '../state/mail_controller.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
 import '../util/attach_plan.dart';
 import '../util/files.dart';
 import '../widgets/ace_form_field.dart';
+import '../widgets/astryx_widgets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/settings_group.dart';
-import '../widgets/astryx_widgets.dart';
 
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({
@@ -208,7 +209,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
             ),
             child: AceButton(
               label: _sending ? 'Sending…' : 'Send',
-              icon: Icons.send_rounded,
+              icon: AceIcons.send,
               variant: AceButtonVariant.primary,
               onPressed: _sending ? null : _send,
             ),
@@ -270,7 +271,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
               const SizedBox(height: AstryxSpace.s3),
               AceButton(
                 label: 'Attach files',
-                icon: Icons.attach_file_rounded,
+                icon: AceIcons.attachment,
                 onPressed: _sending ? null : _attach,
               ),
             ],
@@ -291,7 +292,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
             padding: const EdgeInsets.only(bottom: AstryxSpace.s1),
             child: Row(
               children: <Widget>[
-                Icon(Icons.attach_file_rounded, size: 16, color: c.iconSecondary),
+                HugeIcon(icon: AceIcons.attachment, size: 16, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s2),
                 Expanded(
                   child: Text(
@@ -303,7 +304,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close_rounded, size: 16, color: c.iconSecondary),
+                  icon: HugeIcon(icon: AceIcons.close, size: 16, color: c.iconSecondary),
                   tooltip: 'Remove',
                   onPressed: () => setState(() => _attachments.remove(file)),
                 ),
@@ -366,7 +367,7 @@ class _FromRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.expand_more_rounded, size: 20, color: c.iconSecondary),
+              HugeIcon(icon: AceIcons.expandMore, size: 20, color: c.iconSecondary),
             ],
           ),
         );
@@ -397,11 +398,11 @@ class _FromRow extends StatelessWidget {
             ),
             for (final String account in accounts)
               SettingsRow(
-                icon: Icons.alternate_email_rounded,
+                icon: AceIcons.at,
                 title: account,
                 trailing: account == (selected ?? accounts.first)
-                    ? Icon(
-                        Icons.check_rounded,
+                    ? HugeIcon(icon: 
+                        AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,
                       )

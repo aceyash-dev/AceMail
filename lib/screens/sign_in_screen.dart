@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
+import '../data/mail_providers.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
-import '../data/mail_providers.dart';
 import '../models/sign_in_form.dart';
 import '../state/mail_controller.dart';
+import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import '../widgets/ace_form_field.dart';
-import '../widgets/settings_group.dart';
 import '../widgets/advanced_server_panel.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/confirm_exit.dart';
+import '../widgets/settings_group.dart';
 import 'tutorial_screen.dart';
 
 /// The app's front door, and the entry point for adding a second account.
@@ -211,7 +213,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                         message: error,
                                         action: AceButton(
                                           label: 'How to fix this',
-                                          icon: Icons.help_outline_rounded,
+                                          icon: AceIcons.help,
                                           onPressed: _openTutorial,
                                         ),
                                       ),
@@ -269,13 +271,13 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
         AceIconButton(
-          icon: Icons.help_outline_rounded,
+          icon: AceIcons.help,
           tooltip: 'How to sign in',
           onPressed: _openTutorial,
         ),
         if (widget.isAdding)
           AceIconButton(
-            icon: Icons.close_rounded,
+            icon: AceIcons.close,
             tooltip: 'Cancel',
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -304,7 +306,7 @@ class _DomainField extends StatelessWidget {
         hint: 'example.com',
         keyboard: TextInputType.url,
         trailing: IconButton(
-          icon: const Icon(Icons.list_rounded, size: 20),
+          icon: const HugeIcon(icon: AceIcons.list, size: 20),
           tooltip: 'Pick a provider',
           onPressed: () => _pick(context),
         ),
@@ -319,7 +321,7 @@ class _DomainField extends StatelessWidget {
       readOnly: true,
       onTap: () => _pick(context),
       trailing: AceIconButton(
-        icon: Icons.expand_more_rounded,
+        icon: AceIcons.expandMore,
         tooltip: 'Choose a domain',
         onPressed: () => _pick(context),
       ),
@@ -352,12 +354,12 @@ class _DomainField extends StatelessWidget {
             ),
             for (final MailProvider provider in kProviderChoices)
               SettingsRow(
-                icon: Icons.alternate_email_rounded,
+                icon: AceIcons.at,
                 title: provider.label,
                 subtitle: provider.domains.first,
                 trailing: provider.domains.first == form.domain
-                    ? Icon(
-                        Icons.check_rounded,
+                    ? HugeIcon(icon: 
+                        AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,
                       )
@@ -366,7 +368,7 @@ class _DomainField extends StatelessWidget {
               ),
             const Divider(height: 1),
             SettingsRow(
-              icon: Icons.edit_outlined,
+              icon: AceIcons.edit,
               title: 'Other',
               subtitle: 'Type your own domain and servers',
               onTap: () => Navigator.of(sheetContext).pop(_kCustomDomain),
