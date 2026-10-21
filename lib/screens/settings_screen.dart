@@ -110,6 +110,14 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsSwitchRow(
+                  icon: Icons.image_outlined,
+                  title: 'Load images in messages',
+                  subtitle: 'Off by default: fetching an image tells the '
+                      'sender\u2019s server the message was opened.',
+                  value: prefs.loadRemoteImages,
+                  onChanged: prefs.setLoadRemoteImages,
+                ),
+                SettingsSwitchRow(
                   icon: Icons.password_rounded,
                   title: 'Show one-time codes',
                   subtitle: 'Pick codes out of messages and show them in the '

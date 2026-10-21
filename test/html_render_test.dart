@@ -1,4 +1,5 @@
 import 'package:ace_mail/util/html_render.dart';
+import 'package:ace_mail/widgets/html_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,8 +10,12 @@ void main() {
         codeStyle: const TextStyle(fontFamily: 'monospace', fontSize: 12),
       );
 
-  String textOf(List<InlineSpan> spans) =>
-      spans.map((InlineSpan s) => (s as TextSpan).text ?? '').join();
+  String textOf(List<InlineSpan> spans) => spans
+    // A WidgetSpan is a placeholder, not text, so it contributes nothing to
+    // the words — which is exactly what should be asserted about it.
+    .whereType<TextSpan>()
+    .map((TextSpan span) => span.text ?? '')
+    .join();
 
   TextSpan spanFor(List<InlineSpan> spans, String text) =>
       spans.cast<TextSpan>().firstWhere((TextSpan s) => s.text == text);
@@ -165,12 +170,41 @@ void main() {
       renderer.dispose();
     });
 
-    test('an image never becomes active content, only its alt text', () {
+    test('an image becomes a placeholder, not active content', () {
       final HtmlRenderer renderer = build();
-      final String text =
-          textOf(renderer.render('<img src="https://tracker.example/p.gif" alt="Logo">'));
-      expect(text, '[Logo]');
-      expect(text, isNot(contains('tracker.example')));
+      final List<InlineSpan> spans =
+          renderer.render('<img src="https://tracker.example/p.gif" alt="Logo">');
+
+      // A WidgetSpan, so it lays out as a block instead of dropping a bracket
+      // of text into the middle of a sentence.
+      expect(spans.whereType<WidgetSpan>(), isNotEmpty);
+      // And the source never reaches the text, so nothing can fetch it.
+      expect(textOf(spans), isNot(contains('tracker.example')));
+      renderer.dispose();
+    });
+
+    test('the alt text is what the placeholder shows', () {
+      final HtmlRenderer renderer = build();
+      final List<InlineSpan> spans =
+          renderer.render('<img src="https://x.example/a.png" alt="Company logo">');
+
+      final WidgetSpan image = spans.whereType<WidgetSpan>().first;
+      final Widget child = image.child;
+      expect(child, isA<HtmlImage>());
+      expect((child as HtmlImage).alt, 'Company logo');
+      // Off by default: loading it would tell the sender the mail was opened.
+      expect(child.loadRemote, isFalse);
+      renderer.dispose();
+    });
+
+    test('a long token gets somewhere to wrap', () {
+      final HtmlRenderer renderer = build();
+      final String text = textOf(
+        renderer.render('<p>${'a' * 300}</p>'),
+      );
+      // A zero-width space every so often, or the line runs off the reader.
+      expect(text, contains('\u200b'));
+      expect(text.replaceAll('\u200b', '').trim(), 'a' * 300);
       renderer.dispose();
     });
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/limits.dart';
+import '../widgets/html_image.dart';
 
 /// Converts an HTML mail body into styled spans.
 ///
@@ -20,11 +22,16 @@ class HtmlRenderer {
     required this.baseStyle,
     required this.linkColor,
     required this.codeStyle,
+    this.loadRemoteImages = false,
   });
 
   final TextStyle baseStyle;
   final Color linkColor;
   final TextStyle codeStyle;
+
+  /// Off by default: fetching a remote image tells the sender's server that the
+  /// message was opened.
+  final bool loadRemoteImages;
 
   final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
 
@@ -52,6 +59,7 @@ class HtmlRenderer {
       baseStyle: baseStyle,
       linkColor: linkColor,
       codeStyle: codeStyle,
+      loadRemoteImages: loadRemoteImages,
     );
 
     try {
@@ -80,11 +88,13 @@ class _Builder {
     required this.baseStyle,
     required this.linkColor,
     required this.codeStyle,
+    required this.loadRemoteImages,
   });
 
   final TextStyle baseStyle;
   final Color linkColor;
   final TextStyle codeStyle;
+  final bool loadRemoteImages;
 
   final List<InlineSpan> spans = <InlineSpan>[];
   final List<TapGestureRecognizer> recognizers = <TapGestureRecognizer>[];
@@ -175,8 +185,7 @@ class _Builder {
         _break(2);
         return;
       case 'img':
-        final String alt = node.attributes['alt']?.trim() ?? '';
-        if (alt.isNotEmpty) write('[$alt]');
+        writeImage(node);
         return;
       // A table is a grid on the web and a column here, so rows break and cells
       // are separated. Without this every cell ran into the next one.
@@ -242,6 +251,24 @@ class _Builder {
     _frames.removeLast();
   }
 
+  /// A 300-character tracking URL has no space to wrap at, so it runs off the
+  /// side of the reader. A zero-width space every so often gives the line
+  /// breaker somewhere to go without adding a visible character.
+  static final RegExp _longToken = RegExp(r'\S{24,}');
+
+  static String _breakLongTokens(String text) => text.replaceAllMapped(
+        _longToken,
+        (Match match) {
+          final String token = match.group(0)!;
+          final StringBuffer out = StringBuffer();
+          for (int i = 0; i < token.length; i += 18) {
+            if (i > 0) out.write('\u200b');
+            out.write(token.substring(i, math.min(i + 18, token.length)));
+          }
+          return out.toString();
+        },
+      );
+
   static bool _isHeading(String tag) =>
       tag.length == 2 && tag.startsWith('h') && int.tryParse(tag[1]) != null;
 
@@ -255,13 +282,31 @@ class _Builder {
     if (count > _breaks) _breaks = count;
   }
 
+  /// An image becomes a placeholder, the size it says it is, rather than a
+  /// bracket of alt text dropped into the middle of a sentence — which is what
+  /// "the layout broke" looked like, with a stray `[Yahoo]` where a logo was.
+  void writeImage(dom.Element node) {
+    _flush();
+    _breaks = 0;
+    spans.add(
+      WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: HtmlImage(
+          source: node.attributes['src']?.trim(),
+          alt: (node.attributes['alt'] ?? '').trim(),
+          loadRemote: loadRemoteImages,
+        ),
+      ),
+    );
+  }
+
   void write(String raw) {
     if (raw.isEmpty) return;
 
     // Collapse runs of whitespace the way HTML does, except inside <pre>.
     final String text = _frame.code
         ? raw
-        : raw.replaceAll(RegExp(r'[ \t\r\n\u00a0]+'), ' ');
+        : _breakLongTokens(raw.replaceAll(RegExp(r'[ \t\r\n\u00a0]+'), ' '));
     if (text.isEmpty) return;
 
     // Whitespace-only content between two blocks carries no meaning, but it

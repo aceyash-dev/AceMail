@@ -34,7 +34,14 @@ class MessageListPanel extends StatelessWidget {
 
     return Container(
       color: c.backgroundBody,
-      child: CustomScrollView(
+      // Fade through when the folder changes, so the list reads as a new
+      // mailbox arriving rather than the same rows being swapped underneath.
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: AstryxMotion.emphasizedDecelerate,
+        switchOutCurve: Curves.easeIn,
+        child: CustomScrollView(
+        key: ValueKey<String>(controller.selectedFolder?.path ?? ''),
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
           CupertinoSliverRefreshControl(
@@ -48,6 +55,7 @@ class MessageListPanel extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
           ..._slivers(context, controller),
         ],
+        ),
       ),
     );
   }

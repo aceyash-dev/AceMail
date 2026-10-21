@@ -3,6 +3,33 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.3.7+11
+
+### Fixed
+- **The sidebar was gone.** Replacing the app bar spanned from `appBar:` to
+  `floatingActionButton:` and swallowed the `drawer:` line between them, so on a
+  phone there was no way to reach another folder at all. Restored, and the
+  drawer is wider with the app's own surface colour.
+- **Images broke the layout.** A picture rendered as a bracket of alt text
+  dropped into the middle of a sentence. It is a placeholder now, in the shape's
+  place, with the alt text inside it — and a remote image is only fetched when
+  the reader asks, because loading one reports the open to the sender.
+- A 300-character tracking URL ran off the side of the reader; long tokens get a
+  zero-width space to wrap at.
+
+### Changed
+- **The loading indicator is a real Material shape morph.** Each family is a
+  radial profile sampled at 128 angles and morphing interpolates all of them, so
+  the shape passes through the intermediate forms. Each one is held briefly
+  before travelling, which is what makes it read as a sequence of shapes.
+- **The mark is an outline drawing** with the flag as the one filled, accented
+  part — the accent, rather than the whole mark wearing it.
+- The top bar no longer carries a refresh button. Pull down to refresh, or
+  Ctrl/Cmd+R; the indicator is the shape morph scrubbed by the drag.
+
+### Added
+- A folder-change transition on the list, and a switch for loading images.
+
 ## 0.3.6+10
 
 ### Fixed

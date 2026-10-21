@@ -85,6 +85,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyConfirmDelete = 'ace.confirmDelete';
   static const String _keyDetectCodes = 'ace.detectCodes';
   static const String _keyMessageSort = 'ace.messageSort';
+  static const String _keyRemoteImages = 'ace.remoteImages';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -102,6 +103,7 @@ class Preferences extends ChangeNotifier {
     _keyConfirmDelete,
     _keyDetectCodes,
     _keyMessageSort,
+    _keyRemoteImages,
   ];
 
   final FlutterSecureStorage _storage;
@@ -121,6 +123,7 @@ class Preferences extends ChangeNotifier {
   bool _confirmDelete = true;
   bool _detectCodes = true;
   MessageSort _messageSort = MessageSort.newest;
+  bool _loadRemoteImages = false;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -172,6 +175,10 @@ class Preferences extends ChangeNotifier {
   /// The order the message list is shown in.
   MessageSort get messageSort => _messageSort;
 
+  /// Whether images in a message are fetched from the sender's server. Off by
+  /// default: loading one confirms the message was opened.
+  bool get loadRemoteImages => _loadRemoteImages;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -201,6 +208,8 @@ class Preferences extends ChangeNotifier {
     _detectCodes = _decodeBool(raw[_keyDetectCodes], _detectCodes);
     _messageSort =
         _decodeEnum(raw[_keyMessageSort], MessageSort.values, _messageSort);
+    _loadRemoteImages =
+        _decodeBool(raw[_keyRemoteImages], _loadRemoteImages);
 
     notifyListeners();
   }
@@ -249,6 +258,9 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setMessageSort(MessageSort value) =>
       _write(_keyMessageSort, value.name, () => _messageSort = value);
+
+  Future<void> setLoadRemoteImages(bool value) =>
+      _write(_keyRemoteImages, '$value', () => _loadRemoteImages = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Ace Mail mark for the launch window: the whole tile, so it reads the
-     same on the milk launch window and the ink one. -->
+<!-- The Ace Mail mark for the launch window: the whole tile, so the launch
+     window and the launcher icon are the same drawing. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -11,17 +11,26 @@
         android:pathData="M38,14 L70,14 Q94,14 94,38 L94,70 Q94,94 70,94 L38,94 Q14,94 14,70 L14,38 Q14,14 38,14 Z"
         android:fillColor="@color/ace_milk" />
 
-    <path
-        android:pathData="M48,68 L52,68 L52,80 L48,80 Z M58,68 L62,68 L62,80 L58,80 Z"
-        android:fillColor="@color/ace_orange" />
+    <path android:pathData="M48,68 L52,68 L52,80 L48,80 Z M58,68 L62,68 L62,80 L58,80 Z" android:fillColor="@color/ace_ink" />
+    <path android:pathData="M24,50 L48,50 Q53,50 53,55 L53,65 Q53,70 48,70 L24,70 Q19,70 19,65 L19,55 Q19,50 24,50 Z" android:fillColor="@color/ace_milk" />
+
     <path
         android:pathData="M38,68 L38,54 Q38,40 52,40 L62,40 Q76,40 76,54 L76,68 Z"
-        android:fillColor="@color/ace_orange" />
+        android:fillColor="@color/ace_milk"
+        android:strokeColor="@color/ace_ink"
+        android:strokeWidth="4" />
+
+    <path android:pathData="M64,30 L67.5,30 L67.5,46 L64,46 Z" android:fillColor="@color/ace_ink" />
+    <path android:pathData="M67.5,30 L78,30 L78,38 L67.5,38 Z" android:fillColor="@color/ace_orange" />
+
     <path
-        android:pathData="M64,28 L68,28 L68,44 L64,44 Z M68,28 L78,28 L78,36 L68,36 Z"
-        android:fillColor="@color/ace_orange" />
+        android:pathData="M26,52 L46,52 Q50,52 50,56 L50,64 Q50,68 46,68 L26,68 Q22,68 22,64 L22,56 Q22,52 26,52 Z"
+        android:fillColor="@color/ace_milk"
+        android:strokeColor="@color/ace_ink"
+        android:strokeWidth="4" />
     <path
-        android:pathData="M30,52 L46,52 Q50,52 50,56 L50,64 Q50,68 46,68 L30,68 Q26,68 26,64 L26,56 Q26,52 30,52 Z M29,55 L38,63 L47,55 Z"
-        android:fillColor="@color/ace_orange"
-        android:fillType="evenOdd" />
+        android:pathData="M29,55 L36,62 L43,55"
+        android:strokeColor="@color/ace_ink"
+        android:strokeWidth="3.4"
+        android:strokeLineCap="round" />
 </vector>

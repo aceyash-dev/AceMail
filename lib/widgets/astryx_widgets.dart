@@ -1,10 +1,10 @@
-import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 
 import '../theme/astryx_theme.dart';
+import 'shape_morph.dart';
 import '../theme/astryx_tokens.dart';
 
 /// A press that springs, and a shape that morphs while it does.
@@ -654,11 +654,11 @@ class AceToolbar extends StatelessWidget {
 }
 
 /// The Ace Mail mark: a postbox with its flag up and a letter at the front,
-/// in the accent orange, on the same 108-unit grid as the launcher icon.
+/// drawn as an outline on a Milk tile.
 ///
-/// The envelope's flap is a real notch cut out of the letter, so the tile shows
-/// through it — which is what lets the same geometry sit on a gradient launcher
-/// tile and on a flat one.
+/// The flag is the one filled part, in the accent orange. Everything else is a
+/// Milk fill with an ink outline — the accent means something because it is the
+/// only thing wearing it. Same geometry as the launcher icon, at 108 units.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 44});
 
@@ -677,14 +677,43 @@ class BrandMark extends StatelessWidget {
 class _BrandMarkPainter extends CustomPainter {
   const _BrandMarkPainter();
 
-  /// The mailbox, in the mark's own units. Shared with the vector drawables by
-  /// using the same numbers.
-  static Path mailboxPath(double u) {
-    Path box(double l, double t, double r, double b) => Path()
-      ..addRect(Rect.fromLTRB(l * u, t * u, r * u, b * u));
+  /// The mark's ink: a warm near-black, so it sits in the brand family rather
+  /// than reading as a flat grey.
+  static const Color ink = Color(0xFF2A1E14);
 
-    final Path post = box(48, 68, 52, 80)..addPath(box(58, 68, 62, 80), Offset.zero);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double u = size.width / 108.0;
 
+    Rect r(double l, double t, double right, double b) =>
+        Rect.fromLTRB(l * u, t * u, right * u, b * u);
+
+    final Paint inkFill = Paint()..color = ink;
+    final Paint inkStroke = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4 * u
+      ..strokeJoin = StrokeJoin.round;
+    final Paint milkFill = Paint()..color = AstryxBrand.milk;
+
+    // The tile.
+    canvas.drawPath(
+      AstryxShape.squircle(Offset.zero & size, radius: size.width * 0.22),
+      milkFill,
+    );
+
+    // Post.
+    canvas.drawRect(r(48, 68, 52, 80), inkFill);
+    canvas.drawRect(r(58, 68, 62, 80), inkFill);
+
+    // A hairline of background, so the letter reads as being in front of the
+    // box rather than part of it.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(r(24, 50, 53, 70), Radius.circular(5 * u)),
+      milkFill,
+    );
+
+    // Body: an arch with a flat bottom.
     final Path body = Path()
       ..moveTo(38 * u, 68 * u)
       ..lineTo(38 * u, 54 * u)
@@ -693,53 +722,30 @@ class _BrandMarkPainter extends CustomPainter {
       ..quadraticBezierTo(76 * u, 40 * u, 76 * u, 54 * u)
       ..lineTo(76 * u, 68 * u)
       ..close();
+    canvas.drawPath(body, milkFill);
+    canvas.drawPath(body, inkStroke);
 
-    final Path flag = box(64, 28, 68, 44)..addPath(box(68, 28, 78, 36), Offset.zero);
+    // The flag: the accent, and the only filled colour in the mark.
+    canvas.drawRect(r(64, 30, 67.5, 46), inkFill);
+    canvas.drawRect(r(67.5, 30, 78, 38), Paint()..color = AstryxBrand.orange);
 
-    final Path letter = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(26 * u, 52 * u, 50 * u, 68 * u),
-          Radius.circular(4 * u),
-        ),
-      );
-    final Path flap = Path()
-      ..moveTo(29 * u, 55 * u)
-      ..lineTo(38 * u, 63 * u)
-      ..lineTo(47 * u, 55 * u)
-      ..close();
+    // The letter.
+    final RRect letter =
+        RRect.fromRectAndRadius(r(26, 52, 50, 68), Radius.circular(4 * u));
+    canvas.drawRRect(letter, milkFill);
+    canvas.drawRRect(letter, inkStroke);
 
-    // A hairline of background behind the letter, so it reads as being in
-    // front of the box rather than part of it.
-    final Path gap = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(23 * u, 49 * u, 53 * u, 71 * u),
-          Radius.circular(6 * u),
-        ),
-      );
-
-    return Path()
-      ..addPath(post, Offset.zero)
-      ..addPath(body, Offset.zero)
-      ..addPath(flag, Offset.zero)
-      ..addPath(gap, Offset.zero)
-      ..addPath(
-        Path.combine(PathOperation.difference, letter, flap),
-        Offset.zero,
-      );
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double unit = size.width / 108.0;
     canvas.drawPath(
-      AstryxShape.squircle(Offset.zero & size, radius: size.width * 0.22),
-      Paint()..color = AstryxBrand.milk,
-    );
-    canvas.drawPath(
-      mailboxPath(unit),
-      Paint()..color = AstryxBrand.orange,
+      Path()
+        ..moveTo(30 * u, 56 * u)
+        ..lineTo(37 * u, 62 * u)
+        ..lineTo(44 * u, 56 * u),
+      Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.6 * u
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
     );
   }
 
@@ -747,161 +753,32 @@ class _BrandMarkPainter extends CustomPainter {
   bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) => false;
 }
 
-/// The Material 3 Expressive loading indicator: a shape that morphs.
+/// The Material 3 Expressive loading indicator.
 ///
-/// Expressive loading is not a spinner. It is a single form that continuously
-/// flows between shape families — circle, soft square, a four-lobed clover,
-/// squircle — while turning slowly. The morph is one continuous formula rather
-/// than a cross-fade, so the surface genuinely deforms.
+/// Expressive loading is not a spinner: it is one form that morphs through
+/// Material's shape families, holding each briefly before moving on. The engine
+/// lives in `shape_morph.dart`; this is the app-facing name for it.
 ///
-/// It is deliberately not the envelope: at 18px inside a button there is no
+/// It is deliberately not the envelope — at 18px inside a button there is no
 /// room for a mark, and a morphing shape reads as "working" at any size.
-class AceLoader extends StatefulWidget {
+class AceLoader extends StatelessWidget {
   const AceLoader({super.key, this.size = 40, this.color, this.progress});
 
   final double size;
   final Color? color;
 
-  /// When set (0..1), the morph is driven by that value instead of looping —
+  /// When set (0..1), the morph is scrubbed by that value instead of looping —
   /// which is how pull-to-refresh turns a drag into a shape change.
   final double? progress;
 
   @override
-  State<AceLoader> createState() => _AceLoaderState();
+  Widget build(BuildContext context) => AceShapeMorph(
+        size: size,
+        color: color,
+        progress: progress,
+      );
 }
 
-class _AceLoaderState extends State<AceLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 4200),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.progress == null) _controller.repeat();
-  }
-
-  @override
-  void didUpdateWidget(covariant AceLoader oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.progress == null && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (widget.progress != null && _controller.isAnimating) {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (BuildContext context, _) => CustomPaint(
-          painter: _ShapeMorphPainter(
-            t: widget.progress?.clamp(0.0, 1.0) ?? _controller.value,
-            color: widget.color ?? c.accent,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// One shape family the indicator flows through. `exponent` is the
-/// superellipse power (2 is a circle, higher is squarer); `lobes` is how deep
-/// the ripple is and `lobeCount` how many there are, which is what turns the
-/// same formula into a clover, a flower or a star.
-class _Form {
-  const _Form(this.exponent, this.lobes, this.lobeCount);
-
-  final double exponent;
-  final double lobes;
-  final double lobeCount;
-}
-
-class _ShapeMorphPainter extends CustomPainter {
-  const _ShapeMorphPainter({required this.t, required this.color});
-
-  final double t;
-  final Color color;
-
-  static const List<_Form> _forms = <_Form>[
-    _Form(2.0, 0.00, 4), // circle
-    _Form(5.2, 0.00, 4), // soft square
-    _Form(2.4, 0.16, 4), // clover
-    _Form(4.0, 0.05, 4), // squircle
-    _Form(3.0, 0.12, 3), // rounded triangle
-    _Form(2.0, 0.22, 6), // flower
-    _Form(6.4, 0.00, 4), // square
-    _Form(2.6, 0.09, 5), // star
-  ];
-
-  static const int _samples = 132;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Walk the form list and back again, so the loop has no seam.
-    final double cycle = t * 2 * (_forms.length - 1);
-    final int index = cycle.floor().clamp(0, _forms.length - 2);
-    final double raw = cycle - index;
-    final double eased = Curves.easeInOut.transform(raw);
-
-    final _Form a = _forms[index];
-    final _Form b = _forms[index + 1];
-    final double exponent = lerpDouble(a.exponent, b.exponent, eased)!;
-    final double lobes = lerpDouble(a.lobes, b.lobes, eased)!;
-    final double lobeCount = lerpDouble(a.lobeCount, b.lobeCount, eased)!;
-
-    final double radius = size.width / 2;
-    final Offset centre = size.center(Offset.zero);
-    // A slow, constant turn, so the morph never looks like a pulse.
-    final double rotation = t * 2 * math.pi;
-
-    final Path path = Path();
-    for (int i = 0; i <= _samples; i++) {
-      final double theta = (i / _samples) * 2 * math.pi;
-      final double cosT = math.cos(theta);
-      final double sinT = math.sin(theta);
-
-      // The radial form of a superellipse: |cos|^n + |sin|^n raised to -1/n.
-      final double superellipse = math.pow(
-        math.pow(cosT.abs(), exponent) + math.pow(sinT.abs(), exponent),
-        -1 / exponent,
-      ).toDouble();
-
-      final double ripple = 1 + lobes * math.cos(lobeCount * theta);
-
-      final double r = radius * superellipse * ripple;
-      final double x = centre.dx + r * math.cos(theta + rotation);
-      final double y = centre.dy + r * math.sin(theta + rotation);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ShapeMorphPainter old) =>
-      old.t != t || old.color != color;
-}
 
 /// A sender's initials on a tonal tile, used wherever there is no picture.
 class InitialsAvatar extends StatelessWidget {

@@ -37,9 +37,16 @@ a custom theme, not a departure.
   connection error means.
 - Several accounts signed in at once, switchable from the header at the top of
   the folder rail.
-- The top bar shows **the folder you are in**, with search and refresh beside
-  it; settings, About and help sit at the foot of the rail. The app's name is on
-  the launcher and the splash, where it belongs.
+- The top bar shows **the folder you are in**, with search beside it. Settings,
+  About and help sit at the foot of the rail; the app's name is on the launcher
+  and the splash, where it belongs.
+- **Pull down to refresh** — the indicator is the shape morph, scrubbed by the
+  drag, so a pull walks it through the families. Ctrl/Cmd+R does the same from a
+  keyboard. There is no refresh button in the top bar.
+- **Images in a message are placeholders** until you ask for them. Fetching a
+  remote image tells the sender's server the mail was opened, so it is off by
+  default and a switch in Settings turns it on. Either way the placeholder takes
+  the image's place rather than a bracket of alt text landing mid-sentence.
 - Sender pictures, best source first: the sender's own **BIMI** logo when the
   domain publishes one, then Gravatar, then an initials chip. **Off by
   default**, because both remote lookups tell a third party which domains are in
@@ -277,11 +284,19 @@ Expressive** supplies the colour, motion and shape behaviour.
   slowly. The morph is a single continuous formula, so the surface deforms
   rather than cross-fading, and it reads as "working" at any size. Pulling the
   list down drives the same morph from the drag instead of looping it.
-- **The mark.** A postbox with its flag up and a letter at the front, in the
-  accent orange on a Milk tile. The letter's flap is cut *through* it rather
-  than stroked, and a hairline of background separates it from the box, so it
-  reads as being in front. The in-app mark, the launcher icon, the splash mark
-  and the themed (monochrome) layer are one drawing at four sizes.
+- **The mark.** A postbox with its flag up and a letter at the front, drawn as
+  an outline on a Milk tile. The flag is the one filled part, in the accent
+  orange — the accent means something because it is the only thing wearing it.
+  A hairline of background separates the letter from the box, so it reads as
+  being in front. The in-app mark, the launcher icon, the splash mark and the
+  themed (monochrome) layer are one drawing at four sizes.
+- **The loading indicator** is a real Material shape morph. Each shape family is
+  a radial profile — the distance from the centre at 128 angles — and morphing
+  interpolates every one of those points, so the shape passes through the
+  intermediate forms instead of one formula being tuned towards another. It
+  holds each shape briefly before travelling, because a morph that never rests
+  is a blob. `test/shape_morph_test.dart` asserts the profiles, the family
+  geometry and the continuity of the cycle.
 - **No init screen.** The keychain, the settings and the version are read before
   the first frame, so there is no blank screen on the way in. Opening the first
   mailbox shows a splash instead: the shape morph and a line that changes while

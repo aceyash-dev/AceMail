@@ -137,7 +137,16 @@ class _MailboxScreenState extends State<MailboxScreen> {
         }
         _confirmExit(context);
       },
-      child: Scaffold(
+      // Pull down to refresh; on a keyboard, Ctrl/Cmd+R does the same, because
+      // a drag is awkward with a mouse.
+      child: CallbackShortcuts(
+        bindings: <ShortcutActivator, VoidCallback>{
+          const SingleActivator(LogicalKeyboardKey.keyR, control: true): () =>
+              context.read<MailController>().refreshMessages(),
+          const SingleActivator(LogicalKeyboardKey.keyR, meta: true): () =>
+              context.read<MailController>().refreshMessages(),
+        },
+        child: Scaffold(
         backgroundColor: c.backgroundBody,
         appBar: AppBar(
           titleSpacing: AstryxSpace.s4,
@@ -158,30 +167,26 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   style: AstryxText.heading3(c.textPrimary),
                 ),
           actions: <Widget>[
-            if (!_searching && !(reading && !wide)) ...<Widget>[
-              // While a refresh runs, the button becomes the shape morph, so
-              // there is a sign of life without anything moving under it.
-              if (controller.refreshing)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AstryxSpace.s4),
-                  child: AceLoader(size: 22),
-                )
-              else
-                AceIconButton(
-                  icon: Icons.refresh_rounded,
-                  tooltip: 'Refresh',
-                  onPressed: () =>
-                      context.read<MailController>().refreshMessages(),
-                ),
+            if (!_searching && !(reading && !wide))
               AceIconButton(
                 icon: Icons.search_rounded,
                 tooltip: 'Search',
                 onPressed: _openSearch,
               ),
-            ],
             const SizedBox(width: AstryxSpace.s2),
           ],
         ),
+        // The sidebar on a phone. Without this the rail is unreachable and
+        // there is no way to change folder at all.
+        drawer: wide
+            ? null
+            : Drawer(
+                width: 304,
+                backgroundColor: c.backgroundSurface,
+                child: const FolderRail(),
+              ),
+        // Not while a message is open: the reader's floating toolbar occupies
+        // the same corner, and the two overlap.
         floatingActionButton: wide || reading
             ? null
             : AceFab(
@@ -225,6 +230,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       )
                     : const MessageListPanel(key: ValueKey<String>('list')),
               ),
+        ),
       ),
     );
   }
