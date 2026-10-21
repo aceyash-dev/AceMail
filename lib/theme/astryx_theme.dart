@@ -80,6 +80,11 @@ abstract final class AstryxText {
 ColorScheme buildAstryxScheme(
   Brightness brightness, {
   AceAccent accent = AceAccent.orange,
+  /// The platform's own accent, when dynamic colouring is on. It is used as
+  /// the seed and nothing else, so everything below — the contrast walk, the
+  /// tinted surfaces, the readable inks — applies to it exactly as it does to
+  /// a colour picked from the list.
+  Color? dynamicSeed,
 }) {
   final bool dark = brightness == Brightness.dark;
 
@@ -120,7 +125,8 @@ ColorScheme buildAstryxScheme(
   // Moved along its own lightness until a label on it clears AA and the shape
   // itself reads against the page. The accent you pick is still the accent; it
   // is just made usable.
-  Color primary = readableAccent(accent.seed, dark: dark);
+  final Color seed = dynamicSeed ?? accent.seed;
+  Color primary = readableAccent(seed, dark: dark);
 
   // The page is tinted *with* the accent, so the accent has to be checked
   // against the page it actually sits on rather than the neutral one it was
@@ -147,7 +153,7 @@ ColorScheme buildAstryxScheme(
   final double tintStrong = dark ? 0.18 : 0.16;
 
   return ColorScheme.fromSeed(
-    seedColor: accent.seed,
+    seedColor: seed,
     brightness: brightness,
     dynamicSchemeVariant: DynamicSchemeVariant.expressive,
     // Pinned, so the accent you chose is the accent you see: Material's tonal
@@ -209,8 +215,10 @@ ColorScheme buildAstryxScheme(
 ThemeData buildAstryxTheme(
   Brightness brightness, {
   AceAccent accent = AceAccent.orange,
+  Color? dynamicSeed,
 }) {
-  final ColorScheme scheme = buildAstryxScheme(brightness, accent: accent);
+  final ColorScheme scheme =
+      buildAstryxScheme(brightness, accent: accent, dynamicSeed: dynamicSeed);
   final AstryxColors c = AstryxColors.fromScheme(scheme);
 
   final TextTheme text = TextTheme(

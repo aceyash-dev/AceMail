@@ -3,6 +3,41 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.3+18
+
+### Fixed
+- **The sign-in sheet showed its fields twice.** The two-step change added the
+  address row inside the new step but left the original above it, so Username
+  and Domain appeared twice with the step indicator between them.
+- **The navigation bar was black.** Nothing ever set the system bars, so Android
+  drew its own default — a black band under a cream page. Both bars now follow
+  the theme, in both modes.
+- Icons are a touch smaller again: the optical correction went from 0.82 to
+  0.78, and a circular button draws its icon at 0.46 of its box rather than
+  0.50. Hugeicons still read fuller than Material glyphs at the same size.
+
+### Added
+- **Sixteen accents**, and **dynamic colour**. The system-colours switch takes
+  the accent from the platform — Android's Monet, and the equivalent elsewhere —
+  and feeds it through the same pipeline as a listed accent, so the contrast
+  walk, the tinted surfaces and the readable inks all still apply. `dynamic_color`
+  is pinned below 2.0: from 2.0 it depends on `material_ui`, a parallel Material
+  implementation whose `ColorScheme` is a different type from Flutter's, which
+  makes it unusable with a normal `MaterialApp`.
+- **The mark follows the accent.** The flag in the app's own mark wears the
+  theme colour now. The launcher icon cannot — Android draws it before the app
+  exists — but everything inside the app can.
+- Two settings: warn before sending with an empty subject (it asks once, then
+  sends), and the system-colours switch above.
+
+### HTML and CSS
+- `display: none` and `visibility: hidden` are honoured. Mail hides its
+  preheader this way, and ignoring it put a stray line of preview text at the
+  top of every message.
+
+### Still not done
+- New-mail notifications. Named rather than left to be discovered.
+
 ## 0.4.2+17
 
 ### Fixed

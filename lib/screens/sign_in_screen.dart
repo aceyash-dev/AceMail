@@ -166,41 +166,6 @@ class _SignInScreenState extends State<SignInScreen> {
                           children: <Widget>[
                             _header(context, c),
                             const SizedBox(height: AstryxSpace.s6),
-                            // The address, as two halves. Most people know
-                            // their username; almost nobody wants to type the
-                            // domain, and picking it is what fills the IMAP and
-                            // SMTP servers in.
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Expanded(
-                                  flex: 3,
-                                  child: AceFormField(
-                                    label: 'Username',
-                                    controller: _form.username,
-                                    hint: 'you',
-                                    keyboard: TextInputType.emailAddress,
-                                    autofillHints: const <String>[
-                                      AutofillHints.username,
-                                      AutofillHints.email,
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: AstryxSpace.s3),
-                                Expanded(
-                                  flex: 4,
-                                  child: _DomainField(
-                                    form: _form,
-                                    onChanged: () => setState(() {}),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AstryxSpace.s4),
-                            // Two steps rather than one long form: the
-                            // address first, because picking a provider is
-                            // what fills the servers in, and the password
-                            // second, once there is something to connect to.
                             _StepDots(step: _step),
                             const SizedBox(height: AstryxSpace.s4),
                             AnimatedSize(

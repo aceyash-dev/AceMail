@@ -89,6 +89,8 @@ class Preferences extends ChangeNotifier {
   static const String _keyRemoteImages = 'ace.remoteImages';
   static const String _keyAccent = 'ace.accent';
   static const String _keyRawHeaders = 'ace.rawHeaders';
+  static const String _keyDynamicColour = 'ace.dynamicColour';
+  static const String _keyWarnEmptySubject = 'ace.warnEmptySubject';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -109,6 +111,8 @@ class Preferences extends ChangeNotifier {
     _keyRemoteImages,
     _keyAccent,
     _keyRawHeaders,
+    _keyDynamicColour,
+    _keyWarnEmptySubject,
   ];
 
   final FlutterSecureStorage _storage;
@@ -131,6 +135,8 @@ class Preferences extends ChangeNotifier {
   bool _loadRemoteImages = false;
   AceAccent _accent = AceAccent.orange;
   bool _showRawHeaders = false;
+  bool _useDynamicColour = false;
+  bool _warnEmptySubject = true;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -192,6 +198,14 @@ class Preferences extends ChangeNotifier {
   /// Whether the reader shows the message's raw headers.
   bool get showRawHeaders => _showRawHeaders;
 
+  /// Whether the accent comes from the platform instead of the list — Android's
+  /// Monet, and the equivalent elsewhere.
+  bool get useDynamicColour => _useDynamicColour;
+
+  /// Whether sending with no subject asks first. A message with no subject is
+  /// the one people regret.
+  bool get warnEmptySubject => _warnEmptySubject;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -225,6 +239,10 @@ class Preferences extends ChangeNotifier {
         _decodeBool(raw[_keyRemoteImages], _loadRemoteImages);
     _accent = _decodeEnum(raw[_keyAccent], AceAccent.values, _accent);
     _showRawHeaders = _decodeBool(raw[_keyRawHeaders], _showRawHeaders);
+    _useDynamicColour =
+        _decodeBool(raw[_keyDynamicColour], _useDynamicColour);
+    _warnEmptySubject =
+        _decodeBool(raw[_keyWarnEmptySubject], _warnEmptySubject);
 
     notifyListeners();
   }
@@ -282,6 +300,12 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setShowRawHeaders(bool value) =>
       _write(_keyRawHeaders, '$value', () => _showRawHeaders = value);
+
+  Future<void> setUseDynamicColour(bool value) =>
+      _write(_keyDynamicColour, '$value', () => _useDynamicColour = value);
+
+  Future<void> setWarnEmptySubject(bool value) =>
+      _write(_keyWarnEmptySubject, '$value', () => _warnEmptySubject = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

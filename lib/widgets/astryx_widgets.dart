@@ -373,7 +373,7 @@ class AceIconButton extends StatelessWidget {
                   : background,
               borderRadius: shape,
             ),
-            child: AceIconView(icon: icon, size: size * 0.5, color: foreground),
+            child: AceIconView(icon: icon, size: size * 0.46, color: foreground),
           ),
         );
       },
@@ -671,13 +671,18 @@ class BrandMark extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: const CustomPaint(painter: _BrandMarkPainter()),
+      // The flag wears the accent, so the mark follows the theme like
+      // everything else. The launcher icon cannot — Android draws it before the
+      // app exists — but everything inside the app can.
+      child: CustomPaint(painter: _BrandMarkPainter(context.astryx.accent)),
     );
   }
 }
 
 class _BrandMarkPainter extends CustomPainter {
-  const _BrandMarkPainter();
+  const _BrandMarkPainter(this.accent);
+
+  final Color accent;
 
   /// The mark's ink: a warm near-black, so it sits in the brand family rather
   /// than reading as a flat grey.
@@ -729,7 +734,7 @@ class _BrandMarkPainter extends CustomPainter {
 
     // The flag: the accent, and the only filled colour in the mark.
     canvas.drawRect(r(64, 30, 67.5, 46), inkFill);
-    canvas.drawRect(r(67.5, 30, 78, 38), Paint()..color = AstryxBrand.orange);
+    canvas.drawRect(r(67.5, 30, 78, 38), Paint()..color = accent);
 
     // The letter.
     final RRect letter =
@@ -752,7 +757,8 @@ class _BrandMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) =>
+      oldDelegate.accent != accent;
 }
 
 /// The Material 3 Expressive loading indicator.

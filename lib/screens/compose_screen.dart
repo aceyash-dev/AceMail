@@ -135,10 +135,42 @@ class _ComposeScreenState extends State<ComposeScreen> {
   List<String> get accounts => context.read<MailController>().accountEmails;
   String? _from;
 
+  /// Set once the empty-subject question has been answered, so sending after it
+  /// does not ask again.
+  bool _warnedAboutSubject = false;
+
   String? get _chosenFrom =>
       accounts.length > 1 ? (_from ?? accounts.first) : null;
 
   Future<void> _send() async {
+    // A message with no subject is the one people regret, so it asks once.
+    if (context.read<Preferences>().warnEmptySubject &&
+        _subject.text.trim().isEmpty &&
+        !_warnedAboutSubject) {
+      _warnedAboutSubject = true;
+      final bool go = await showDialog<bool>(
+            context: context,
+            builder: (BuildContext dialogContext) => AlertDialog(
+              title: const Text('Send without a subject?'),
+              content: const Text(
+                'Recipients will see this as "(no subject)".',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Add one'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Send anyway'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+      if (!go || !mounted) return;
+    }
+
     final String to = _to.text.trim();
     final String cc = _cc.text.trim();
 

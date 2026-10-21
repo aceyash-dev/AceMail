@@ -236,6 +236,11 @@ class _Builder {
     final _CssStyle css =
         _stylesheet.forElement(node).over(_Stylesheet.declarationsFor(style));
 
+    // Hidden before anything else: nothing it contains is shown. Mail hides its
+    // preheader this way, and showing it puts a stray line of preview text at
+    // the top of every message.
+    if (css.hidden == true) return;
+
     final bool bold = css.bold ??
         (tag == 'b' ||
             tag == 'strong' ||
@@ -526,6 +531,7 @@ class _CssStyle {
     this.color,
     this.sizeScale,
     this.upper,
+    this.hidden,
   });
 
   final bool? bold;
@@ -535,13 +541,18 @@ class _CssStyle {
   final double? sizeScale;
   final bool? upper;
 
+  /// `display: none`. Mail hides its preheader this way, and showing it puts a
+  /// stray line of preview text at the top of every message.
+  final bool? hidden;
+
   bool get isEmpty =>
       bold == null &&
       italic == null &&
       underline == null &&
       color == null &&
       sizeScale == null &&
-      upper == null;
+      upper == null &&
+      hidden == null;
 
   /// Later declarations win, so the second one is applied over the first.
   _CssStyle over(_CssStyle other) => _CssStyle(
@@ -551,6 +562,7 @@ class _CssStyle {
         color: other.color ?? color,
         sizeScale: other.sizeScale ?? sizeScale,
         upper: other.upper ?? upper,
+        hidden: other.hidden ?? hidden,
       );
 }
 
@@ -666,6 +678,7 @@ class _Stylesheet {
     Color? color;
     double? sizeScale;
     bool? upper;
+    bool? hidden;
 
     for (final String declaration in declarations.split(';')) {
       final int colon = declaration.indexOf(':');
@@ -697,6 +710,10 @@ class _Stylesheet {
           sizeScale = _scaleFor(value);
         case 'text-transform':
           upper = value.contains('uppercase');
+        case 'display':
+          hidden = value.contains('none');
+        case 'visibility':
+          if (value.contains('hidden')) hidden = true;
       }
     }
 
@@ -707,6 +724,7 @@ class _Stylesheet {
       color: color,
       sizeScale: sizeScale,
       upper: upper,
+      hidden: hidden,
     );
   }
 

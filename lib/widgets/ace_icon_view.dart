@@ -28,7 +28,7 @@ class AceIconView extends StatelessWidget {
   final Color? color;
 
   /// Hugeicons are drawn fuller than Material glyphs; this is the correction.
-  static const double opticalScale = 0.82;
+  static const double opticalScale = 0.78;
 
   @override
   Widget build(BuildContext context) {

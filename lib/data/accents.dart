@@ -17,7 +17,13 @@ enum AceAccent {
   teal('Teal', Color(0xFF00897B)),
   green('Green', Color(0xFF2E7D32)),
   amber('Amber', Color(0xFFFFB300)),
-  brown('Brown', Color(0xFF6D4C41));
+  brown('Brown', Color(0xFF6D4C41)),
+  cyan('Cyan', Color(0xFF00ACC1)),
+  lime('Lime', Color(0xFF7CB342)),
+  rose('Rose', Color(0xFFE91E63)),
+  slate('Slate', Color(0xFF546E7A)),
+  deepPurple('Deep purple', Color(0xFF5E35B1)),
+  deepOrange('Deep orange', Color(0xFFE64A19));
 
   const AceAccent(this.label, this.seed);
 

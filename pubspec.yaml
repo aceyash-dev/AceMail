@@ -1,12 +1,17 @@
 name: ace_mail
 description: A fast, native IMAP/SMTP mail client for mobile and desktop.
 publish_to: "none"
-version: 0.4.2+17
+version: 0.4.3+18
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
+  # Pinned below 2.0: from 2.0 this package depends on `material_ui`, a parallel
+  # Material implementation whose ColorScheme is a different type from
+  # Flutter's — which makes DynamicColorBuilder unusable with a normal
+  # MaterialApp. 1.9.0 uses Flutter's own.
+  dynamic_color: ^1.9.0
   hugeicons: ^1.2.0
   flutter:
     sdk: flutter

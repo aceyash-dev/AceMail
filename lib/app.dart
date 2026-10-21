@@ -1,4 +1,6 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'data/preferences.dart';
@@ -7,6 +9,7 @@ import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
+import 'theme/astryx_tokens.dart';
 
 class AceMailApp extends StatelessWidget {
   const AceMailApp({super.key});
@@ -16,13 +19,32 @@ class AceMailApp extends StatelessWidget {
     final MailController controller = context.watch<MailController>();
     final Preferences prefs = context.watch<Preferences>();
 
-    return MaterialApp(
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        // The platform's accent, when the setting is on. Used as the seed for
+        // the app's own pipeline rather than taken wholesale, so contrast and
+        // the tinted surfaces are still handled.
+        final Color? seed = prefs.useDynamicColour
+            ? (lightDynamic?.primary ?? darkDynamic?.primary)
+            : null;
+
+        // Typed as a Widget: the builder wants a Widget, and Dart would
+        // otherwise infer the narrower MaterialApp and refuse.
+        final Widget app = MaterialApp(
       title: 'Ace Mail',
       debugShowCheckedModeBanner: false,
       // Rebuilt from the preference, so changing the accent re-themes the app
       // in place rather than on the next launch.
-      theme: buildAstryxTheme(Brightness.light, accent: prefs.accent),
-      darkTheme: buildAstryxTheme(Brightness.dark, accent: prefs.accent),
+      theme: buildAstryxTheme(
+        Brightness.light,
+        accent: prefs.accent,
+        dynamicSeed: seed,
+      ),
+      darkTheme: buildAstryxTheme(
+        Brightness.dark,
+        accent: prefs.accent,
+        dynamicSeed: seed,
+      ),
       themeMode: switch (prefs.themeMode) {
         AceThemeMode.system => ThemeMode.system,
         AceThemeMode.light => ThemeMode.light,
@@ -33,14 +55,36 @@ class AceMailApp extends StatelessWidget {
         // than replacing it, so a system accessibility size still applies.
         final MediaQueryData data = MediaQuery.of(context);
         final double systemScale = data.textScaler.scale(1);
-        return MediaQuery(
-          data: data.copyWith(
-            textScaler: TextScaler.linear(systemScale * prefs.textScale),
+
+        // The system bars follow the theme. Without this the navigation bar is
+        // whatever Android last felt like — which is black, and looks like a
+        // hole cut out of a cream page.
+        final AstryxColors c = context.astryx;
+        final bool dark = Theme.of(context).brightness == Brightness.dark;
+        final Brightness icons =
+            dark ? Brightness.light : Brightness.dark;
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: icons,
+            statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor: c.backgroundBody,
+            systemNavigationBarDividerColor: Colors.transparent,
+            systemNavigationBarIconBrightness: icons,
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: MediaQuery(
+            data: data.copyWith(
+              textScaler: TextScaler.linear(systemScale * prefs.textScale),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: _home(controller),
+        );
+        return app;
+      },
     );
   }
 }

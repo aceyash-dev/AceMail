@@ -122,6 +122,13 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setShowRawHeaders,
                 ),
                 SettingsSwitchRow(
+                  icon: AceIcons.warning,
+                  title: 'Warn on an empty subject',
+                  subtitle: 'Ask before sending a message with no subject.',
+                  value: prefs.warnEmptySubject,
+                  onChanged: prefs.setWarnEmptySubject,
+                ),
+                SettingsSwitchRow(
                   icon: AceIcons.image,
                   title: 'Load images in messages',
                   subtitle: 'Off by default: fetching an image tells the '
@@ -194,6 +201,15 @@ class SettingsScreen extends StatelessWidget {
                     );
                     if (chosen != null) await prefs.setThemeMode(chosen);
                   },
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.brightness,
+                  title: 'Use my system colours',
+                  subtitle: 'Take the accent from the device — Android\u2019s '
+                      'wallpaper colours, and the equivalent elsewhere. The '
+                      'whole theme follows, surfaces included.',
+                  value: prefs.useDynamicColour,
+                  onChanged: prefs.setUseDynamicColour,
                 ),
                 SettingsRow(
                   icon: AceIcons.palette,
