@@ -3,6 +3,35 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.4+20
+
+The icon bug, properly this time.
+
+### Fixed
+- **Icons rendered at the size of whatever box they sat in, not the size they
+  were given.** A `Container` with a width and height hands its child *tight*
+  constraints, so the `SizedBox.square(13)` inside a 44px button could not be
+  13 — it was stretched to 44. Every icon inside a button, a chip, a list row or
+  an app-bar slot was drawn at the full size of that box.
+  This is why four passes at making the icons smaller changed nothing: the size
+  was being overwritten every time, and the optical corrections I kept tuning
+  were applied to a number that was then discarded. Measured, not guessed —
+  `AceIconView size=18.48 rendered=Size(44.0, 44.0)`.
+  The icon is centred in its box now, which gives it loose constraints and lets
+  it be the size it asked for. With that fixed the scale could be set sensibly
+  rather than compensatorily: optical correction 0.72 -> 0.85, a circular button
+  draws at half its box, a button's own icon is 21/18.
+- Four tests in `test/icon_size_test.dart` pin it, including the two shapes that
+  were broken: an icon inside a button, and one in an app-bar slot. They measure
+  rendered sizes, which is what the previous passes never did.
+
+### Still outstanding
+- **New-mail notifications.** Named again rather than quietly skipped. What it
+  needs: `flutter_local_notifications`, an Android channel and permission, and a
+  background service (WorkManager or a foreground service) to poll while the app
+  is closed. A foreground timer would notify you only while you were already
+  looking at your mail, which looks like it works and does not.
+
 ## 0.4.4+19
 
 ### Fixed

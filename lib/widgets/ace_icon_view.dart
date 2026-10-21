@@ -19,7 +19,7 @@ class AceIconView extends StatelessWidget {
   const AceIconView({
     super.key,
     required this.icon,
-    this.size = 18,
+    this.size = 20,
     this.color,
   });
 
@@ -28,7 +28,7 @@ class AceIconView extends StatelessWidget {
   final Color? color;
 
   /// Hugeicons are drawn fuller than Material glyphs; this is the correction.
-  static const double opticalScale = 0.72;
+  static const double opticalScale = 0.85;
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +40,21 @@ class AceIconView extends StatelessWidget {
         ? 1.5
         : (1.5 * (22 / drawn)).clamp(1.5, 2.1);
 
-    return HugeIcon(
-      icon: icon,
-      size: drawn,
-      color: color,
-      strokeWidth: stroke,
+    // Centred, and this is not decoration.
+    //
+    // The parent of an icon is almost always a square box sized for touch — a
+    // 44px button, a 56px app-bar slot. A Container with a width and height
+    // hands its child *tight* constraints, so a `SizedBox.square(13)` inside it
+    // cannot be 13: it is stretched to 44. That is why the icons looked huge no
+    // matter what size they were given, and why changing the size changed
+    // nothing at all.
+    return Center(
+      child: HugeIcon(
+        icon: icon,
+        size: drawn,
+        color: color,
+        strokeWidth: stroke,
+      ),
     );
   }
 }
