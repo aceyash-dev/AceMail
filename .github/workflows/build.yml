@@ -91,6 +91,7 @@ jobs:
         run: flutter build apk --release --target-platform android-arm,android-arm64
 
       - name: Verify the signer
+        if: github.event_name != 'pull_request'
         env:
           EXPECTED: ${{ secrets.ANDROID_KEY_SHA256 }}
         run: |
@@ -136,6 +137,12 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      - name: Ensure Linux desktop scaffold
+        run: |
+          if [ ! -d linux ]; then
+            flutter create --platforms=linux .
+          fi
 
       - name: Install dependencies
         run: flutter pub get
