@@ -46,11 +46,29 @@ void main() {
       }
     });
 
-    test('keeps Milk as the light surface', () {
-      expect(
-        buildAstryxScheme(Brightness.light).surface,
-        const Color(0xFFFFFCF6),
-      );
+    test('the light surface is Milk, pulled towards the accent', () {
+      final Color surface = buildAstryxScheme(Brightness.light).surface;
+      // Still Milk, but no longer the identical constant for every accent —
+      // which is what made the theme feel like it only changed the buttons.
+      expect(surface.r, greaterThan(0.9));
+      expect(surface.g, greaterThan(0.9));
+      expect(surface.b, greaterThan(0.9));
+      expect(surface, isNot(const Color(0xFFFFFCF6)));
+    });
+
+    test('the page changes with the accent, not just the buttons', () {
+      final Color orange =
+          buildAstryxScheme(Brightness.light, accent: AceAccent.orange).surface;
+      final Color blue =
+          buildAstryxScheme(Brightness.light, accent: AceAccent.blue).surface;
+      final Color green =
+          buildAstryxScheme(Brightness.light, accent: AceAccent.green).surface;
+
+      expect(orange, isNot(blue));
+      expect(blue, isNot(green));
+      // Blue should be the bluest of the three, green the greenest.
+      expect(blue.b, greaterThan(orange.b));
+      expect(green.g, greaterThan(orange.g));
     });
 
     test('carries a full, distinct tonal ramp', () {
@@ -62,8 +80,18 @@ void main() {
         s.surfaceContainerHigh,
         s.surfaceContainerHighest,
       ];
-      // If any two steps collapse, elevation stops being visible.
+      // If any two steps collapse, elevation stops being visible. Tinting
+      // must not flatten the ramp.
       expect(ramp.toSet().length, ramp.length);
+      // And it should still run light to dark, or "higher" means nothing.
+      double luminance(Color c) => c.computeLuminance();
+      for (int i = 1; i < ramp.length; i++) {
+        expect(
+          luminance(ramp[i]),
+          lessThanOrEqualTo(luminance(ramp[i - 1]) + 0.001),
+          reason: 'step $i should not be brighter than the one below it',
+        );
+      }
     });
 
     test('uses the expressive variant, not the default', () {

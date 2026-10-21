@@ -497,11 +497,20 @@ class _HtmlBody extends StatefulWidget {
 
 class _HtmlBodyState extends State<_HtmlBody> {
   HtmlRenderer? _renderer;
+
+  /// Mirrored so a change to the setting can be noticed and the render redone.
+  bool _loadRemote = false;
   List<InlineSpan> _spans = const <InlineSpan>[];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Reads the image setting, and re-renders when it changes: turning it on
+    // while a message is open has to load the images in that message, not just
+    // in the next one.
+    final bool loadRemote = context.watch<Preferences>().loadRemoteImages;
+    if (loadRemote == _loadRemote && _renderer != null) return;
+    _loadRemote = loadRemote;
     _rebuild();
   }
 
@@ -515,6 +524,8 @@ class _HtmlBodyState extends State<_HtmlBody> {
     final AstryxColors c = context.astryx;
     _renderer?.dispose();
     final HtmlRenderer renderer = HtmlRenderer(
+      // This is the line that makes the switch in Settings do anything at all.
+      loadRemoteImages: _loadRemote,
       baseStyle: AstryxText.body(c.textPrimary),
       linkColor: c.textAccent,
       codeStyle: AstryxText.body(c.textPrimary).copyWith(

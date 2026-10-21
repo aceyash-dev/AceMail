@@ -269,6 +269,21 @@ class _Builder {
         },
       );
 
+  /// Whether an `<img>` is a 1×1 beacon.
+  static bool _isTrackingPixel(dom.Element node) {
+    int? dimension(String name) {
+      final String? raw = node.attributes[name];
+      if (raw == null) return null;
+      return int.tryParse(raw.replaceAll(RegExp(r'[^0-9]'), ''));
+    }
+
+    final int? width = dimension('width');
+    final int? height = dimension('height');
+    // Only when both are given and both are tiny: a single `height="1"` on an
+    // otherwise normal image is a layout trick, not a beacon.
+    return width != null && height != null && width <= 2 && height <= 2;
+  }
+
   static bool _isHeading(String tag) =>
       tag.length == 2 && tag.startsWith('h') && int.tryParse(tag[1]) != null;
 
@@ -286,6 +301,11 @@ class _Builder {
   /// bracket of alt text dropped into the middle of a sentence — which is what
   /// "the layout broke" looked like, with a stray `[Yahoo]` where a logo was.
   void writeImage(dom.Element node) {
+    // A tracking pixel is an image nobody is meant to see. Emitting a
+    // placeholder for one puts an "Image" chip in the middle of a message that
+    // has no images in it at all — which is how most mail looks.
+    if (_isTrackingPixel(node)) return;
+
     _flush();
     _breaks = 0;
     spans.add(

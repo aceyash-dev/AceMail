@@ -56,9 +56,12 @@ class _MailAvatarState extends State<MailAvatar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Gated on the setting, so switching pictures off means no lookup at all —
-    // not a lookup whose result is thrown away.
-    if (_looked || !context.read<Preferences>().showAvatars) return;
+    // Deliberately *not* gated on the pictures setting. BIMI is a DNS record
+    // the sender's own domain publishes, and the logo is served from that same
+    // domain — a domain that already knows it emailed you. Nothing is told to a
+    // third party, so it is not something to opt into. Gravatar is the opposite,
+    // and stays behind the switch.
+    if (_looked) return;
     _looked = true;
     unawaited(_resolveBimi());
   }
@@ -87,9 +90,9 @@ class _MailAvatarState extends State<MailAvatar> {
       size: widget.size,
     );
 
-    if (!context.watch<Preferences>().showAvatars) return fallback;
     if (address.isEmpty || !address.contains('@')) return fallback;
 
+    // The sender's own published logo, shown whenever there is one.
     final String? logo = _logoUrl;
     if (logo != null) {
       return _clipped(
@@ -106,6 +109,9 @@ class _MailAvatarState extends State<MailAvatar> {
       );
     }
 
+    // Gravatar is the opt-in part: it tells a third party which addresses are
+    // in your mail.
+    if (!context.watch<Preferences>().showAvatars) return fallback;
     if (MailAvatar._missing.contains(address)) return fallback;
 
     return _clipped(

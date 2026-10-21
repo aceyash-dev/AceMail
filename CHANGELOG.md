@@ -3,6 +3,35 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.3.9+13
+
+### Fixed
+- **Turning on "load images in messages" did nothing.** The setting never
+  reached the renderer — the parameter was added to the wrong construction site
+  — and the body was only re-rendered when the message changed, so switching it
+  on did not load the images in the message already open. Both fixed.
+- **BIMI profile pictures never appeared.** They were gated behind the Gravatar
+  switch, which is off by default. BIMI is a DNS record the sender's own domain
+  publishes and the logo is served from that same domain — a domain that already
+  knows it emailed you — so it needs no opt-in. Gravatar still does.
+- A protocol-relative image source (`//cdn.example/logo.png`, which most mail
+  with a CDN uses) was treated as unfetchable and shown as a placeholder.
+- A 1×1 tracking pixel produced an "Image" placeholder in the middle of messages
+  that have no images in them at all.
+- **The theme was not global.** Every surface role was pinned to a Milk or Ink
+  constant, so changing the accent changed the buttons and left the page looking
+  identical. Surfaces are now the accent-tinted tones — by hand, because
+  Material's tonal palette desaturates them almost to grey. The accent is
+  re-checked against the tinted page it actually sits on, since a dark accent on
+  a dark page pulled towards it stops reading as a shape.
+- `ic_launcher_round` was missing at every density, and the manifest never
+  declared it. Built from the same art, with `android:roundIcon` set.
+
+### Changed
+- The ramp from `surfaceContainerLowest` to `surfaceContainerHighest` is
+  asserted to stay distinct and to run light to dark, so tinting cannot flatten
+  elevation.
+
 ## 0.3.8+12
 
 ### Fixed

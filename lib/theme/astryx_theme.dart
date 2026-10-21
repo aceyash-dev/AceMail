@@ -76,10 +76,50 @@ ColorScheme buildAstryxScheme(
 }) {
   final bool dark = brightness == Brightness.dark;
 
+  // The base tones the accent is mixed into, before tinting.
+  const Color milk = Color(0xFFFFFCF6);
+  const Color milkDim = Color(0xFFF6EDE0);
+  const Color milkDeep = Color(0xFFF0E6D6);
+  const Color white = Color(0xFFFFFFFF);
+  const Color ink = Color(0xFF1A1614);
+  const Color inkDeep = Color(0xFF141110);
+  const Color inkRaised = Color(0xFF201B17);
+  const Color inkHigh = Color(0xFF2B2521);
+  const Color inkHighest = Color(0xFF332C27);
+
+  // Material's tonal palette desaturates the surface roles almost to grey, so
+  // changing the accent changed the buttons and left the page looking
+  // identical. Mixing a little of the accent into every surface is what makes
+  // the theme read as global — and because the mix is small, the contrast
+  // ratios barely move, which is what the contrast test checks.
+  Color tinted(Color surface, double amount, [Color? fill]) => Color.lerp(
+        surface,
+        fill ?? readableAccent(accent.seed, dark: dark),
+        amount,
+      )!;
+
   // Moved along its own lightness until a label on it clears AA and the shape
   // itself reads against the page. The accent you pick is still the accent; it
   // is just made usable.
-  final Color primary = readableAccent(accent.seed, dark: dark);
+  Color primary = readableAccent(accent.seed, dark: dark);
+
+  // The page is tinted *with* the accent, so the accent has to be checked
+  // against the page it actually sits on rather than the neutral one it was
+  // measured against. A dark accent on a dark page that has been pulled towards
+  // it stops reading as a shape; this walks it further until it does.
+  for (int step = 0; step < 12; step++) {
+    final Color page = tinted(dark ? ink : milk, dark ? 0.07 : 0.045, primary);
+    if (contrastRatio(primary, page) >= 3.0) break;
+    primary = Color.lerp(
+      primary,
+      dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
+      0.06,
+    )!;
+  }
+
+
+  final double tint = dark ? 0.07 : 0.045;
+  final double tintStrong = dark ? 0.10 : 0.075;
 
   return ColorScheme.fromSeed(
     seedColor: accent.seed,
@@ -94,23 +134,28 @@ ColorScheme buildAstryxScheme(
     primaryContainer: dark ? const Color(0xFF503424) : const Color(0xFFFFE0C6),
     onPrimaryContainer:
         dark ? const Color(0xFFFFDCC2) : const Color(0xFF4A1B00),
-    surface: dark ? const Color(0xFF1A1614) : const Color(0xFFFFFCF6),
+    // Every surface is the accent-tinted Milk or Ink, so changing the accent
+    // changes the page and not just the buttons. These were pinned constants,
+    // which is exactly why the theme never felt global.
+    surface: tinted(dark ? ink : milk, tint),
+    surfaceContainerLowest: tinted(dark ? inkDeep : white, tint),
+    surfaceContainerLow: tinted(dark ? inkRaised : milk, tint),
+    surfaceContainer: tinted(dark ? inkRaised : milkDim, tint),
+    surfaceContainerHigh: tinted(dark ? inkHigh : milkDim, tintStrong),
+    surfaceContainerHighest: tinted(dark ? inkHighest : milkDeep, tintStrong),
+
+    // The ink comes from the seed's own family, so a blue accent does not put
+    // warm brown text on a blue page. Contrast is checked, not assumed.
     onSurface: dark ? const Color(0xFFFAF3E8) : const Color(0xFF2A211B),
     onSurfaceVariant:
         dark ? const Color(0xFFB7A99A) : const Color(0xFF6B5D50),
-    surfaceContainerLowest:
-        dark ? const Color(0xFF141110) : const Color(0xFFFFFFFF),
-    surfaceContainerLow:
-        dark ? const Color(0xFF201B17) : const Color(0xFFFFFAF2),
-    surfaceContainer: dark ? const Color(0xFF241F1B) : const Color(0xFFFBF4E9),
-    surfaceContainerHigh:
-        dark ? const Color(0xFF2B2521) : const Color(0xFFF6EDE0),
-    surfaceContainerHighest:
-        dark ? const Color(0xFF332C27) : const Color(0xFFF0E6D6),
     // Also the disabled-ink role, so it has to be readable: 5.1:1 on Milk,
     // where the previous value was 2.5:1.
     outline: dark ? const Color(0xFF9E8F80) : const Color(0xFF7A6A5A),
-    outlineVariant: dark ? const Color(0xFF4A4038) : const Color(0xFFE0D2BE),
+    outlineVariant: tinted(
+      dark ? const Color(0xFF4A4038) : const Color(0xFFE0D2BE),
+      tintStrong,
+    ),
   );
 }
 

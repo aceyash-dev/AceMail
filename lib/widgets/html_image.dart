@@ -25,10 +25,21 @@ class HtmlImage extends StatelessWidget {
   /// screenshot should not take over the reader.
   static const double _maxHeight = 320;
 
-  bool get _remote =>
-      loadRemote &&
-      source != null &&
-      (source!.startsWith('https://') || source!.startsWith('http://'));
+  /// The URL to fetch, or null when there is nothing fetchable.
+  ///
+  /// Mail is full of `//cdn.example/logo.png`, which is protocol-relative and
+  /// has no scheme of its own — treating it as unfetchable lost most images in
+  /// the messages that use a CDN. `cid:` and relative paths refer to parts of
+  /// the message itself, which this renderer does not stitch back together.
+  String? get resolved {
+    final String? raw = source?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('//')) return 'https:$raw';
+    if (raw.startsWith('https://') || raw.startsWith('http://')) return raw;
+    return null;
+  }
+
+  bool get _remote => loadRemote && resolved != null;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +50,7 @@ class HtmlImage extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: _maxHeight),
         child: Image.network(
-          source!,
+          resolved!,
           fit: BoxFit.contain,
           // A broken or blocked image falls back to the same placeholder as an
           // unloaded one, so a failure never leaves a hole in the layout.

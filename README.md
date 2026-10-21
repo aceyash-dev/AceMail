@@ -45,13 +45,22 @@ a custom theme, not a departure.
   keyboard. There is no refresh button in the top bar. The list uses bouncing
   physics on every platform, because Android's default physics *clamps*: a
   clamped list never overscrolls, so the refresh control never fires.
-- **Ten accents.** Material's palette, one step in from the primaries. Each is
-  walked along its own lightness until a label on it clears AA *and* the shape
-  reads against the page — blue at full strength is 3.7:1 against white and
-  4.4:1 against ink, and amber is 1.75:1 against Milk, so neither is usable
-  as-is. The swatch shows the colour you picked; the fill is made legible.
-  `test/contrast_test.dart` checks all ten in both modes.
-- **Images in a message are placeholders** until you ask for them. Fetching a
+- **Ten accents, and the theme is global.** Material's palette, one step in
+  from the primaries. Each is walked along its own lightness until a label on
+  it clears AA *and* the shape reads against the page — blue at full strength is
+  3.7:1 against white and 4.4:1 against ink, and amber is 1.75:1 against Milk,
+  so neither is usable as-is. The swatch shows the colour you picked; the fill
+  is made legible. Every surface is then the accent-tinted Milk or Ink, so
+  changing the accent changes the page and not just the buttons. Material's own
+  tonal palette desaturates surfaces almost to grey, which is why they are
+  tinted by hand. `test/contrast_test.dart` checks all ten accents in both
+  modes, over the tinted surfaces.
+- **Images in a message are placeholders** until you ask for them, and the
+  switch works on the message that is open rather than the next one. Sources
+  are resolved, so a protocol-relative `//cdn.example/logo.png` — which most
+  mail with a CDN uses — loads too. A 1×1 tracking pixel is dropped entirely
+  rather than becoming a placeholder in the middle of a message that has no
+  images in it. Fetching a
   remote image tells the sender's server the mail was opened, so it is off by
   default and a switch in Settings turns it on. Either way the placeholder takes
   the image's place rather than a bracket of alt text landing mid-sentence.
@@ -213,7 +222,7 @@ Every setting changes something real and survives a restart.
 | Group | Setting | Effect |
 | --- | --- | --- |
 | Account | Manage accounts | Add, switch or remove accounts |
-| Account | Sender pictures | BIMI, then Gravatar. Off by default |
+| Account | Sender pictures | Gravatar. Off by default — BIMI needs no switch |
 | Account | Reconnect automatically | One retry after a backoff when the connection drops |
 | Reading | Mark as read when opened | Whether opening sets `\Seen` on the server |
 | Reading | Message view | Formatted (HTML) or plain text |
