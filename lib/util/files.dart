@@ -30,7 +30,7 @@ Future<List<File>> pickAttachmentFiles() async {
   for (final XFile file in picked) {
     if (files.length >= MailLimits.maxAttachmentCount) break;
     final int size = await file.length();
-    if (total + size > MailLimits.maxOutboundAttachmentBytes) break;
+    if (total + size > MailLimits.maxOutboundAttachmentBytes) continue;
     total += size;
     files.add(File(file.path));
   }
