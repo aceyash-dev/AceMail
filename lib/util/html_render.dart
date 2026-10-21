@@ -23,6 +23,7 @@ class HtmlRenderer {
     required this.linkColor,
     required this.codeStyle,
     this.loadRemoteImages = false,
+    this.confirmLink,
   });
 
   final TextStyle baseStyle;
@@ -32,6 +33,14 @@ class HtmlRenderer {
   /// Off by default: fetching a remote image tells the sender's server that the
   /// message was opened.
   final bool loadRemoteImages;
+
+  /// Asked before a link leaves the app. Returning false means the reader said
+  /// no, and nothing happens.
+  ///
+  /// A link in a mail is text the sender chose, and the text need not be what
+  /// the link does — `yahoo.com` can point anywhere. Showing the address before
+  /// the browser opens is the difference between a decision and a reflex.
+  final Future<bool> Function(Uri uri)? confirmLink;
 
   final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
 
@@ -60,6 +69,7 @@ class HtmlRenderer {
       linkColor: linkColor,
       codeStyle: codeStyle,
       loadRemoteImages: loadRemoteImages,
+      confirmLink: confirmLink,
     );
 
     try {
@@ -98,12 +108,14 @@ class _Builder {
     required this.linkColor,
     required this.codeStyle,
     required this.loadRemoteImages,
+    required this.confirmLink,
   });
 
   final TextStyle baseStyle;
   final Color linkColor;
   final TextStyle codeStyle;
   final bool loadRemoteImages;
+  final Future<bool> Function(Uri uri)? confirmLink;
 
   final _Stylesheet _stylesheet = _Stylesheet();
 
@@ -390,7 +402,7 @@ class _Builder {
     TapGestureRecognizer? recognizer;
     final String? href = frame.href;
     if (href != null) {
-      recognizer = TapGestureRecognizer()..onTap = () => _open(href);
+      recognizer = TapGestureRecognizer()..onTap = () => _open(href, confirmLink);
       recognizers.add(recognizer);
     }
 
@@ -429,10 +441,20 @@ class _Builder {
     return parsed.toString();
   }
 
-  static Future<void> _open(String href) async {
+  static Future<void> _open(
+    String href,
+    Future<bool> Function(Uri uri)? confirm,
+  ) async {
     final Uri? uri = Uri.tryParse(href);
     if (uri == null) return;
     if (!HtmlRenderer._allowedSchemes.contains(uri.scheme.toLowerCase())) return;
+
+    // Asked before leaving the app, when the reader asked to be asked.
+    if (confirm != null) {
+      final bool go = await confirm(uri);
+      if (!go) return;
+    }
+
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {

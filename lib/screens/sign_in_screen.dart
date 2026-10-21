@@ -388,8 +388,8 @@ class _DomainField extends StatelessWidget {
         controller: form.domainField,
         hint: 'example.com',
         keyboard: TextInputType.url,
-        trailing: IconButton(
-          icon: const AceIconView(icon: AceIcons.list, size: 20),
+        trailing: AceIconButton(
+          icon: AceIcons.list,
           tooltip: 'Pick a provider',
           onPressed: () => _pick(context),
         ),

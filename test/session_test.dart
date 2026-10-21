@@ -266,6 +266,28 @@ void main() {
       expect(session.messages.length, before);
     });
 
+    test('a folder you have already opened shows at once', () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(4));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+      final int inboxRows = session.messages.length;
+      expect(inboxRows, greaterThan(0));
+
+      // Somewhere else, and back.
+      await session.openFolder(transport.archive);
+      final Future<void> returning = session.openFolder(transport.inbox);
+
+      // The cached page is on screen before the fetch has finished.
+      expect(
+        session.messages.length,
+        inboxRows,
+        reason: 'the folder should open from cache, not from a blank list',
+      );
+      expect(session.refreshing, isTrue);
+      await returning;
+      expect(session.messages.length, inboxRows);
+    });
+
     test('switching folders does clear, because the rows belong to the old one',
         () async {
       final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(4));

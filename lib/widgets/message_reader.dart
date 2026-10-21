@@ -564,12 +564,94 @@ class _HtmlBodyState extends State<_HtmlBody> {
     if (oldWidget.html != widget.html) _rebuild();
   }
 
+  /// Shows the address before the browser opens.
+  ///
+  /// A link's text is the sender's, and need not be what the link does. This is
+  /// the difference between a decision and a reflex.
+  Future<bool> _confirmLink(Uri uri) async {
+    if (!mounted) return false;
+    if (!context.read<Preferences>().warnExternalLinks) return true;
+
+    final bool? go = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) {
+        final AstryxColors c = sheetContext.astryx;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AstryxSpace.s5,
+              0,
+              AstryxSpace.s5,
+              AstryxSpace.s5,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    AceIconView(icon: AceIcons.warning, size: 18, color: c.warning),
+                    const SizedBox(width: AstryxSpace.s2),
+                    Text('Open this link?', style: AstryxText.heading3(c.textPrimary)),
+                  ],
+                ),
+                const SizedBox(height: AstryxSpace.s3),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AstryxSpace.s3),
+                  decoration: BoxDecoration(
+                    color: c.backgroundMuted,
+                    borderRadius: BorderRadius.circular(AstryxRadius.element),
+                  ),
+                  child: Text(
+                    uri.toString(),
+                    style: AstryxText.body(c.textPrimary),
+                  ),
+                ),
+                const SizedBox(height: AstryxSpace.s3),
+                Text(
+                  'This leaves Ace Mail and opens in another app.',
+                  style: AstryxText.supporting(c.textSecondary),
+                ),
+                const SizedBox(height: AstryxSpace.s5),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: AceButton(
+                        label: 'Cancel',
+                        variant: AceButtonVariant.tonal,
+                        expand: true,
+                        onPressed: () => Navigator.of(sheetContext).pop(false),
+                      ),
+                    ),
+                    const SizedBox(width: AstryxSpace.s3),
+                    Expanded(
+                      child: AceButton(
+                        label: 'Open',
+                        variant: AceButtonVariant.primary,
+                        expand: true,
+                        onPressed: () => Navigator.of(sheetContext).pop(true),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    return go ?? false;
+  }
+
   void _rebuild() {
     final AstryxColors c = context.astryx;
     _renderer?.dispose();
     final HtmlRenderer renderer = HtmlRenderer(
       // This is the line that makes the switch in Settings do anything at all.
       loadRemoteImages: _loadRemote,
+      confirmLink: _confirmLink,
       baseStyle: AstryxText.body(c.textPrimary),
       linkColor: c.textAccent,
       codeStyle: AstryxText.body(c.textPrimary).copyWith(

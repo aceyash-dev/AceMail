@@ -2,11 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// The ten accents the app offers.
+/// The fifteen accents the app offers.
 ///
 /// Material's palette, one step in from the primaries so they sit next to Milk
 /// without shouting. The default is the brand orange; everything else is a
 /// choice, not a replacement.
+///
+/// Fifteen that are far enough apart to tell at a glance. Pink and rose were
+/// both here, and a list where two entries look the same is a list where the
+/// choice does not mean anything.
 enum AceAccent {
   orange('Ace Orange', Color(0xFFF25C05)),
   red('Red', Color(0xFFE53935)),
@@ -20,7 +24,6 @@ enum AceAccent {
   brown('Brown', Color(0xFF6D4C41)),
   cyan('Cyan', Color(0xFF00ACC1)),
   lime('Lime', Color(0xFF7CB342)),
-  rose('Rose', Color(0xFFE91E63)),
   slate('Slate', Color(0xFF546E7A)),
   deepPurple('Deep purple', Color(0xFF5E35B1)),
   deepOrange('Deep orange', Color(0xFFE64A19));

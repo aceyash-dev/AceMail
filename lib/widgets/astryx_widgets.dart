@@ -247,7 +247,7 @@ class AceButton extends StatelessWidget {
       AceButtonSize.medium => AstryxSize.elementLg,
       AceButtonSize.large => AstryxSize.elementXl,
     };
-    final double iconSize = size == AceButtonSize.large ? 22 : 18;
+    final double iconSize = size == AceButtonSize.large ? 19 : 16;
 
     final Widget content = Row(
       mainAxisSize: MainAxisSize.min,
@@ -373,7 +373,7 @@ class AceIconButton extends StatelessWidget {
                   : background,
               borderRadius: shape,
             ),
-            child: AceIconView(icon: icon, size: size * 0.46, color: foreground),
+            child: AceIconView(icon: icon, size: size * 0.42, color: foreground),
           ),
         );
       },

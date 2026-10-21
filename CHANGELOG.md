@@ -3,6 +3,40 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.4+19
+
+### Fixed
+- **Icons, smaller again.** The optical correction went 0.78 -> 0.72, a circular
+  button draws at 0.42 of its box, and a button's own icon is 19/16 rather than
+  22/18. Third pass at this; the sizes are now in one place, so the next one is
+  a single number.
+- **The sidebar icon is ours.** The app bar's hamburger was Material's default
+  `DrawerButton` — the last Material icon in the app, and the wrong weight
+  beside everything else. It is a Hugeicon now. The last two raw `IconButton`s
+  went the same way.
+- **Fifteen accents, not sixteen.** Pink and rose were both in the list and look
+  the same at a glance, which is a choice that does not mean anything. Rose is
+  gone.
+
+### Added
+- **A warning before a link leaves the app.** A link's text is the sender's and
+  need not be what the link does — `yahoo.com` can point anywhere. The address
+  is shown first, with the scheme allowlist still in force underneath. On by
+  default, with a switch.
+- **A page cache.** Opening a folder you have already opened shows the last page
+  immediately and refreshes behind you, instead of a blank list and a wait. A
+  flag or read change updates the cache, so going back does not undo it.
+
+### Not done, and why
+- **JavaScript in messages.** Not a size problem — a decision. A mail body is
+  attacker-controlled content, and running its script inside the app gives the
+  sender code in the app's own context. Every serious client refuses it, and the
+  renderer has refused it since the first audit. The need behind the request —
+  a message that only renders with script — is better served by opening it in a
+  browser, where the script runs under the browser's sandbox rather than ours.
+- **New-mail notifications.** Still outstanding, and still needs a background
+  service rather than a timer that dies with the app.
+
 ## 0.4.3+18
 
 ### Fixed

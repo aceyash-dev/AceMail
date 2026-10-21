@@ -335,9 +335,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     style: AstryxText.supporting(c.textPrimary),
                   ),
                 ),
-                IconButton(
-                  icon: AceIconView(icon: AceIcons.close, size: 16, color: c.iconSecondary),
+                AceIconButton(
+                  icon: AceIcons.close,
                   tooltip: 'Remove',
+                  variant: AceIconButtonVariant.standard,
                   onPressed: () => setState(() => _attachments.remove(file)),
                 ),
               ],

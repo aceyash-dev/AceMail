@@ -122,6 +122,14 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setShowRawHeaders,
                 ),
                 SettingsSwitchRow(
+                  icon: AceIcons.openInNew,
+                  title: 'Ask before opening links',
+                  subtitle: 'A link\u2019s text is the sender\u2019s, and need '
+                      'not be what the link does. This shows the address first.',
+                  value: prefs.warnExternalLinks,
+                  onChanged: prefs.setWarnExternalLinks,
+                ),
+                SettingsSwitchRow(
                   icon: AceIcons.warning,
                   title: 'Warn on an empty subject',
                   subtitle: 'Ask before sending a message with no subject.',

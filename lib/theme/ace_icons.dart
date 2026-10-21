@@ -51,6 +51,7 @@ abstract final class AceIcons {
   static const AceIcon chevronRight = HugeIcons.strokeRoundedChevronRight;
   static const AceIcon unfold = HugeIcons.strokeRoundedUnfoldMore;
   static const AceIcon list = HugeIcons.strokeRoundedLeftToRightListBullet;
+  static const AceIcon menu = HugeIcons.strokeRoundedMenu01;
 
   // --- settings ----------------------------------------------------------
   static const AceIcon settings = HugeIcons.strokeRoundedSettings01;

@@ -91,6 +91,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyRawHeaders = 'ace.rawHeaders';
   static const String _keyDynamicColour = 'ace.dynamicColour';
   static const String _keyWarnEmptySubject = 'ace.warnEmptySubject';
+  static const String _keyWarnExternalLinks = 'ace.warnExternalLinks';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -113,6 +114,7 @@ class Preferences extends ChangeNotifier {
     _keyRawHeaders,
     _keyDynamicColour,
     _keyWarnEmptySubject,
+    _keyWarnExternalLinks,
   ];
 
   final FlutterSecureStorage _storage;
@@ -137,6 +139,7 @@ class Preferences extends ChangeNotifier {
   bool _showRawHeaders = false;
   bool _useDynamicColour = false;
   bool _warnEmptySubject = true;
+  bool _warnExternalLinks = true;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -206,6 +209,9 @@ class Preferences extends ChangeNotifier {
   /// the one people regret.
   bool get warnEmptySubject => _warnEmptySubject;
 
+  /// Whether a link in a message asks before it leaves the app.
+  bool get warnExternalLinks => _warnExternalLinks;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -243,6 +249,8 @@ class Preferences extends ChangeNotifier {
         _decodeBool(raw[_keyDynamicColour], _useDynamicColour);
     _warnEmptySubject =
         _decodeBool(raw[_keyWarnEmptySubject], _warnEmptySubject);
+    _warnExternalLinks =
+        _decodeBool(raw[_keyWarnExternalLinks], _warnExternalLinks);
 
     notifyListeners();
   }
@@ -306,6 +314,9 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setWarnEmptySubject(bool value) =>
       _write(_keyWarnEmptySubject, '$value', () => _warnEmptySubject = value);
+
+  Future<void> setWarnExternalLinks(bool value) =>
+      _write(_keyWarnExternalLinks, '$value', () => _warnExternalLinks = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

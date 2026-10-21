@@ -193,13 +193,20 @@ class _MailboxScreenState extends State<MailboxScreen> {
               )
             : AppBar(
           titleSpacing: AstryxSpace.s4,
+          // Ours, not Material's default DrawerButton: the hamburger was the
+          // last Material icon left in the app bar, and it was the wrong
+          // weight next to everything else.
           leading: _searching
               ? AceIconButton(
                   icon: AceIcons.chevronLeft,
                   tooltip: 'Close search',
                   onPressed: _exitSearch,
                 )
-              : null,
+              : AceIconButton(
+                  icon: AceIcons.menu,
+                  tooltip: 'Folders',
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                ),
           // The folder you are in, not the app's name. The name is on the
           // launcher and the splash; here the space is better spent telling you
           // where you are.

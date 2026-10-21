@@ -69,6 +69,15 @@ class MailSession extends ChangeNotifier {
 
   bool loadingMessages = false;
 
+  /// The last page of each folder, so going back to one shows it at once and
+  /// refreshes behind you.
+  ///
+  /// Bounded by folder count, not by age: a session has a handful of folders,
+  /// and a stale page that is replaced a moment later is a much better
+  /// experience than a blank one.
+  final Map<String, List<MessageSummary>> _pageCache =
+      <String, List<MessageSummary>>{};
+
   /// Codes found in bodies, keyed by uid, so a refresh does not refetch the
   /// same message.
   final Map<int, String?> _bodyCodes = <int, String?>{};
@@ -241,9 +250,18 @@ class MailSession extends ChangeNotifier {
     if (keepContents) {
       refreshing = true;
     } else {
-      messages = <MessageSummary>[];
-      _uids = <int>[];
-      loadingMessages = true;
+      // A cached page, when there is one: the folder appears immediately and
+      // the fetch below replaces it. This is the difference between a folder
+      // that opens and a folder that loads.
+      final List<MessageSummary>? cached = _pageCache[folder.path];
+      if (cached != null && cached.isNotEmpty) {
+        messages = List<MessageSummary>.of(cached);
+        refreshing = true;
+      } else {
+        messages = <MessageSummary>[];
+        _uids = <int>[];
+        loadingMessages = true;
+      }
     }
     _notify();
 
@@ -256,6 +274,8 @@ class MailSession extends ChangeNotifier {
       if (token != _folderToken) return; // a newer folder won
       _uids = uids;
       messages = page;
+      if (_pageCache.length > 24) _pageCache.clear();
+      _pageCache[folder.path] = List<MessageSummary>.of(page);
       unawaited(_detectCodes());
     } catch (error) {
       if (token != _folderToken) return;
@@ -308,10 +328,19 @@ class MailSession extends ChangeNotifier {
     }
   }
 
+  /// Updates the cache after a flag or a read changes on a row, so going back
+  /// to the folder does not undo what you just did.
+  void _rememberPage() {
+    final MailFolder? folder = selectedFolder;
+    if (folder == null || messages.isEmpty) return;
+    _pageCache[folder.path] = List<MessageSummary>.of(messages);
+  }
+
   void _applyCode(int uid, String code) {
     final int index = messages.indexWhere((MessageSummary m) => m.uid == uid);
     if (index == -1 || messages[index].otp == code) return;
     messages[index] = messages[index].copyWith(otp: code);
+    _rememberPage();
     _notify();
   }
 
