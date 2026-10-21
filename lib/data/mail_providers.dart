@@ -14,6 +14,30 @@ class MailServer {
   final int smtpPort;
 }
 
+/// One entry in the domain picker: a name to show, and the domains it covers.
+///
+/// Several domains share a provider — hotmail and live are both Outlook — so the
+/// picker groups them rather than listing fifteen near-identical rows.
+class MailProvider {
+  const MailProvider(this.label, this.domains);
+
+  final String label;
+  final List<String> domains;
+
+  MailServer? get server => kMailProviders[domains.first];
+}
+
+const List<MailProvider> kProviderChoices = <MailProvider>[
+  MailProvider('Gmail', <String>['gmail.com', 'googlemail.com']),
+  MailProvider('Outlook', <String>['outlook.com', 'hotmail.com', 'live.com']),
+  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in']),
+  MailProvider('iCloud', <String>['icloud.com', 'me.com']),
+  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in']),
+  MailProvider('Fastmail', <String>['fastmail.com']),
+  MailProvider('Proton', <String>['protonmail.com', 'proton.me']),
+  MailProvider('Rediffmail', <String>['rediffmail.com']),
+];
+
 const Map<String, MailServer> kMailProviders = {
   'gmail.com': MailServer(
     imapHost: 'imap.gmail.com',

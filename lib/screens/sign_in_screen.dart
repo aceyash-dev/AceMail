@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
+import '../data/mail_providers.dart';
 import '../models/sign_in_form.dart';
 import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import '../widgets/ace_form_field.dart';
+import '../widgets/settings_group.dart';
 import '../widgets/advanced_server_panel.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/confirm_exit.dart';
@@ -146,12 +148,35 @@ class _SignInScreenState extends State<SignInScreen> {
                           children: <Widget>[
                             _header(context, c),
                             const SizedBox(height: AstryxSpace.s6),
-                            AceFormField(
-                              label: 'Email address',
-                              controller: _form.email,
-                              hint: 'you@example.com',
-                              keyboard: TextInputType.emailAddress,
-                              autofillHints: const <String>[AutofillHints.email],
+                            // The address, as two halves. Most people know
+                            // their username; almost nobody wants to type the
+                            // domain, and picking it is what fills the IMAP and
+                            // SMTP servers in.
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Expanded(
+                                  flex: 3,
+                                  child: AceFormField(
+                                    label: 'Username',
+                                    controller: _form.username,
+                                    hint: 'you',
+                                    keyboard: TextInputType.emailAddress,
+                                    autofillHints: const <String>[
+                                      AutofillHints.username,
+                                      AutofillHints.email,
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: AstryxSpace.s3),
+                                Expanded(
+                                  flex: 4,
+                                  child: _DomainField(
+                                    form: _form,
+                                    onChanged: () => setState(() {}),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: AstryxSpace.s4),
                             AcePasswordField(
@@ -258,3 +283,112 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 }
+
+/// The domain half of the address: a picker for the providers we know, and a
+/// plain field for anything else.
+///
+/// Picking a known domain is what fills in the IMAP and SMTP servers, so the
+/// common case never opens the advanced panel at all.
+class _DomainField extends StatelessWidget {
+  const _DomainField({required this.form, required this.onChanged});
+
+  final SignInFormModel form;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (form.customDomain) {
+      return AceFormField(
+        label: 'Domain',
+        controller: form.domainField,
+        hint: 'example.com',
+        keyboard: TextInputType.url,
+        trailing: IconButton(
+          icon: const Icon(Icons.list_rounded, size: 20),
+          tooltip: 'Pick a provider',
+          onPressed: () => _pick(context),
+        ),
+      );
+    }
+
+    final AstryxColors c = context.astryx;
+
+    return AceFormField(
+      label: 'Domain',
+      controller: TextEditingController(text: '@${form.domain}'),
+      readOnly: true,
+      onTap: () => _pick(context),
+      trailing: AceIconButton(
+        icon: Icons.expand_more_rounded,
+        tooltip: 'Choose a domain',
+        onPressed: () => _pick(context),
+      ),
+      hint: '',
+      keyboard: TextInputType.none,
+      background: c.backgroundMuted,
+    );
+  }
+
+  Future<void> _pick(BuildContext context) async {
+    final String? chosen = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: AstryxSpace.s4),
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                0,
+                AstryxSpace.s5,
+                AstryxSpace.s3,
+              ),
+              child: Text(
+                'Your mail provider',
+                style: AstryxText.heading3(sheetContext.astryx.textPrimary),
+              ),
+            ),
+            for (final MailProvider provider in kProviderChoices)
+              SettingsRow(
+                icon: Icons.alternate_email_rounded,
+                title: provider.label,
+                subtitle: provider.domains.first,
+                trailing: provider.domains.first == form.domain
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: 20,
+                        color: sheetContext.astryx.accent,
+                      )
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(provider.domains.first),
+              ),
+            const Divider(height: 1),
+            SettingsRow(
+              icon: Icons.edit_outlined,
+              title: 'Other',
+              subtitle: 'Type your own domain and servers',
+              onTap: () => Navigator.of(sheetContext).pop(_kCustomDomain),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (chosen == null) return;
+    if (chosen == _kCustomDomain) {
+      form.customDomain = true;
+      form.advanced = true;
+    } else {
+      form.customDomain = false;
+      form.domain = chosen;
+      // Selecting a domain fills the servers from the table.
+      form.applyProvider();
+    }
+    onChanged();
+  }
+}
+
+/// Marks the "type your own" row, which is not a domain.
+const String _kCustomDomain = '\u0000custom';

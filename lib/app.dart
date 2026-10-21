@@ -19,8 +19,10 @@ class AceMailApp extends StatelessWidget {
     return MaterialApp(
       title: 'Ace Mail',
       debugShowCheckedModeBanner: false,
-      theme: buildAstryxTheme(Brightness.light),
-      darkTheme: buildAstryxTheme(Brightness.dark),
+      // Rebuilt from the preference, so changing the accent re-themes the app
+      // in place rather than on the next launch.
+      theme: buildAstryxTheme(Brightness.light, accent: prefs.accent),
+      darkTheme: buildAstryxTheme(Brightness.dark, accent: prefs.accent),
       themeMode: switch (prefs.themeMode) {
         AceThemeMode.system => ThemeMode.system,
         AceThemeMode.light => ThemeMode.light,

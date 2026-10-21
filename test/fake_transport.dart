@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:ace_mail/data/account_store.dart';
 import 'package:ace_mail/models/ace_account.dart';
 import 'package:ace_mail/models/full_message.dart';
 import 'package:ace_mail/models/mail_folder.dart';
@@ -262,3 +263,46 @@ const AceAccount gmailAccount = AceAccount(
 );
 
 List<int> uidRange(int count) => List<int>.generate(count, (int i) => i + 1);
+
+class FakeStore extends AccountStore {
+  FakeStore([List<StoredAccount> initial = const <StoredAccount>[]])
+      : _accounts = List<StoredAccount>.of(initial);
+
+  List<StoredAccount> _accounts;
+  String? activeEmail;
+  int saves = 0;
+  int clears = 0;
+
+  /// Injected so a test can make the keychain misbehave.
+  String? loadError;
+  String? saveError;
+  String? clearError;
+
+  @override
+  Future<AccountLoad> loadAll() async =>
+      (accounts: List<StoredAccount>.of(_accounts), error: loadError);
+
+  @override
+  Future<String?> saveAll(List<StoredAccount> accounts) async {
+    if (saveError != null) return saveError;
+    _accounts = List<StoredAccount>.of(accounts);
+    saves++;
+    return null;
+  }
+
+  @override
+  Future<String?> loadActiveEmail() async => activeEmail;
+
+  @override
+  Future<void> saveActiveEmail(String? email) async => activeEmail = email;
+
+  @override
+  Future<String?> clear() async {
+    if (clearError != null) return clearError;
+    _accounts = <StoredAccount>[];
+    activeEmail = null;
+    clears++;
+    return null;
+  }
+}
+

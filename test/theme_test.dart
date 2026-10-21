@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:ace_mail/data/accents.dart';
 import 'package:ace_mail/theme/astryx_theme.dart';
 import 'package:ace_mail/theme/astryx_tokens.dart';
 import 'package:ace_mail/widgets/astryx_widgets.dart';
@@ -14,17 +15,35 @@ Widget _host(Widget child, {Brightness brightness = Brightness.light}) =>
 
 void main() {
   group('expressive scheme', () {
-    test('keeps the brand orange as primary in both modes', () {
-      // A shade deeper than the pure brand orange in light mode: #FF6A1A is
-      // 2.80:1 against Milk, so a filled button did not read as a shape.
+    test('the brand orange is still the default accent', () {
+      // Not pinned to the raw hex any more: the accent is walked along its own
+      // lightness until a label on it clears AA, so the fill can be a step
+      // darker than the swatch. It is still orange, and it is still legible.
+      final Color primary = buildAstryxScheme(Brightness.light).primary;
+      expect(primary.r, greaterThan(primary.b), reason: 'still warm');
+      // At most a nudge from the swatch, not a different colour.
       expect(
-        buildAstryxScheme(Brightness.light).primary,
-        const Color(0xFFF25C05),
+        (primary.r - AceAccent.orange.seed.r).abs(),
+        lessThan(0.25),
       );
       expect(
-        buildAstryxScheme(Brightness.dark).primary,
-        const Color(0xFFFF8A45),
+        contrastRatio(primary, contrastingInk(primary)),
+        greaterThanOrEqualTo(4.5),
       );
+    });
+
+    test('every accent is usable in both modes', () {
+      for (final AceAccent accent in AceAccent.values) {
+        for (final Brightness brightness in Brightness.values) {
+          final ColorScheme scheme =
+              buildAstryxScheme(brightness, accent: accent);
+          expect(
+            contrastRatio(scheme.primary, scheme.onPrimary),
+            greaterThanOrEqualTo(4.5),
+            reason: '${accent.label} ${brightness.name}',
+          );
+        }
+      }
     });
 
     test('keeps Milk as the light surface', () {

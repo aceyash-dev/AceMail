@@ -181,9 +181,12 @@ class MailService implements MailTransport {
   /// Assumes the mailbox is already selected. Not queued, so queued callers can
   /// use it without waiting on themselves.
   Future<List<MessageSummary>> _fetchSummariesRaw(List<int> uids) async {
+    // Only the fields the list actually shows. A full header block is several
+    // times this size, and a page of forty of them is the bulk of what the
+    // client downloads to draw a list.
     final FetchImapResult result = await _client.uidFetchMessages(
       MessageSequence.fromIds(uids, isUid: true),
-      'BODY.PEEK[HEADER]',
+      'BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)]',
     );
     // Order by the UIDs that were asked for, not by sequence numbers.
     // Sequence numbers are positions in the mailbox and move as mail arrives;

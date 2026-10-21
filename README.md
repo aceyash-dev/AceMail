@@ -42,7 +42,15 @@ a custom theme, not a departure.
   and the splash, where it belongs.
 - **Pull down to refresh** — the indicator is the shape morph, scrubbed by the
   drag, so a pull walks it through the families. Ctrl/Cmd+R does the same from a
-  keyboard. There is no refresh button in the top bar.
+  keyboard. There is no refresh button in the top bar. The list uses bouncing
+  physics on every platform, because Android's default physics *clamps*: a
+  clamped list never overscrolls, so the refresh control never fires.
+- **Ten accents.** Material's palette, one step in from the primaries. Each is
+  walked along its own lightness until a label on it clears AA *and* the shape
+  reads against the page — blue at full strength is 3.7:1 against white and
+  4.4:1 against ink, and amber is 1.75:1 against Milk, so neither is usable
+  as-is. The swatch shows the colour you picked; the fill is made legible.
+  `test/contrast_test.dart` checks all ten in both modes.
 - **Images in a message are placeholders** until you ask for them. Fetching a
   remote image tells the sender's server the mail was opened, so it is off by
   default and a switch in Settings turns it on. Either way the placeholder takes
@@ -216,6 +224,7 @@ Every setting changes something real and survives a restart.
 | Gestures | Swipe right | Archive, delete, read/unread, flag or nothing |
 | Gestures | Swipe left | The same list, independently |
 | Appearance | Theme | System, Light or Dark |
+| Appearance | Accent | Ten Material accents, each checked for contrast |
 | Appearance | Text size | Multiplies the device setting |
 | Appearance | List density | Comfortable or compact |
 | Appearance | Ask before exiting | Whether leaving the mailbox asks first |
@@ -285,11 +294,12 @@ Expressive** supplies the colour, motion and shape behaviour.
   rather than cross-fading, and it reads as "working" at any size. Pulling the
   list down drives the same morph from the drag instead of looping it.
 - **The mark.** A postbox with its flag up and a letter at the front, drawn as
-  an outline on a Milk tile. The flag is the one filled part, in the accent
-  orange — the accent means something because it is the only thing wearing it.
-  A hairline of background separates the letter from the box, so it reads as
-  being in front. The in-app mark, the launcher icon, the splash mark and the
-  themed (monochrome) layer are one drawing at four sizes.
+  an outline on a Milk tile: a grey back where the box opens, a ground line,
+  speed lines, and the flag as the one filled, accented part. The accent means
+  something because it is the only thing wearing it. A hairline of background
+  separates the letter from the box, so it reads as being in front. The in-app
+  mark, the launcher icon, the splash mark and the themed (monochrome) layer are
+  one drawing at four sizes.
 - **The loading indicator** is a real Material shape morph. Each shape family is
   a radial profile — the distance from the centre at 128 angles — and morphing
   interpolates every one of those points, so the shape passes through the

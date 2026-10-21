@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:ace_mail/data/accents.dart';
 import 'package:ace_mail/theme/astryx_theme.dart';
 import 'package:ace_mail/theme/astryx_tokens.dart';
 import 'package:flutter/material.dart';
@@ -26,11 +27,14 @@ const double aa = 4.5;
 const double aaLarge = 3.0;
 
 void main() {
+  // Every accent, in both modes. An accent is the user's choice, so its
+  // contrast cannot be assumed — this is what the palette is checked against.
+  for (final AceAccent accent in AceAccent.values) {
   for (final Brightness brightness in Brightness.values) {
     final AstryxColors c = AstryxColors.fromScheme(
-      buildAstryxScheme(brightness),
+      buildAstryxScheme(brightness, accent: accent),
     );
-    final String mode = brightness.name;
+    final String mode = '${accent.label} ${brightness.name}';
 
     group('$mode contrast', () {
       test('text on the accent passes AA', () {
@@ -98,5 +102,6 @@ void main() {
         );
       });
     });
+  }
   }
 }

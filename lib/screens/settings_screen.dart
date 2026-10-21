@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/app_info.dart';
+import '../data/accents.dart';
 import '../data/preferences.dart';
 import '../models/swipe_action.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
+import '../widgets/astryx_widgets.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/settings_group.dart';
 import 'tutorial_screen.dart';
@@ -184,6 +186,13 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsRow(
+                  icon: Icons.palette_outlined,
+                  title: 'Accent',
+                  value: prefs.accent.label,
+                  trailing: _AccentSwatch(accent: prefs.accent),
+                  onTap: () => _chooseAccent(context, prefs),
+                ),
+                SettingsRow(
                   icon: Icons.view_agenda_outlined,
                   title: 'List density',
                   value: prefs.density.label,
@@ -266,6 +275,74 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  /// Ten accents, as a grid of swatches — a colour is easier to pick by eye
+  /// than by name.
+  Future<void> _chooseAccent(BuildContext context, Preferences prefs) async {
+    final AceAccent? chosen = await showModalBottomSheet<AceAccent>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                0,
+                AstryxSpace.s5,
+                AstryxSpace.s4,
+              ),
+              child: Text(
+                'Accent',
+                style: AstryxText.heading3(sheetContext.astryx.textPrimary),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
+              child: Wrap(
+                spacing: AstryxSpace.s3,
+                runSpacing: AstryxSpace.s3,
+                children: <Widget>[
+                  for (final AceAccent accent in AceAccent.values)
+                    AceSpringy(
+                      onTap: () => Navigator.of(sheetContext).pop(accent),
+                      semanticLabel: accent.label,
+                      builder: (BuildContext context, double press, bool hover) {
+                        final bool selected = accent == prefs.accent;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          curve: AstryxMotion.emphasizedDecelerate,
+                          width: 52 + press * -4,
+                          height: 52 + press * -4,
+                          decoration: BoxDecoration(
+                            color: accent.seed,
+                            borderRadius: BorderRadius.circular(
+                              selected
+                                  ? AstryxRadius.container
+                                  : AstryxRadius.full,
+                            ),
+                          ),
+                          child: selected
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  color: contrastingInk(accent.seed),
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AstryxSpace.s6),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) await prefs.setAccent(chosen);
+  }
+
   Future<void> _chooseSwipe(
     BuildContext context,
     Preferences prefs, {
@@ -333,4 +410,21 @@ class SettingsScreen extends StatelessWidget {
     if (result != null) await prefs.setSignature(result);
   }
 
+}
+
+/// The current accent, as a swatch in the row.
+class _AccentSwatch extends StatelessWidget {
+  const _AccentSwatch({required this.accent});
+
+  final AceAccent accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: accent.seed,
+          shape: BoxShape.circle,
+        ),
+      );
 }

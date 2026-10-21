@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'accents.dart';
 import '../models/message_sort.dart';
 import '../models/swipe_action.dart';
 
@@ -86,6 +87,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyDetectCodes = 'ace.detectCodes';
   static const String _keyMessageSort = 'ace.messageSort';
   static const String _keyRemoteImages = 'ace.remoteImages';
+  static const String _keyAccent = 'ace.accent';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -104,6 +106,7 @@ class Preferences extends ChangeNotifier {
     _keyDetectCodes,
     _keyMessageSort,
     _keyRemoteImages,
+    _keyAccent,
   ];
 
   final FlutterSecureStorage _storage;
@@ -124,6 +127,7 @@ class Preferences extends ChangeNotifier {
   bool _detectCodes = true;
   MessageSort _messageSort = MessageSort.newest;
   bool _loadRemoteImages = false;
+  AceAccent _accent = AceAccent.orange;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -179,6 +183,9 @@ class Preferences extends ChangeNotifier {
   /// default: loading one confirms the message was opened.
   bool get loadRemoteImages => _loadRemoteImages;
 
+  /// The accent the whole app is built from.
+  AceAccent get accent => _accent;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -210,6 +217,7 @@ class Preferences extends ChangeNotifier {
         _decodeEnum(raw[_keyMessageSort], MessageSort.values, _messageSort);
     _loadRemoteImages =
         _decodeBool(raw[_keyRemoteImages], _loadRemoteImages);
+    _accent = _decodeEnum(raw[_keyAccent], AceAccent.values, _accent);
 
     notifyListeners();
   }
@@ -261,6 +269,9 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setLoadRemoteImages(bool value) =>
       _write(_keyRemoteImages, '$value', () => _loadRemoteImages = value);
+
+  Future<void> setAccent(AceAccent value) =>
+      _write(_keyAccent, value.name, () => _accent = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

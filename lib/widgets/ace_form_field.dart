@@ -19,6 +19,9 @@ class AceFormField extends StatelessWidget {
     this.minLines,
     this.onSubmitted,
     this.trailing,
+    this.onTap,
+    this.readOnly = false,
+    this.background,
   });
 
   final String label;
@@ -35,11 +38,23 @@ class AceFormField extends StatelessWidget {
   /// An action that belongs beside the field, such as reveal-password.
   final Widget? trailing;
 
+  /// When set, the field is a button in disguise: it opens something instead of
+  /// taking typing. The domain picker is the reason this exists.
+  final VoidCallback? onTap;
+
+  final bool readOnly;
+
+  /// Overrides the field's fill, for a field that reads as a control rather
+  /// than an input.
+  final Color? background;
+
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
 
     final Widget field = TextField(
+      onTap: onTap,
+      readOnly: readOnly,
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboard,
@@ -48,7 +63,11 @@ class AceFormField extends StatelessWidget {
       minLines: minLines,
       onSubmitted: onSubmitted,
       style: AstryxText.body(c.textPrimary),
-      decoration: InputDecoration(hintText: hint, errorText: error),
+      decoration: InputDecoration(
+        hintText: hint,
+        errorText: error,
+        fillColor: background,
+      ),
     );
 
     // The visible label is decoration; the field itself carries the name, so a

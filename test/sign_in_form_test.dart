@@ -1,3 +1,4 @@
+import 'package:ace_mail/data/mail_providers.dart';
 import 'package:ace_mail/models/sign_in_form.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -5,7 +6,9 @@ void main() {
   group('SignInFormModel', () {
     test('fills the server fields from the provider table as you type', () {
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'someone@gmail.com';
+      form.username.text = 'someone';
+      form.domain = 'gmail.com';
+      form.applyProvider();
 
       expect(form.imapHost.text, 'imap.gmail.com');
       expect(form.imapPort.text, '993');
@@ -16,7 +19,9 @@ void main() {
 
     test('builds a ready account from a known provider', () {
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'someone@gmail.com';
+      form.username.text = 'someone';
+      form.domain = 'gmail.com';
+      form.applyProvider();
       form.password.text = 'app-password';
 
       final SignInOutcome outcome = form.build();
@@ -30,13 +35,15 @@ void main() {
 
     test('prefills the address it is given', () {
       final SignInFormModel form = SignInFormModel(initialEmail: 'a@x.com');
-      expect(form.email.text, 'a@x.com');
+      expect(form.email, 'a@x.com');
       form.dispose();
     });
 
-    test('rejects an address with no @', () {
+    test('rejects a username that is not a username', () {
+      // The domain is a separate control, so an address can no longer be
+      // missing its @ — what it can be is an unusable local part.
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'not-an-address';
+      form.username.text = 'not an address';
       form.password.text = 'p';
 
       final SignInOutcome outcome = form.build();
@@ -45,9 +52,19 @@ void main() {
       form.dispose();
     });
 
+    test('an empty username is asked for by name', () {
+      final SignInFormModel form = SignInFormModel();
+      form.password.text = 'p';
+
+      expect(form.build().error, contains('username'));
+      form.dispose();
+    });
+
     test('rejects an empty password', () {
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'someone@gmail.com';
+      form.username.text = 'someone';
+      form.domain = 'gmail.com';
+      form.applyProvider();
 
       final SignInOutcome outcome = form.build();
       expect(outcome.isReady, isFalse);
@@ -58,7 +75,10 @@ void main() {
     test('asks for servers, and points at the advanced panel, for an '
         'unknown provider', () {
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'me@self-hosted.example';
+      form.username.text = 'me';
+      form.customDomain = true;
+      form.domainField.text = 'self-hosted.example';
+      form.applyProvider();
       form.password.text = 'p';
 
       final SignInOutcome outcome = form.build();
@@ -70,7 +90,10 @@ void main() {
 
     test('accepts hand-entered servers for an unknown provider', () {
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'me@self-hosted.example';
+      form.username.text = 'me';
+      form.customDomain = true;
+      form.domainField.text = 'self-hosted.example';
+      form.applyProvider();
       form.password.text = 'p';
       form.imapHost.text = 'imap.self-hosted.example';
       form.smtpHost.text = 'smtp.self-hosted.example';
@@ -84,7 +107,10 @@ void main() {
 
     test('a non-numeric port falls back to the default', () {
       final SignInFormModel form = SignInFormModel();
-      form.email.text = 'me@self-hosted.example';
+      form.username.text = 'me';
+      form.customDomain = true;
+      form.domainField.text = 'self-hosted.example';
+      form.applyProvider();
       form.password.text = 'p';
       form.imapHost.text = 'imap.self-hosted.example';
       form.smtpHost.text = 'smtp.self-hosted.example';
@@ -92,6 +118,91 @@ void main() {
 
       expect(form.build().account?.imapPort, 993);
       form.dispose();
+    });
+  });
+
+  group('username and domain', () {
+    test('the two halves make the address', () {
+      final SignInFormModel form = SignInFormModel();
+      form.username.text = 'someone';
+      form.domain = 'fastmail.com';
+
+      expect(form.email, 'someone@fastmail.com');
+      form.dispose();
+    });
+
+    test('a half-filled form has no address at all', () {
+      final SignInFormModel form = SignInFormModel();
+      expect(form.email, isEmpty);
+      form.username.text = 'someone';
+      expect(form.email, 'someone@gmail.com');
+      form.dispose();
+    });
+
+    test('a custom domain is used verbatim', () {
+      final SignInFormModel form = SignInFormModel();
+      form.username.text = 'someone';
+      form.customDomain = true;
+      form.domainField.text = 'mail.ace-base.cc';
+
+      expect(form.email, 'someone@mail.ace-base.cc');
+      form.dispose();
+    });
+
+    test('a custom domain fills no servers, so the panel opens', () {
+      final SignInFormModel form = SignInFormModel();
+      form.username.text = 'someone';
+      form.customDomain = true;
+      form.domainField.text = 'mail.ace-base.cc';
+      form.password.text = 'p';
+      form.imapHost.clear();
+      form.smtpHost.clear();
+
+      final SignInOutcome outcome = form.build();
+      expect(outcome.isReady, isFalse);
+      expect(outcome.needsAdvanced, isTrue);
+      form.dispose();
+    });
+
+    test('picking a provider fills its servers', () {
+      final SignInFormModel form = SignInFormModel();
+      form.username.text = 'someone';
+      form.domain = 'zoho.com';
+      form.applyProvider();
+
+      expect(form.imapHost.text, 'imap.zoho.com');
+      expect(form.smtpHost.text, 'smtp.zoho.com');
+      form.dispose();
+    });
+
+    test('an initial address is split into its halves', () {
+      final SignInFormModel form = SignInFormModel(initialEmail: 'a@yahoo.in');
+      expect(form.username.text, 'a');
+      expect(form.domain, 'yahoo.in');
+      expect(form.customDomain, isFalse);
+      form.dispose();
+    });
+
+    test('an unknown initial domain becomes a custom one', () {
+      final SignInFormModel form =
+          SignInFormModel(initialEmail: 'a@mail.ace-base.cc');
+      expect(form.username.text, 'a');
+      expect(form.customDomain, isTrue);
+      expect(form.domainField.text, 'mail.ace-base.cc');
+      form.dispose();
+    });
+
+    test('every provider in the picker has servers behind it', () {
+      for (final MailProvider provider in kProviderChoices) {
+        expect(provider.server, isNotNull, reason: provider.label);
+      }
+    });
+
+    test('the picker lists each provider once', () {
+      final List<String> labels =
+          kProviderChoices.map((MailProvider p) => p.label).toList();
+      expect(labels.toSet().length, labels.length);
+      expect(kProviderChoices.length, greaterThanOrEqualTo(8));
     });
   });
 }

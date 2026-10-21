@@ -3,6 +3,33 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.3.8+12
+
+### Fixed
+- **Pulling didn't refresh.** The list used `AlwaysScrollableScrollPhysics`,
+  which on Android resolves to *clamping* physics: a clamped list never
+  overscrolls, so `CupertinoSliverRefreshControl` never reached its trigger
+  distance and a pull did nothing. Bouncing physics now, on every platform, and
+  a test drags past the trigger and asserts the folder reloads.
+- **"Other" in the sign-in form silently kept the previous provider's servers.**
+  Typing a username filled the servers from the default domain; switching to a
+  custom domain left them in place, so the account would have signed in to the
+  wrong server. Servers we filled are now cleared when the domain stops
+  matching, and hand-entered ones are left alone.
+
+### Added
+- **Ten accents**, in Settings, with the whole app re-themed in place.
+- **About is a sheet**, with the version, what the app does with your
+  credentials, and where to find us: GitHub `@tab-gl`, Instagram `@tab.gl`.
+- **The address is entered as username @ domain**, with a picker for the
+  providers whose servers we know and a custom option for the rest.
+
+### Changed
+- The mark is redrawn to the reference: a curved postbox, a hooked flag in the
+  accent, a letter in front with speed lines, a grey back and a ground line.
+- The list fetches `HEADER.FIELDS (FROM SUBJECT DATE)` rather than the whole
+  header block, and each row paints on its own layer.
+
 ## 0.3.7+11
 
 ### Fixed

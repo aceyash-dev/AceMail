@@ -42,7 +42,14 @@ class MessageListPanel extends StatelessWidget {
         switchOutCurve: Curves.easeIn,
         child: CustomScrollView(
         key: ValueKey<String>(controller.selectedFolder?.path ?? ''),
-        physics: const AlwaysScrollableScrollPhysics(),
+        // Bouncing, not the platform default. On Android the default physics
+        // *clamps*: the list stops dead at the top instead of overscrolling, so
+        // the refresh control never reaches its trigger distance and a pull
+        // does nothing at all. Bouncing overscrolls on every platform, which is
+        // what makes the pull work.
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         slivers: <Widget>[
           CupertinoSliverRefreshControl(
             onRefresh: () => context.read<MailController>().refreshMessages(),
@@ -145,7 +152,10 @@ class MessageListPanel extends StatelessWidget {
           itemCount: rows.length,
           itemBuilder: (BuildContext context, int index) {
             final MessageSummary summary = rows[index];
-            return AceSwipeTile(
+            return RepaintBoundary(
+              // Each row paints on its own layer: scrolling a long list then
+              // repaints the rows that move rather than the whole list.
+              child: AceSwipeTile(
               key: ValueKey<int>(summary.uid),
               start: prefs.swipeStart,
               end: prefs.swipeEnd,
@@ -168,6 +178,7 @@ class MessageListPanel extends StatelessWidget {
                 index: index,
                 selected: controller.openSummary?.uid == summary.uid,
                 onTap: () => context.read<MailController>().open(summary),
+              ),
               ),
             );
           },

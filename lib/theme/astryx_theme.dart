@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
+import '../data/accents.dart';
+
 import 'astryx_tokens.dart';
 
 /// Astryx semantic type roles, composed on the geometric scale.
@@ -68,19 +70,27 @@ abstract final class AstryxText {
 /// ramp, the outlines — are pinned back to the exact Milk & Orange values. The
 /// result is Material's expressive tonal system with the app's own identity
 /// intact, rather than an approximation of either.
-ColorScheme buildAstryxScheme(Brightness brightness) {
+ColorScheme buildAstryxScheme(
+  Brightness brightness, {
+  AceAccent accent = AceAccent.orange,
+}) {
   final bool dark = brightness == Brightness.dark;
 
+  // Moved along its own lightness until a label on it clears AA and the shape
+  // itself reads against the page. The accent you pick is still the accent; it
+  // is just made usable.
+  final Color primary = readableAccent(accent.seed, dark: dark);
+
   return ColorScheme.fromSeed(
-    seedColor: const Color(0xFFFF6A1A),
+    seedColor: accent.seed,
     brightness: brightness,
     dynamicSchemeVariant: DynamicSchemeVariant.expressive,
-    // A shade deeper than the pure brand orange in light mode, so a filled
-    // button is distinguishable from the page (3.25:1 where #FF6A1A gave 2.80).
-    primary: dark ? const Color(0xFFFF8A45) : const Color(0xFFF25C05),
-    // Dark on the orange, not white. White on #FF6A1A is 2.87:1, which fails AA
-    // on every filled button, badge and toggle; this is 4.9:1.
-    onPrimary: dark ? const Color(0xFF2A1200) : const Color(0xFF3A1500),
+    // Pinned, so the accent you chose is the accent you see: Material's tonal
+    // mapping would otherwise shift it a step or two.
+    primary: primary,
+    // Computed, not hard-coded: an accent is the user's choice, so its contrast
+    // cannot be assumed. This passes AA on all ten, in both modes.
+    onPrimary: contrastingInk(primary),
     primaryContainer: dark ? const Color(0xFF503424) : const Color(0xFFFFE0C6),
     onPrimaryContainer:
         dark ? const Color(0xFFFFDCC2) : const Color(0xFF4A1B00),
@@ -108,8 +118,11 @@ ColorScheme buildAstryxScheme(Brightness brightness) {
 /// component themes shaped the way expressive M3 shapes them — pills, large
 /// continuous corners, tonal surfaces, and no shadows doing the work of
 /// elevation.
-ThemeData buildAstryxTheme(Brightness brightness) {
-  final ColorScheme scheme = buildAstryxScheme(brightness);
+ThemeData buildAstryxTheme(
+  Brightness brightness, {
+  AceAccent accent = AceAccent.orange,
+}) {
+  final ColorScheme scheme = buildAstryxScheme(brightness, accent: accent);
   final AstryxColors c = AstryxColors.fromScheme(scheme);
 
   final TextTheme text = TextTheme(
