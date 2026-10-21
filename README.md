@@ -20,7 +20,7 @@ look. Concretely, `lib/theme/astryx_tokens.dart` carries the real token set:
   `border`, …), each with a light and a dark value. No widget reads a raw hex.
 
 Astryx itself ships no font file; it names families and leaves loading to the
-app. Ace Mail bundles **Questrial** and uses it for every type role. Questrial
+app. Ace Mail bundles **Geograph** and uses it for every type role. Geograph
 has a single weight, so hierarchy is carried by size and colour rather than by
 weight — bold text inside message bodies will not visually differ until a
 weighted companion is bundled alongside it. Overriding the accent and surface
@@ -212,7 +212,7 @@ lib/
   screens/                  sign-in, mailbox, compose
   widgets/                  Astryx primitives and the three panes
   util/                     dates, file picker, HTML body renderer
-assets/fonts/               Questrial-Regular.ttf
+assets/fonts/               Geograph-Regular.ttf
 ```
 
 ## Settings

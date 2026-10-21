@@ -8,9 +8,9 @@ import 'astryx_tokens.dart';
 /// Astryx semantic type roles, composed on the geometric scale.
 ///
 /// Astryx names families per role and leaves loading to the app; its own
-/// default is Figtree. This theme uses **Questrial** for every role.
+/// default is Figtree. This theme uses **Geograph** for every role.
 ///
-/// Questrial ships one weight — Regular. That is a real constraint, not an
+/// Geograph ships one weight — Regular. That is a real constraint, not an
 /// oversight: hierarchy here is carried by size, tracking and colour, and the
 /// weight values are kept so the roles stay faithful to Astryx the moment a
 /// weighted companion is bundled alongside it. Emphasis that relies on weight
@@ -18,7 +18,11 @@ import 'astryx_tokens.dart';
 /// then. The display end of this ramp is set wide and tight-tracked the way
 /// Material 3 Expressive wants it.
 abstract final class AstryxText {
-  static const String family = 'Questrial';
+  static const String family = 'Geograph';
+
+  /// Used for any glyph Geograph does not carry. It is a Latin typeface, and
+  /// mail is not.
+  static const List<String> fallback = <String>['Questrial'];
 
   static TextStyle _style(
     double size,
@@ -28,6 +32,9 @@ abstract final class AstryxText {
   }) =>
       TextStyle(
         fontFamily: family,
+        // A Latin face: anything outside it — a subject in Devanagari, a CJK
+        // sender name — falls back rather than showing a blank box.
+        fontFamilyFallback: fallback,
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -198,6 +205,7 @@ ThemeData buildAstryxTheme(
     useMaterial3: true,
     brightness: brightness,
     fontFamily: AstryxText.family,
+    fontFamilyFallback: AstryxText.fallback,
     colorScheme: scheme,
     scaffoldBackgroundColor: c.backgroundBody,
     canvasColor: c.backgroundBody,

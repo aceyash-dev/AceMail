@@ -1,7 +1,7 @@
 name: ace_mail
 description: A fast, native IMAP/SMTP mail client for mobile and desktop.
 publish_to: "none"
-version: 0.3.9+13
+version: 0.3.10+14
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -29,6 +29,13 @@ flutter:
 
   # Questrial ships a single weight, so only Regular is bundled.
   fonts:
+    # Geograph, from the Typace foundry — the app's typeface.
+    - family: Geograph
+      fonts:
+        - asset: assets/fonts/Geograph.ttf
+          weight: 400
+    # Kept as the fallback: Geograph is a Latin face, and a subject line can
+    # arrive in any script.
     - family: Questrial
       fonts:
         - asset: assets/fonts/Questrial-Regular.ttf

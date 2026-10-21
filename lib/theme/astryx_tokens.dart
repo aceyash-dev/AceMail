@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 /// Astryx's type scale, on a geometric ramp.
 ///
 /// Astryx names families per role and leaves loading to the app; its own
-/// default is Figtree. This theme uses **Questrial** for every role.
+/// default is Figtree. This theme uses **Geograph** for every role.
 ///
-/// Questrial ships one weight — Regular. That is a real constraint, not an
+/// Geograph ships one weight — Regular. That is a real constraint, not an
 /// oversight: hierarchy here is carried by size, tracking and colour, and the
 /// weight values are kept so the roles stay faithful to Astryx the moment a
 /// weighted companion is bundled alongside it. Material 3 Expressive wants a

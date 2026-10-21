@@ -3,6 +3,23 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.3.10+14
+
+### Added
+- **Geograph**, from the Typace foundry, as the app's typeface — replacing
+  Questrial, which stays registered as the fallback because Geograph is a Latin
+  face and a subject line can arrive in any script. Checked before wiring it in:
+  87 KB, a real TrueType file (magic `00 01 00 00`, 18 tables), family name
+  "Geograph Edit", full basic Latin plus €, •, — and ’, and the Latin-1
+  accented range. Two glyphs the app used are not in it — `→`, which the tutorial
+  used between steps, is now `›`, and `θ` appears only in a comment.
+
+### Note
+- The font could not be fetched from `typace.ace-base.cc`: this sandbox's egress
+  proxy denies the host (`X-Squid-Error: ERR_ACCESS_DENIED`), so the earlier
+  reading that the *server* refused was wrong. It was recovered from the
+  `aceyash-dev/Typace` repository instead, which is the same asset.
+
 ## 0.3.9+13
 
 ### Fixed

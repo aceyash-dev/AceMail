@@ -53,10 +53,10 @@ const List<_TutorialStep> _steps = <_TutorialStep>[
     points: <String>[
       'Gmail — turn on 2-Step Verification, create one at '
           'myaccount.google.com/apppasswords, and switch IMAP on in '
-          'Gmail → Settings → Forwarding and POP/IMAP',
-      'Yahoo — Account Security → Generate app password',
-      'iCloud — Apple ID → Sign-In and Security → App-Specific Passwords',
-      'Outlook / Hotmail — Security → Advanced security options → '
+          'Gmail › Settings › Forwarding and POP/IMAP',
+      'Yahoo — Account Security › Generate app password',
+      'iCloud — Apple ID › Sign-In and Security › App-Specific Passwords',
+      'Outlook / Hotmail — Security › Advanced security options › '
           'App passwords',
     ],
   ),
