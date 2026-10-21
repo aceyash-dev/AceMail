@@ -21,6 +21,7 @@ import 'avatar.dart';
 import 'settings_group.dart';
 import 'skeleton.dart';
 import 'swipe_action.dart';
+import 'ace_icon_view.dart';
 
 /// The message list: a row of filter and sort chips, then the messages.
 ///
@@ -327,7 +328,7 @@ class _ChipRow extends StatelessWidget {
                 icon: _sortIcon(sort),
                 title: sort.label,
                 trailing: sort == prefs.messageSort
-                    ? HugeIcon(icon: 
+                    ? AceIconView(icon: 
                         AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,
@@ -376,7 +377,7 @@ class _Centred extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          HugeIcon(icon: icon, size: 32, color: iconColor),
+          AceIconView(icon: icon, size: 32, color: iconColor),
           const SizedBox(height: AstryxSpace.s3),
           Text(
             message,
@@ -532,7 +533,7 @@ class MessageTile extends StatelessWidget {
                         Row(
                           children: <Widget>[
                             if (summary.isFlagged) ...<Widget>[
-                              HugeIcon(icon: 
+                              AceIconView(icon: 
                                 AceIcons.star,
                                 size: 15,
                                 color: c.tertiary,
@@ -616,7 +617,7 @@ class _OtpChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              HugeIcon(icon: 
+              AceIconView(icon: 
                 AceIcons.password,
                 size: 14,
                 color: c.onAccentMuted,
@@ -629,7 +630,7 @@ class _OtpChip extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AstryxSpace.s2),
-              HugeIcon(icon: 
+              AceIconView(icon: 
                 AceIcons.copy,
                 size: 13,
                 color: c.onAccentMuted,

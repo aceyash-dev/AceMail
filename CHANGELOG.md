@@ -3,6 +3,36 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.2+17
+
+### Fixed
+- **Icons were oversized.** A Hugeicon fills its 24-unit grid much more
+  completely than a Material glyph does, because a Material icon carries its own
+  padding inside the box. At the same nominal size the new icons read about a
+  fifth larger, which is why the reader's toolbar looked like it was shouting.
+  Every icon now goes through `AceIconView`, which applies that correction in
+  one place and also raises the stroke weight a little at small sizes, where a
+  1.5-unit stroke goes spidery.
+- The folder rail showed a dot beside each folder, which said nothing except
+  that you had picked it. It shows the folder's own icon now — an inbox looks
+  like an inbox, Sent like a paper plane, Trash like a bin.
+- The "How to sign in" walkthrough is hidden once an account is connected: an
+  app-password guide is clutter when mail is already flowing.
+
+### Added
+- **The app opens without an account.** "Look around first" on the sign-in
+  screen goes straight to the mailbox, which is empty and says so. A sign-in
+  screen that cannot be dismissed is a wall, and there is a whole app behind it.
+- **Sign-in is two steps**, animated: your address, then your password and the
+  servers. The address comes first because picking a provider is what fills the
+  server fields in, so the second step usually has nothing to fill. A two-dot
+  indicator shows where you are, and the panels slide in the direction you are
+  travelling.
+
+### Still not done
+- New-mail notifications, and the CSS work beyond what 0.4.1 added. Both are
+  named here rather than left to be discovered.
+
 ## 0.4.1+16
 
 ### Added

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../models/mail_folder.dart';
@@ -14,6 +13,7 @@ import 'about_dialog.dart';
 import 'account_sheet.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
+import 'ace_icon_view.dart';
 
 /// The rail is a drawer on a phone, so anything that pushes a screen has to
 /// close it first — otherwise the two stack.
@@ -87,14 +87,18 @@ class FolderRail extends StatelessWidget {
                     label: 'About Ace Mail',
                     onTap: () => showAceAbout(context),
                   ),
-                  _RailAction(
-                    icon: AceIcons.help,
-                    label: 'How to sign in',
-                    onTap: () {
-                      _closeDrawerIfOpen(context);
-                      Navigator.of(context).push(aceRoute(const TutorialScreen()));
-                    },
-                  ),
+                  // Only while there is nothing connected: once mail is
+                  // flowing, an app-password walkthrough is clutter.
+                  if (!context.watch<MailController>().isSignedIn)
+                    _RailAction(
+                      icon: AceIcons.help,
+                      label: 'How to sign in',
+                      onTap: () {
+                        _closeDrawerIfOpen(context);
+                        Navigator.of(context)
+                            .push(aceRoute(const TutorialScreen()));
+                      },
+                    ),
                 ],
               ),
             ),
@@ -141,7 +145,7 @@ class _RailAction extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                HugeIcon(icon: icon, size: 18, color: c.iconSecondary),
+                AceIconView(icon: icon, size: 18, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Text(
@@ -210,7 +214,7 @@ class _AccountHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-                HugeIcon(icon: 
+                AceIconView(icon: 
                   AceIcons.unfold,
                   size: 18,
                   color: c.iconSecondary,
@@ -264,14 +268,17 @@ class _FolderTile extends StatelessWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  AnimatedContainer(
+                  // The folder's own icon, from its role: an inbox looks like
+                  // an inbox, Sent like a paper plane, Trash like a bin. A dot
+                  // told you nothing except that you had picked it.
+                  AnimatedScale(
                     duration: AstryxMotion.fast,
                     curve: AstryxMotion.emphasized,
-                    width: selected ? 10 : 8,
-                    height: selected ? 10 : 8,
-                    decoration: BoxDecoration(
-                      color: selected ? c.accent : c.borderEmphasized,
-                      shape: BoxShape.circle,
+                    scale: selected ? 1.0 : 0.92,
+                    child: AceIconView(
+                      icon: AceIcons.forFolder(folder.label),
+                      size: 18,
+                      color: selected ? c.accent : c.iconSecondary,
                     ),
                   ),
                   const SizedBox(width: AstryxSpace.s3),

@@ -1,7 +1,6 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/app_info.dart';
@@ -9,6 +8,7 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'astryx_widgets.dart';
+import 'ace_icon_view.dart';
 
 /// What Ace Mail is, who makes it, and what it does with your credentials.
 ///
@@ -170,7 +170,7 @@ class _Handle extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              HugeIcon(icon: icon, size: 19, color: c.textAccent),
+              AceIconView(icon: icon, size: 19, color: c.textAccent),
               const SizedBox(width: AstryxSpace.s3),
               Expanded(
                 child: Text(platform, style: AstryxText.body(c.textPrimary)),
@@ -180,7 +180,7 @@ class _Handle extends StatelessWidget {
                 style: AstryxText.bodyStrong(c.textAccent),
               ),
               const SizedBox(width: AstryxSpace.s2),
-              HugeIcon(icon: AceIcons.openInNew, size: 15, color: c.iconSecondary),
+              AceIconView(icon: AceIcons.openInNew, size: 15, color: c.iconSecondary),
             ],
           ),
         );

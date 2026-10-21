@@ -50,7 +50,11 @@ extension on AceMailApp {
   /// not trap anyone behind it, so the mailbox takes over as soon as there is
   /// an error to show.
   Widget _home(MailController controller) {
-    if (!controller.isSignedIn) return const SignInScreen();
+    if (!controller.isSignedIn && !controller.exploring) {
+      return const SignInScreen();
+    }
+    // Nothing connected: the mailbox is empty, and says so, with a way in.
+    if (!controller.isSignedIn) return const MailboxScreen();
     if (!controller.isReady && controller.sessionError == null) {
       return const SplashScreen();
     }

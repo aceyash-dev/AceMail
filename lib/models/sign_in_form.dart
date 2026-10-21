@@ -119,6 +119,20 @@ class SignInFormModel {
     _autoFilled = true;
   }
 
+  /// Whether the address half is usable, or the reason it is not.
+  ///
+  /// The first step only knows about the address, so it asks only about that.
+  String? addressProblem() {
+    if (username.text.trim().isEmpty) return 'Enter your username.';
+    if (customDomain && domainField.text.trim().isEmpty) {
+      return 'Enter your domain.';
+    }
+    if (MailAddresses.validate(email, field: 'Email') != null) {
+      return 'Enter a valid email address.';
+    }
+    return null;
+  }
+
   /// The account to sign in with, or the reason there isn't one.
   SignInOutcome build() {
     final String address = email;

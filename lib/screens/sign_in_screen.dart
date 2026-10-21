@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/mail_providers.dart';
@@ -18,6 +17,7 @@ import '../widgets/astryx_widgets.dart';
 import '../widgets/confirm_exit.dart';
 import '../widgets/settings_group.dart';
 import 'tutorial_screen.dart';
+import '../widgets/ace_icon_view.dart';
 
 /// The app's front door, and the entry point for adding a second account.
 ///
@@ -59,6 +59,22 @@ class _SignInScreenState extends State<SignInScreen> {
   void dispose() {
     _form.dispose();
     super.dispose();
+  }
+
+  /// 0 is the address, 1 is the password. Two steps, so the form never shows
+  /// someone a server field before they have said who they are.
+  int _step = 0;
+
+  void _nextStep() {
+    final String? problem = _form.addressProblem();
+    if (problem != null) {
+      setState(() => _validationError = problem);
+      return;
+    }
+    setState(() {
+      _validationError = null;
+      _step = 1;
+    });
   }
 
   Future<void> _submit() async {
@@ -181,24 +197,136 @@ class _SignInScreenState extends State<SignInScreen> {
                               ],
                             ),
                             const SizedBox(height: AstryxSpace.s4),
-                            AcePasswordField(
-                              label: 'Password / app password',
-                              controller: _form.password,
-                              obscure: _form.obscure,
-                              autofillHints: const <String>[
-                                AutofillHints.password,
-                              ],
-                              onToggleObscure: () => setState(
-                                () => _form.obscure = !_form.obscure,
+                            // Two steps rather than one long form: the
+                            // address first, because picking a provider is
+                            // what fills the servers in, and the password
+                            // second, once there is something to connect to.
+                            _StepDots(step: _step),
+                            const SizedBox(height: AstryxSpace.s4),
+                            AnimatedSize(
+                              duration: AstryxMotion.medium,
+                              curve: AstryxMotion.emphasized,
+                              alignment: Alignment.topCenter,
+                              child: AnimatedSwitcher(
+                                duration: AstryxMotion.medium,
+                                switchInCurve: AstryxMotion.emphasizedDecelerate,
+                                switchOutCurve: Curves.easeIn,
+                                transitionBuilder: (
+                                  Widget child,
+                                  Animation<double> animation,
+                                ) {
+                                  final bool forward = _step == 1;
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: Offset(forward ? 0.12 : -0.12, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: _step == 1
+                                    ? Column(
+                                        key: const ValueKey<int>(1),
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          AcePasswordField(
+                                            label: 'Password / app password',
+                                            controller: _form.password,
+                                            obscure: _form.obscure,
+                                            autofillHints: const <String>[
+                                              AutofillHints.password,
+                                            ],
+                                            onToggleObscure: () => setState(
+                                              () => _form.obscure =
+                                                  !_form.obscure,
+                                            ),
+                                          ),
+                                          const SizedBox(height: AstryxSpace.s3),
+                                          AdvancedServerPanel(
+                                            form: _form,
+                                            onToggle: () => setState(
+                                              () => _form.advanced =
+                                                  !_form.advanced,
+                                            ),
+                                          ),
+                                          const SizedBox(height: AstryxSpace.s5),
+                                          AceButton(
+                                            label: connecting
+                                                ? 'Connecting…'
+                                                : 'Connect',
+                                            variant: AceButtonVariant.primary,
+                                            size: AceButtonSize.large,
+                                            loading: connecting,
+                                            expand: true,
+                                            onPressed:
+                                                connecting ? null : _submit,
+                                          ),
+                                        ],
+                                      )
+                                    : Column(
+                                        key: const ValueKey<int>(0),
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                flex: 3,
+                                                child: AceFormField(
+                                                  label: 'Username',
+                                                  controller: _form.username,
+                                                  hint: 'you',
+                                                  keyboard: TextInputType
+                                                      .emailAddress,
+                                                  autofillHints: const <String>[
+                                                    AutofillHints.username,
+                                                    AutofillHints.email,
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                  width: AstryxSpace.s3),
+                                              Expanded(
+                                                flex: 4,
+                                                child: _DomainField(
+                                                  form: _form,
+                                                  onChanged: () =>
+                                                      setState(() {}),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: AstryxSpace.s5),
+                                          AceButton(
+                                            label: 'Continue',
+                                            variant: AceButtonVariant.primary,
+                                            size: AceButtonSize.large,
+                                            icon: AceIcons.chevronRight,
+                                            expand: true,
+                                            onPressed: _nextStep,
+                                          ),
+                                          const SizedBox(height: AstryxSpace.s2),
+                                          Center(
+                                            child: TextButton(
+                                              onPressed: () => context
+                                                  .read<MailController>()
+                                                  .startExploring(),
+                                              child: Text(
+                                                'Look around first',
+                                                style: AstryxText.body(
+                                                    c.textAccent),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
                             const SizedBox(height: AstryxSpace.s3),
-                            AdvancedServerPanel(
-                              form: _form,
-                              onToggle: () => setState(
-                                () => _form.advanced = !_form.advanced,
-                              ),
-                            ),
                             AnimatedSize(
                               duration: const Duration(milliseconds: 220),
                               curve: Curves.easeOutCubic,
@@ -219,16 +347,6 @@ class _SignInScreenState extends State<SignInScreen> {
                                       ),
                                     ),
                             ),
-                            const SizedBox(height: AstryxSpace.s5),
-                            AceButton(
-                              label: connecting ? 'Connecting…' : 'Connect',
-                              variant: AceButtonVariant.primary,
-                              size: AceButtonSize.large,
-                              loading: connecting,
-                              expand: true,
-                              onPressed: connecting ? null : _submit,
-                            ),
-                            const SizedBox(height: AstryxSpace.s4),
                             Text(
                               'Gmail, Yahoo and iCloud need an app password, not '
                               'your normal login. Your password is stored in this '
@@ -306,7 +424,7 @@ class _DomainField extends StatelessWidget {
         hint: 'example.com',
         keyboard: TextInputType.url,
         trailing: IconButton(
-          icon: const HugeIcon(icon: AceIcons.list, size: 20),
+          icon: const AceIconView(icon: AceIcons.list, size: 20),
           tooltip: 'Pick a provider',
           onPressed: () => _pick(context),
         ),
@@ -358,7 +476,7 @@ class _DomainField extends StatelessWidget {
                 title: provider.label,
                 subtitle: provider.domains.first,
                 trailing: provider.domains.first == form.domain
-                    ? HugeIcon(icon: 
+                    ? AceIconView(icon: 
                         AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,
@@ -394,3 +512,38 @@ class _DomainField extends StatelessWidget {
 
 /// Marks the "type your own" row, which is not a domain.
 const String _kCustomDomain = '\u0000custom';
+
+/// Which of the two steps you are on. Two dots, because two steps.
+class _StepDots extends StatelessWidget {
+  const _StepDots({required this.step});
+
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return Row(
+      children: <Widget>[
+        for (int i = 0; i < 2; i++) ...<Widget>[
+          AnimatedContainer(
+            duration: AstryxMotion.medium,
+            curve: AstryxMotion.emphasized,
+            width: i == step ? 22 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: i == step ? c.accent : c.border,
+              borderRadius: BorderRadius.circular(AstryxRadius.full),
+            ),
+          ),
+          if (i == 0) const SizedBox(width: AstryxSpace.s2),
+        ],
+        const Spacer(),
+        Text(
+          step == 0 ? 'Your address' : 'Your password',
+          style: AstryxText.label(c.textSecondary),
+        ),
+      ],
+    );
+  }
+}

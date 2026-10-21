@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
@@ -18,6 +17,7 @@ import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
 import 'compose_screen.dart';
+import '../widgets/ace_icon_view.dart';
 
 /// The three-pane mailbox. Above [_wideBreakpoint] the folder rail, message
 /// list and reader sit side by side; below it the reader takes the screen and
@@ -289,7 +289,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
       ),
       child: Row(
         children: <Widget>[
-          HugeIcon(icon: AceIcons.search, size: 18, color: c.iconSecondary),
+          AceIconView(icon: AceIcons.search, size: 18, color: c.iconSecondary),
           const SizedBox(width: AstryxSpace.s2),
           Expanded(
             child: TextField(

@@ -2,12 +2,12 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'shape_morph.dart';
+import 'ace_icon_view.dart';
 
 /// A press that springs, and a shape that morphs while it does.
 ///
@@ -259,7 +259,7 @@ class AceButton extends StatelessWidget {
             child: AceLoader(size: iconSize, color: foreground),
           )
         else if (icon != null) ...<Widget>[
-          HugeIcon(icon: icon!, size: iconSize, color: foreground),
+          AceIconView(icon: icon!, size: iconSize, color: foreground),
           const SizedBox(width: AstryxSpace.s2),
         ],
         Text(
@@ -373,7 +373,7 @@ class AceIconButton extends StatelessWidget {
                   : background,
               borderRadius: shape,
             ),
-            child: HugeIcon(icon: icon, size: size * 0.5, color: foreground),
+            child: AceIconView(icon: icon, size: size * 0.5, color: foreground),
           ),
         );
       },
@@ -427,7 +427,7 @@ class AceFab extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                HugeIcon(icon: icon, size: 22, color: c.onAccentMuted),
+                AceIconView(icon: icon, size: 22, color: c.onAccentMuted),
                 if (extended) ...<Widget>[
                   const SizedBox(width: AstryxSpace.s3),
                   Text(
@@ -487,7 +487,7 @@ class AceChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 if (icon != null) ...<Widget>[
-                  HugeIcon(icon: icon!, size: 16, color: foreground),
+                  AceIconView(icon: icon!, size: 16, color: foreground),
                   const SizedBox(width: AstryxSpace.s1_5),
                 ],
                 Text(label, style: AstryxText.label(foreground)),

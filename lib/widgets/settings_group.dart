@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'astryx_widgets.dart';
+import 'ace_icon_view.dart';
 
 /// One labelled group of settings, the way a settings screen is meant to read:
 /// a tracked caption, then a card of related rows.
@@ -99,7 +99,7 @@ class SettingsRow extends StatelessWidget {
         horizontal: AstryxSpace.s3,
         vertical: AstryxSpace.s3,
       ),
-      leading: HugeIcon(icon: icon, size: 20, color: c.iconSecondary),
+      leading: AceIconView(icon: icon, size: 20, color: c.iconSecondary),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -109,7 +109,7 @@ class SettingsRow extends StatelessWidget {
           if (onTap != null)
             Padding(
               padding: const EdgeInsets.only(left: AstryxSpace.s1),
-              child: HugeIcon(icon: 
+              child: AceIconView(icon: 
                 AceIcons.chevronRight,
                 size: 20,
                 color: c.iconDisabled,
@@ -162,7 +162,7 @@ class SettingsSwitchRow extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                HugeIcon(icon: icon, size: 20, color: c.iconSecondary),
+                AceIconView(icon: icon, size: 20, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Column(
@@ -239,7 +239,7 @@ Future<T?> showChoiceSheet<T>(
                     subtitle: choice.description,
                     selected: choice.value == current,
                     trailing: choice.value == current
-                        ? HugeIcon(icon: AceIcons.check, color: c.accent)
+                        ? AceIconView(icon: AceIcons.check, color: c.accent)
                         : null,
                   ),
               ],

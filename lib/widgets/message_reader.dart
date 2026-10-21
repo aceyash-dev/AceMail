@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
@@ -18,6 +17,7 @@ import '../util/text.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 import 'skeleton.dart';
+import 'ace_icon_view.dart';
 
 class MessageReader extends StatefulWidget {
   const MessageReader({super.key, this.onBack});
@@ -258,7 +258,7 @@ class _MessageReaderState extends State<MessageReader> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              HugeIcon(icon: AceIcons.headers, size: 15, color: c.iconSecondary),
+              AceIconView(icon: AceIcons.headers, size: 15, color: c.iconSecondary),
               const SizedBox(width: AstryxSpace.s2),
               Text('Headers', style: AstryxText.label(c.textSecondary)),
             ],
@@ -304,7 +304,7 @@ class _MessageReaderState extends State<MessageReader> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  HugeIcon(icon: 
+                  AceIconView(icon: 
                     AceIcons.attachment,
                     size: 15,
                     color: c.textAccent,

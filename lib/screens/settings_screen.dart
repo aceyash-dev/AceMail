@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/accents.dart';
@@ -15,6 +14,7 @@ import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/settings_group.dart';
 import 'tutorial_screen.dart';
+import '../widgets/ace_icon_view.dart';
 
 /// The app's settings. Every row here changes something real.
 class SettingsScreen extends StatelessWidget {
@@ -334,7 +334,7 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                           child: selected
-                              ? HugeIcon(icon: 
+                              ? AceIconView(icon: 
                                   AceIcons.check,
                                   color: contrastingInk(accent.seed),
                                 )

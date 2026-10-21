@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 import '../models/sign_in_form.dart';
 import '../theme/ace_icons.dart';
@@ -7,6 +6,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'ace_form_field.dart';
 import 'astryx_widgets.dart';
+import 'ace_icon_view.dart';
 
 /// The "Advanced server settings" disclosure and the panel behind it.
 ///
@@ -39,7 +39,7 @@ class AdvancedServerPanel extends StatelessWidget {
                 AnimatedRotation(
                   turns: form.advanced ? 0.25 : 0,
                   duration: const Duration(milliseconds: 200),
-                  child: HugeIcon(icon: 
+                  child: AceIconView(icon: 
                     AceIcons.chevronRight,
                     size: 18,
                     color: c.textAccent,

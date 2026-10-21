@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/settings_screen.dart';
@@ -12,6 +11,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
+import 'ace_icon_view.dart';
 
 /// Bottom sheet listing every signed-in account: tap to switch, add another,
 /// or remove one.
@@ -61,7 +61,7 @@ class AccountSheet extends StatelessWidget {
             _Group(
               children: <Widget>[
                 AceListTile(
-                  leading: HugeIcon(icon: AceIcons.add, color: c.accent),
+                  leading: AceIconView(icon: AceIcons.add, color: c.accent),
                   title: 'Add another account',
                   onTap: () {
                     final NavigatorState nav = Navigator.of(context);
@@ -70,7 +70,7 @@ class AccountSheet extends StatelessWidget {
                   },
                 ),
                 AceListTile(
-                  leading: HugeIcon(icon: 
+                  leading: AceIconView(icon: 
                     AceIcons.settings,
                     color: c.iconSecondary,
                   ),
@@ -164,7 +164,7 @@ class _AccountTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (active)
-            HugeIcon(icon: AceIcons.checkCircle, size: 20, color: c.accent),
+            AceIconView(icon: AceIcons.checkCircle, size: 20, color: c.accent),
           AceIconButton(
             icon: AceIcons.trash,
             tooltip: 'Remove account',

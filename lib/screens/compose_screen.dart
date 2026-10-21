@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/limits.dart';
@@ -19,6 +18,7 @@ import '../widgets/ace_form_field.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/avatar.dart';
 import '../widgets/settings_group.dart';
+import '../widgets/ace_icon_view.dart';
 
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({
@@ -292,7 +292,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
             padding: const EdgeInsets.only(bottom: AstryxSpace.s1),
             child: Row(
               children: <Widget>[
-                HugeIcon(icon: AceIcons.attachment, size: 16, color: c.iconSecondary),
+                AceIconView(icon: AceIcons.attachment, size: 16, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s2),
                 Expanded(
                   child: Text(
@@ -304,7 +304,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: HugeIcon(icon: AceIcons.close, size: 16, color: c.iconSecondary),
+                  icon: AceIconView(icon: AceIcons.close, size: 16, color: c.iconSecondary),
                   tooltip: 'Remove',
                   onPressed: () => setState(() => _attachments.remove(file)),
                 ),
@@ -367,7 +367,7 @@ class _FromRow extends StatelessWidget {
                   ],
                 ),
               ),
-              HugeIcon(icon: AceIcons.expandMore, size: 20, color: c.iconSecondary),
+              AceIconView(icon: AceIcons.expandMore, size: 20, color: c.iconSecondary),
             ],
           ),
         );
@@ -401,7 +401,7 @@ class _FromRow extends StatelessWidget {
                 icon: AceIcons.at,
                 title: account,
                 trailing: account == (selected ?? accounts.first)
-                    ? HugeIcon(icon: 
+                    ? AceIconView(icon: 
                         AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,

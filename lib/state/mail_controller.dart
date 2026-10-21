@@ -86,6 +86,22 @@ class MailController extends ChangeNotifier {
   MailSession? get active =>
       _sessions.isEmpty ? null : _sessions[_activeIndex];
   bool get isSignedIn => _sessions.isNotEmpty;
+
+  /// Set when the app is opened without connecting anything. There is no mail
+  /// to show, but there is an app to look at, and a sign-in screen that cannot
+  /// be dismissed is a wall.
+  bool exploring = false;
+
+  void startExploring() {
+    exploring = true;
+    notifyListeners();
+  }
+
+  void stopExploring() {
+    if (!exploring) return;
+    exploring = false;
+    notifyListeners();
+  }
   AceAccount? get account => active?.account;
   int get accountCount => _sessions.length;
 
@@ -168,6 +184,7 @@ class MailController extends ChangeNotifier {
       _serialize(() async {
         connecting = true;
         errorMessage = null;
+        exploring = false;
         status = MailStatus.connecting;
         _notify();
 

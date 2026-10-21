@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_tokens.dart';
+import 'ace_icon_view.dart';
 
 /// The icon and tone a swipe action shows while it is being revealed.
 ({AceIcon icon, Color background, Color foreground}) swipeAppearance(
@@ -195,7 +195,7 @@ class _Reveal extends StatelessWidget {
       ),
       child: Transform.scale(
         scale: 0.7 + 0.3 * reveal,
-        child: HugeIcon(icon: 
+        child: AceIconView(icon: 
           appearance.icon,
           size: 22,
           color: appearance.foreground,
