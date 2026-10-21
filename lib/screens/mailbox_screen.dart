@@ -148,20 +148,40 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   onPressed: _exitSearch,
                 )
               : null,
-          title: _searching ? _searchField(c) : _brand(c),
+          // The folder you are in, not the app's name. The name is on the
+          // launcher and the splash; here the space is better spent telling you
+          // where you are.
+          title: _searching
+              ? _searchField(c)
+              : Text(
+                  controller.selectedFolder?.label ?? 'Mail',
+                  style: AstryxText.heading3(c.textPrimary),
+                ),
           actions: <Widget>[
-            if (!_searching && !(reading && !wide))
+            if (!_searching && !(reading && !wide)) ...<Widget>[
+              // While a refresh runs, the button becomes the shape morph, so
+              // there is a sign of life without anything moving under it.
+              if (controller.refreshing)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AstryxSpace.s4),
+                  child: AceLoader(size: 22),
+                )
+              else
+                AceIconButton(
+                  icon: Icons.refresh_rounded,
+                  tooltip: 'Refresh',
+                  onPressed: () =>
+                      context.read<MailController>().refreshMessages(),
+                ),
               AceIconButton(
                 icon: Icons.search_rounded,
                 tooltip: 'Search',
                 onPressed: _openSearch,
               ),
+            ],
             const SizedBox(width: AstryxSpace.s2),
           ],
         ),
-        drawer: wide ? null : const Drawer(child: FolderRail()),
-        // Not while a message is open: the reader's floating toolbar occupies
-        // the same corner, and the two overlap.
         floatingActionButton: wide || reading
             ? null
             : AceFab(
@@ -209,10 +229,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
   }
 
-  /// The mark alone. The name is on the launcher, in the store and on the
-  /// splash; repeating it here only takes room from the search field.
-  Widget _brand(AstryxColors c) => const BrandMark(size: 32);
-
   Widget _searchField(AstryxColors c) {
     // A pill, matching every other control in the expressive layer.
     return Container(
@@ -239,11 +255,18 @@ class _MailboxScreenState extends State<MailboxScreen> {
               style: AstryxText.body(c.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Search this folder',
+                // Every state, not just the resting one: leaving the focused
+                // border unset lets the theme's outline draw inside the pill.
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 isDense: true,
                 filled: false,
                 contentPadding: EdgeInsets.zero,
-                hintStyle: AstryxText.body(c.textDisabled),
+                hintStyle: AstryxText.body(c.textSecondary),
               ),
             ),
           ),

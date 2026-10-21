@@ -3,6 +3,37 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.3.6+10
+
+### Fixed
+- **Refreshing blanked the list.** `openFolder` cleared the rows unconditionally,
+  so a refresh emptied the screen and showed a skeleton. Reloading the folder
+  already on screen keeps its contents until the new page arrives; only switching
+  folders clears, because those rows belong to a different mailbox.
+- The search field drew the theme's focus outline *inside* the pill, because
+  only the resting border was unset.
+
+### Added
+- **One-time codes in the list**, without opening the mail: from the subject as
+  each row is built, and from a bounded body preview for mail whose subject
+  talks about a code but does not contain one. Tap to copy. Off-switch in
+  settings.
+- **Sort and filter chips**: newest, oldest, sender, subject, unread first; all,
+  unread, flagged, codes.
+- **About in the sidebar**, sharing one dialog with Settings.
+- The top bar shows the current folder rather than the app icon, with refresh
+  (which becomes the shape morph while it runs) beside search.
+
+### Changed
+- The launcher mark is a postbox with its flag up and a letter in front, in the
+  accent orange on a Milk tile — the foreground and background swap places from
+  the previous icon.
+- The HTML renderer separates table cells and breaks rows, honours emphasis
+  stated in a `style` attribute, and stops at a nesting depth rather than
+  recursing through whatever a sender sent.
+- The one-time-code rule takes the number *closest* to the words describing it,
+  not the first one with any context nearby.
+
 ## 0.3.5+9
 
 ### Fixed

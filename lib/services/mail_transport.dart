@@ -34,6 +34,12 @@ abstract interface class MailTransport {
 
   Future<void> setFlagged(MessageSummary summary, bool flagged);
 
+  /// The first [bytes] of a message body.
+  ///
+  /// Only used to look for a one-time code in mail whose subject does not carry
+  /// one; a whole message is never downloaded for this.
+  Future<String> fetchPreview(MessageSummary summary, {int bytes});
+
   /// Copies the message to [targetPath] and removes it from the folder it was
   /// in. Used for archive.
   Future<void> moveMessage(MessageSummary summary, String targetPath);

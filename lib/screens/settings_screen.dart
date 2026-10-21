@@ -7,6 +7,7 @@ import '../models/swipe_action.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
+import '../widgets/about_dialog.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/settings_group.dart';
 import 'tutorial_screen.dart';
@@ -107,6 +108,14 @@ class SettingsScreen extends StatelessWidget {
                     );
                     if (chosen != null) await prefs.setPageSize(chosen);
                   },
+                ),
+                SettingsSwitchRow(
+                  icon: Icons.password_rounded,
+                  title: 'Show one-time codes',
+                  subtitle: 'Pick codes out of messages and show them in the '
+                      'list, so they can be used without opening the mail.',
+                  value: prefs.detectCodes,
+                  onChanged: prefs.setDetectCodes,
                 ),
                 SettingsSwitchRow(
                   icon: Icons.delete_outline_rounded,
@@ -239,7 +248,7 @@ class SettingsScreen extends StatelessWidget {
                   // Read from the installed package, so it cannot drift from
                   // what is actually on the device.
                   value: AppInfo.label,
-                  onTap: () => _about(context),
+                  onTap: () => showAceAbout(context),
                 ),
               ],
             ),
@@ -316,24 +325,4 @@ class SettingsScreen extends StatelessWidget {
     if (result != null) await prefs.setSignature(result);
   }
 
-  void _about(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Ace Mail'),
-        content: Text(
-          'Version ${AppInfo.label}\n\n'
-          'A native IMAP and SMTP client for mobile and desktop. '
-          'Your credentials stay in this device\'s keychain and go only to '
-          'your mail provider.',
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
 }

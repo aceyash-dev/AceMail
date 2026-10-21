@@ -3,11 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/limits.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/full_message.dart';
 import '../models/mail_folder.dart';
+import '../models/message_sort.dart';
 import '../models/message_summary.dart';
+import '../util/otp.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
 
@@ -65,11 +68,41 @@ class MailSession extends ChangeNotifier {
   FullMessage? openMessage;
 
   bool loadingMessages = false;
+
+  /// Codes found in bodies, keyed by uid, so a refresh does not refetch the
+  /// same message.
+  final Map<int, String?> _bodyCodes = <int, String?>{};
+  bool _detecting = false;
+
+  /// True while reloading a folder that is already on screen. The contents stay
+  /// put — a refresh must not blank the list out from under the reader.
+  bool refreshing = false;
   bool loadingMessage = false;
   bool loadingMore = false;
 
   /// Every UID in the selected folder, newest first — the paging cursor.
   List<int> _uids = <int>[];
+
+  /// Which quick filter is applied to the page. Transient by design: it is a
+  /// way of looking at what is loaded, not a saved preference.
+  MessageFilter filter = MessageFilter.all;
+
+  /// The order the page is shown in, from the user's setting.
+  MessageSort get sort => _preferences?.messageSort ?? MessageSort.newest;
+
+  /// The page, filtered and sorted. What the list actually renders.
+  List<MessageSummary> get visibleMessages {
+    final List<MessageSummary> matching = filter == MessageFilter.all
+        ? messages
+        : messages.where(filter.matches).toList();
+    return sort.apply(matching);
+  }
+
+  void setFilter(MessageFilter value) {
+    if (filter == value) return;
+    filter = value;
+    _notify();
+  }
 
   /// The query in force, or null when the folder is simply being listed.
   String? searchQuery;
@@ -147,18 +180,29 @@ class MailSession extends ChangeNotifier {
     }
   }
 
-  Future<void> openFolder(MailFolder folder) async {
+  Future<void> openFolder(MailFolder folder, {bool refresh = false}) async {
     if (!_connected) return;
 
     final int token = ++_folderToken;
+    final bool sameFolder = selectedFolder?.path == folder.path;
+    // Reloading the folder already on screen keeps its contents until the new
+    // ones arrive; switching folders starts clean, because the old rows belong
+    // to a different mailbox.
+    final bool keepContents = refresh && sameFolder && messages.isNotEmpty;
+
     selectedFolder = folder;
     searchQuery = null;
     openMessage = null;
     openSummary = null;
-    messages = <MessageSummary>[];
-    _uids = <int>[];
-    loadingMessages = true;
     errorMessage = null;
+
+    if (keepContents) {
+      refreshing = true;
+    } else {
+      messages = <MessageSummary>[];
+      _uids = <int>[];
+      loadingMessages = true;
+    }
     _notify();
 
     try {
@@ -170,18 +214,65 @@ class MailSession extends ChangeNotifier {
       if (token != _folderToken) return; // a newer folder won
       _uids = uids;
       messages = page;
+      unawaited(_detectCodes());
     } catch (error) {
       if (token != _folderToken) return;
       errorMessage = error.toString();
     } finally {
       if (token == _folderToken) {
         loadingMessages = false;
+        refreshing = false;
         _notify();
       }
     }
   }
 
-  /// Pulls the next page of older messages.
+  /// Looks for one-time codes the subject did not give up.
+  ///
+  /// Best effort and bounded: only mail whose subject talks about a code, only
+  /// a handful of rows, and only after the list is already on screen. A code is
+  /// a convenience, so nothing here is allowed to hold up or break the list.
+  Future<void> _detectCodes() async {
+    if (_detecting) return;
+    if (!(_preferences?.detectCodes ?? true)) return;
+
+    final int token = _folderToken;
+    _detecting = true;
+    try {
+      final List<MessageSummary> candidates = messages
+          .where((MessageSummary m) =>
+              m.otp == null && OtpDetector.looksLikeCodeMail(m.subject))
+          .take(MailLimits.codeLookups)
+          .toList();
+      if (candidates.isEmpty) return;
+
+      for (final MessageSummary summary in candidates) {
+        if (!_connected || token != _folderToken) return;
+
+        final String? code = _bodyCodes.containsKey(summary.uid)
+            ? _bodyCodes[summary.uid]
+            : OtpDetector.findInBody(
+                await _transport.fetchPreview(summary),
+              );
+        if (_bodyCodes.length > 400) _bodyCodes.clear();
+        _bodyCodes[summary.uid] = code;
+
+        if (code != null && token == _folderToken) _applyCode(summary.uid, code);
+      }
+    } catch (_) {
+      // Never let a convenience break the list.
+    } finally {
+      _detecting = false;
+    }
+  }
+
+  void _applyCode(int uid, String code) {
+    final int index = messages.indexWhere((MessageSummary m) => m.uid == uid);
+    if (index == -1 || messages[index].otp == code) return;
+    messages[index] = messages[index].copyWith(otp: code);
+    _notify();
+  }
+
   Future<void> loadMore() async {
     final MailFolder? folder = selectedFolder;
     if (!_connected || folder == null || loadingMore || !hasMore) return;
@@ -214,7 +305,7 @@ class MailSession extends ChangeNotifier {
     if (query != null) {
       await search(query);
     } else {
-      await openFolder(folder);
+      await openFolder(folder, refresh: true);
     }
   }
 

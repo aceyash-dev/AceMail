@@ -3,9 +3,11 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/cupertino.dart'
     show CupertinoSliverRefreshControl, RefreshIndicatorMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../models/swipe_action.dart';
 import '../state/mail_controller.dart';
@@ -14,14 +16,14 @@ import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
+import 'settings_group.dart';
 import 'skeleton.dart';
 import 'swipe_action.dart';
 
-/// The message list, under a large title that collapses as it scrolls — the
-/// Material 3 Expressive large app bar, scoped to this pane.
+/// The message list: a row of filter and sort chips, then the messages.
 ///
-/// Pulling down turns into a shape morph rather than a spinner, and rows can be
-/// swiped either way to act on them.
+/// The title lives in the app bar, so the space here goes to the controls
+/// instead of repeating the folder name.
 class MessageListPanel extends StatelessWidget {
   const MessageListPanel({super.key});
 
@@ -41,27 +43,9 @@ class MessageListPanel extends StatelessWidget {
             refreshIndicatorExtent: 58,
             builder: _refreshIndicator,
           ),
-          SliverAppBar.large(
-            pinned: true,
-            automaticallyImplyLeading: false,
-            backgroundColor: c.backgroundBody,
-            surfaceTintColor: Colors.transparent,
-            foregroundColor: c.textPrimary,
-            expandedHeight: 132,
-            title: Text(
-              controller.selectedFolder?.label ?? 'Mail',
-              style: AstryxText.heading2(c.textPrimary),
-            ),
-            actions: <Widget>[
-              AceIconButton(
-                icon: Icons.refresh_rounded,
-                tooltip: 'Refresh',
-                onPressed: () =>
-                    context.read<MailController>().refreshMessages(),
-              ),
-              const SizedBox(width: AstryxSpace.s2),
-            ],
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
+          SliverToBoxAdapter(child: _ChipRow(controller: controller)),
+          const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
           ..._slivers(context, controller),
         ],
       ),
@@ -91,8 +75,6 @@ class MessageListPanel extends StatelessWidget {
     );
   }
 
-  Preferences prefsOf(BuildContext context) => context.watch<Preferences>();
-
   List<Widget> _slivers(BuildContext context, MailController controller) {
     final AstryxColors c = context.astryx;
 
@@ -101,14 +83,18 @@ class MessageListPanel extends StatelessWidget {
       // screen.
       return <Widget>[
         SliverToBoxAdapter(
-          child: MessageListSkeleton(avatarSize: prefsOf(context).density.avatarSize),
+          child: MessageListSkeleton(
+            avatarSize: context.watch<Preferences>().density.avatarSize,
+          ),
         ),
       ];
     }
 
+    final List<MessageSummary> rows = controller.visibleMessages;
+
     // A failed fetch used to look like an empty folder. Say what happened.
     final String? error = controller.sessionError;
-    if (controller.messages.isEmpty && error != null) {
+    if (rows.isEmpty && error != null && controller.messages.isEmpty) {
       return <Widget>[
         SliverFillRemaining(
           hasScrollBody: false,
@@ -127,16 +113,16 @@ class MessageListPanel extends StatelessWidget {
       ];
     }
 
-    if (controller.messages.isEmpty) {
+    if (rows.isEmpty) {
       return <Widget>[
         SliverFillRemaining(
           hasScrollBody: false,
           child: _Centred(
-            icon: Icons.mark_email_read_outlined,
+            icon: controller.filter == MessageFilter.all
+                ? Icons.mark_email_read_outlined
+                : Icons.filter_alt_off_outlined,
             iconColor: c.iconDisabled,
-            message: controller.searchQuery == null
-                ? 'This folder is empty.'
-                : 'Nothing matched “${controller.searchQuery}”.',
+            message: _emptyMessage(controller),
           ),
         ),
       ];
@@ -146,11 +132,11 @@ class MessageListPanel extends StatelessWidget {
 
     return <Widget>[
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
+        padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
         sliver: SliverList.builder(
-          itemCount: controller.messages.length,
+          itemCount: rows.length,
           itemBuilder: (BuildContext context, int index) {
-            final MessageSummary summary = controller.messages[index];
+            final MessageSummary summary = rows[index];
             return AceSwipeTile(
               key: ValueKey<int>(summary.uid),
               start: prefs.swipeStart,
@@ -200,6 +186,21 @@ class MessageListPanel extends StatelessWidget {
     ];
   }
 
+  String _emptyMessage(MailController controller) {
+    if (controller.searchQuery != null) {
+      return 'Nothing matched “${controller.searchQuery}”.';
+    }
+    if (controller.filter != MessageFilter.all) {
+      return switch (controller.filter) {
+        MessageFilter.unread => 'Everything here has been read.',
+        MessageFilter.flagged => 'Nothing here is flagged.',
+        MessageFilter.codes => 'No codes in this page.',
+        MessageFilter.all => 'This folder is empty.',
+      };
+    }
+    return 'This folder is empty.';
+  }
+
   void _applySwipe(
     BuildContext context,
     MessageSummary summary,
@@ -219,6 +220,105 @@ class MessageListPanel extends StatelessWidget {
         break;
     }
   }
+}
+
+/// Filter chips, then the sort. One scrollable row, so it never wraps into a
+/// block of controls that pushes the mail off the screen.
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.controller});
+
+  final MailController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return SizedBox(
+      height: 38,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
+        children: <Widget>[
+          for (final MessageFilter filter in MessageFilter.values) ...<Widget>[
+            AceChip(
+              label: filter.label,
+              selected: controller.filter == filter,
+              onTap: () => context.read<MailController>().setFilter(filter),
+            ),
+            const SizedBox(width: AstryxSpace.s2),
+          ],
+          Container(
+            width: 1,
+            height: 20,
+            margin: const EdgeInsets.symmetric(
+              horizontal: AstryxSpace.s2,
+              vertical: AstryxSpace.s2,
+            ),
+            color: c.border,
+          ),
+          AceChip(
+            label: controller.sort.label,
+            icon: Icons.swap_vert_rounded,
+            onTap: () => _chooseSort(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _chooseSort(BuildContext context) async {
+    final Preferences prefs = context.read<Preferences>();
+    final MessageSort? chosen = await showModalBottomSheet<MessageSort>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                AstryxSpace.s2,
+                AstryxSpace.s5,
+                AstryxSpace.s3,
+              ),
+              child: Text(
+                'Sort by',
+                style: AstryxText.heading3(sheetContext.astryx.textPrimary),
+              ),
+            ),
+            for (final MessageSort sort in MessageSort.values)
+              SettingsRow(
+                icon: _sortIcon(sort),
+                title: sort.label,
+                trailing: sort == prefs.messageSort
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: 20,
+                        color: sheetContext.astryx.accent,
+                      )
+                    : null,
+                onTap: () {
+                  prefs.setMessageSort(sort);
+                  Navigator.of(sheetContext).pop();
+                },
+              ),
+            const SizedBox(height: AstryxSpace.s3),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) await prefs.setMessageSort(chosen);
+  }
+
+  static IconData _sortIcon(MessageSort sort) => switch (sort) {
+        MessageSort.newest => Icons.south_rounded,
+        MessageSort.oldest => Icons.north_rounded,
+        MessageSort.sender => Icons.person_outline_rounded,
+        MessageSort.subject => Icons.subject_rounded,
+        MessageSort.unread => Icons.mark_email_unread_outlined,
+      };
 }
 
 class _Centred extends StatelessWidget {
@@ -259,8 +359,9 @@ class _Centred extends StatelessWidget {
   }
 }
 
-/// One message row. Springs on press, morphs its corners, and states unread
-/// with weight and a dot rather than a colour change alone.
+/// One message row. Springs on press, morphs its corners, states unread with
+/// weight and a dot rather than a colour change alone, and lifts a one-time
+/// code to where it can be read and copied without opening the message.
 class MessageTile extends StatelessWidget {
   const MessageTile({
     super.key,
@@ -366,6 +467,10 @@ class MessageTile extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (summary.otp != null) ...<Widget>[
+                          const SizedBox(height: AstryxSpace.s1_5),
+                          _OtpChip(code: summary.otp!),
+                        ],
                       ],
                     ),
                   ),
@@ -387,6 +492,68 @@ class MessageTile extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// A one-time code, one tap from the clipboard. Shown in the list so the code
+/// can be used without opening the mail, which is the entire point of it.
+class _OtpChip extends StatelessWidget {
+  const _OtpChip({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return AceSpringy(
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: code));
+        if (!context.mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text('Code $code copied')),
+        );
+      },
+      semanticLabel: 'Copy code $code',
+      builder: (BuildContext context, double press, bool hover) {
+        final double t = press.clamp(0.0, 1.0);
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AstryxSpace.s3,
+            vertical: AstryxSpace.s1,
+          ),
+          decoration: BoxDecoration(
+            color: c.accentMuted,
+            borderRadius: BorderRadius.circular(
+              lerpDouble(AstryxRadius.full, AstryxRadius.element, t)!,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.password_rounded,
+                size: 14,
+                color: c.onAccentMuted,
+              ),
+              const SizedBox(width: AstryxSpace.s2),
+              Text(
+                code,
+                style: AstryxText.bodyStrong(c.onAccentMuted).copyWith(
+                  letterSpacing: 1.6,
+                ),
+              ),
+              const SizedBox(width: AstryxSpace.s2),
+              Icon(
+                Icons.copy_rounded,
+                size: 13,
+                color: c.onAccentMuted,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

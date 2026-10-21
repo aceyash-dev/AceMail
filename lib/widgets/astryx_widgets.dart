@@ -653,12 +653,11 @@ class AceToolbar extends StatelessWidget {
   }
 }
 
-/// The Ace Mail mark: the milk envelope on the brand orange, expressed on a
-/// 108-unit grid so the in-app mark, the launcher icon and the splash mark are
-/// one drawing rather than three near-misses.
+/// The Ace Mail mark: a postbox with its flag up and a letter at the front,
+/// in the accent orange, on the same 108-unit grid as the launcher icon.
 ///
-/// The flap is a real notch cut out of the envelope, so whatever is behind it
-/// shows through — which is what lets the same path sit on a gradient launcher
+/// The envelope's flap is a real notch cut out of the letter, so the tile shows
+/// through it — which is what lets the same geometry sit on a gradient launcher
 /// tile and on a flat one.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 44});
@@ -678,42 +677,69 @@ class BrandMark extends StatelessWidget {
 class _BrandMarkPainter extends CustomPainter {
   const _BrandMarkPainter();
 
-  /// The envelope, with the flap removed. Shared with the vector drawables by
+  /// The mailbox, in the mark's own units. Shared with the vector drawables by
   /// using the same numbers.
-  static Path envelopePath(double unit) {
+  static Path mailboxPath(double u) {
+    Path box(double l, double t, double r, double b) => Path()
+      ..addRect(Rect.fromLTRB(l * u, t * u, r * u, b * u));
+
+    final Path post = box(48, 68, 52, 80)..addPath(box(58, 68, 62, 80), Offset.zero);
+
     final Path body = Path()
+      ..moveTo(38 * u, 68 * u)
+      ..lineTo(38 * u, 54 * u)
+      ..quadraticBezierTo(38 * u, 40 * u, 52 * u, 40 * u)
+      ..lineTo(62 * u, 40 * u)
+      ..quadraticBezierTo(76 * u, 40 * u, 76 * u, 54 * u)
+      ..lineTo(76 * u, 68 * u)
+      ..close();
+
+    final Path flag = box(64, 28, 68, 44)..addPath(box(68, 28, 78, 36), Offset.zero);
+
+    final Path letter = Path()
       ..addRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(28 * unit, 37 * unit, 52 * unit, 34 * unit),
-          Radius.circular(6 * unit),
+          Rect.fromLTRB(26 * u, 52 * u, 50 * u, 68 * u),
+          Radius.circular(4 * u),
         ),
       );
-    // The flap is a chevron band: the outer triangle minus the inner one. The
-    // vector drawable expresses the same thing as three subpaths with evenOdd.
-    final Path outer = Path()
-      ..moveTo(28 * unit, 37 * unit)
-      ..lineTo(54 * unit, 58 * unit)
-      ..lineTo(80 * unit, 37 * unit)
+    final Path flap = Path()
+      ..moveTo(29 * u, 55 * u)
+      ..lineTo(38 * u, 63 * u)
+      ..lineTo(47 * u, 55 * u)
       ..close();
-    final Path inner = Path()
-      ..moveTo(33 * unit, 37 * unit)
-      ..lineTo(54 * unit, 53 * unit)
-      ..lineTo(75 * unit, 37 * unit)
-      ..close();
-    final Path band = Path.combine(PathOperation.difference, outer, inner);
-    return Path.combine(PathOperation.difference, body, band);
+
+    // A hairline of background behind the letter, so it reads as being in
+    // front of the box rather than part of it.
+    final Path gap = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(23 * u, 49 * u, 53 * u, 71 * u),
+          Radius.circular(6 * u),
+        ),
+      );
+
+    return Path()
+      ..addPath(post, Offset.zero)
+      ..addPath(body, Offset.zero)
+      ..addPath(flag, Offset.zero)
+      ..addPath(gap, Offset.zero)
+      ..addPath(
+        Path.combine(PathOperation.difference, letter, flap),
+        Offset.zero,
+      );
   }
 
   @override
   void paint(Canvas canvas, Size size) {
     final double unit = size.width / 108.0;
     canvas.drawPath(
-      AstryxShape.squircle(Offset.zero & size),
-      Paint()..color = AstryxBrand.orange,
+      AstryxShape.squircle(Offset.zero & size, radius: size.width * 0.22),
+      Paint()..color = AstryxBrand.milk,
     );
     canvas.drawPath(
-      envelopePath(unit),
-      Paint()..color = AstryxBrand.milk,
+      mailboxPath(unit),
+      Paint()..color = AstryxBrand.orange,
     );
   }
 

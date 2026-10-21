@@ -7,6 +7,12 @@ abstract final class MailLimits {
   /// Largest HTML body we will parse. Anything beyond is truncated.
   static const int maxHtmlBytes = 2 * 1024 * 1024;
 
+  /// How many bodies are fetched per page while looking for one-time codes.
+  static const int codeLookups = 12;
+
+  /// How much of a body is fetched when looking for a one-time code.
+  static const int previewBytes = 4096;
+
   /// Largest single attachment we will decode into memory.
   static const int maxAttachmentBytes = 25 * 1024 * 1024;
 

@@ -8,6 +8,7 @@ import '../state/mail_controller.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
+import 'about_dialog.dart';
 import 'account_sheet.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
@@ -78,6 +79,11 @@ class FolderRail extends StatelessWidget {
                       _closeDrawerIfOpen(context);
                       Navigator.of(context).push(aceRoute(const SettingsScreen()));
                     },
+                  ),
+                  _RailAction(
+                    icon: Icons.info_outline_rounded,
+                    label: 'About Ace Mail',
+                    onTap: () => showAceAbout(context),
                   ),
                   _RailAction(
                     icon: Icons.help_outline_rounded,

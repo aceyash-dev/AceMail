@@ -94,10 +94,25 @@ class _Builder {
   final List<bool> _ordered = <bool>[];
   final List<int> _counters = <int>[];
   int _breaks = 0;
+  int _depth = 0;
+  bool _inRow = false;
 
   static const Set<String> _skipped = <String>{
     'script', 'style', 'head', 'title', 'noscript', 'template', 'svg', 'iframe',
   };
+
+  /// Emphasis stated in a `style` attribute rather than a tag — which is how a
+  /// lot of mail is written, and which was being thrown away.
+  static final RegExp _boldStyle =
+      RegExp(r'font-weight\s*:\s*(bold|[6-9]00)', caseSensitive: false);
+  static final RegExp _italicStyle =
+      RegExp(r'font-style\s*:\s*italic', caseSensitive: false);
+  static final RegExp _underlineStyle =
+      RegExp(r'text-decoration[^;]*underline', caseSensitive: false);
+
+  /// How deep the walk will go. Mail with thousands of nested divs is not
+  /// hypothetical, and recursing through it is how a reader hangs.
+  static const int _maxDepth = 60;
 
   static const Set<String> _blocks = <String>{
     'address', 'article', 'aside', 'blockquote', 'dd', 'div', 'dl', 'dt',
@@ -122,6 +137,7 @@ class _Builder {
     final String tag = node.localName?.toLowerCase() ?? '';
 
     if (_skipped.contains(tag)) return;
+    if (_depth >= _maxDepth) return;
 
     switch (tag) {
       case 'br':
@@ -162,14 +178,38 @@ class _Builder {
         final String alt = node.attributes['alt']?.trim() ?? '';
         if (alt.isNotEmpty) write('[$alt]');
         return;
+      // A table is a grid on the web and a column here, so rows break and cells
+      // are separated. Without this every cell ran into the next one.
+      case 'tr':
+        _inRow = false;
+        _break(2);
+        _depth++;
+        walk(node);
+        _depth--;
+        _break(2);
+        return;
+      case 'td':
+      case 'th':
+        if (_inRow) write('   ');
+        _inRow = true;
+        _depth++;
+        walk(node);
+        _depth--;
+        return;
     }
 
     final bool block = _blocks.contains(tag);
     if (block) _break(2);
 
-    final bool bold = tag == 'b' || tag == 'strong' || _isHeading(tag);
-    final bool italic = tag == 'i' || tag == 'em';
-    final bool underline = tag == 'u' || tag == 'ins';
+    final String style = node.attributes['style'] ?? '';
+    final bool bold = tag == 'b' ||
+        tag == 'strong' ||
+        _isHeading(tag) ||
+        _boldStyle.hasMatch(style);
+    final bool italic =
+        tag == 'i' || tag == 'em' || _italicStyle.hasMatch(style);
+    final bool underline =
+        tag == 'u' || tag == 'ins' || _underlineStyle.hasMatch(style);
     final bool code = tag == 'code' || tag == 'pre' || tag == 'kbd' || tag == 'tt';
     final String? href = tag == 'a' ? _safeHref(node.attributes['href']) : null;
 
@@ -182,7 +222,9 @@ class _Builder {
         href: href ?? _frame.href,
       ),
     );
+    _depth++;
     walk(node);
+    _depth--;
     _pop();
 
     if (block) _break(2);

@@ -37,8 +37,9 @@ a custom theme, not a departure.
   connection error means.
 - Several accounts signed in at once, switchable from the header at the top of
   the folder rail.
-- Search in the app bar; settings and help at the foot of the rail. The top of
-  the screen is about the mail.
+- The top bar shows **the folder you are in**, with search and refresh beside
+  it; settings, About and help sit at the foot of the rail. The app's name is on
+  the launcher and the splash, where it belongs.
 - Sender pictures, best source first: the sender's own **BIMI** logo when the
   domain publishes one, then Gravatar, then an initials chip. **Off by
   default**, because both remote lookups tell a third party which domains are in
@@ -50,6 +51,13 @@ a custom theme, not a departure.
   saveable.
 - Compose, reply and send, with file attachments.
 - Mark as unread, and flag/unflag with the star.
+- **One-time codes, without opening the mail.** A code in a subject is picked
+  out as the row is built; for mail whose subject talks about a code but does
+  not contain one, the first few kilobytes of the body are fetched and searched
+  — bounded to a handful of rows per page, and never for the whole message. The
+  code appears as a chip in the list, one tap from the clipboard.
+- Sort chips and filters over the loaded page: newest, oldest, sender, subject
+  or unread first; all, unread, flagged, or only the mail carrying a code.
 - Delete moves to Trash. When a provider has no Trash folder, the app says so
   and asks before deleting permanently — it never quietly destroys mail.
 - Reply and reply-all, with `In-Reply-To` and `References` set so the reply
@@ -195,6 +203,7 @@ Every setting changes something real and survives a restart.
 | Reading | Mark as read when opened | Whether opening sets `\Seen` on the server |
 | Reading | Message view | Formatted (HTML) or plain text |
 | Reading | Messages per page | 20, 40 or 80 before "Load older messages" |
+| Reading | Show one-time codes | Whether codes are picked out and shown in the list |
 | Reading | Ask before deleting | A permanent delete always asks |
 | Reading | Signature | Appended to new messages |
 | Gestures | Swipe right | Archive, delete, read/unread, flag or nothing |
@@ -268,10 +277,11 @@ Expressive** supplies the colour, motion and shape behaviour.
   slowly. The morph is a single continuous formula, so the surface deforms
   rather than cross-fading, and it reads as "working" at any size. Pulling the
   list down drives the same morph from the drag instead of looping it.
-- **The mark.** A milk envelope on the brand orange, with the flap cut
-  *through* the envelope rather than stroked, so the background shows through
-  it. The in-app mark, the launcher icon, the splash mark and the themed
-  (monochrome) layer are one drawing at four sizes.
+- **The mark.** A postbox with its flag up and a letter at the front, in the
+  accent orange on a Milk tile. The letter's flap is cut *through* it rather
+  than stroked, and a hairline of background separates it from the box, so it
+  reads as being in front. The in-app mark, the launcher icon, the splash mark
+  and the themed (monochrome) layer are one drawing at four sizes.
 - **No init screen.** The keychain, the settings and the version are read before
   the first frame, so there is no blank screen on the way in. Opening the first
   mailbox shows a splash instead: the shape morph and a line that changes while

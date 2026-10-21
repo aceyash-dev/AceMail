@@ -8,6 +8,7 @@ import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/full_message.dart';
 import '../models/mail_folder.dart';
+import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../services/mail_errors.dart';
 import '../services/mail_service.dart';
@@ -74,9 +75,17 @@ class MailController extends ChangeNotifier {
   MailFolder? get selectedFolder => active?.selectedFolder;
   List<MessageSummary> get messages =>
       active?.messages ?? const <MessageSummary>[];
+
+  /// What the list renders: the page, filtered and sorted.
+  List<MessageSummary> get visibleMessages =>
+      active?.visibleMessages ?? const <MessageSummary>[];
+
+  MessageFilter get filter => active?.filter ?? MessageFilter.all;
+  MessageSort get sort => active?.sort ?? MessageSort.newest;
   MessageSummary? get openSummary => active?.openSummary;
   FullMessage? get openMessage => active?.openMessage;
   bool get loadingMessages => active?.loadingMessages ?? false;
+  bool get refreshing => active?.refreshing ?? false;
   bool get loadingMessage => active?.loadingMessage ?? false;
   bool get loadingMore => active?.loadingMore ?? false;
   bool get hasMore => active?.hasMore ?? false;
@@ -233,6 +242,8 @@ class MailController extends ChangeNotifier {
   Future<void> search(String query) async => active?.search(query);
 
   void clearSearch() => active?.clearSearch();
+
+  void setFilter(MessageFilter value) => active?.setFilter(value);
 
   Future<void> open(MessageSummary summary) async => active?.open(summary);
 

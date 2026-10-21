@@ -264,6 +264,30 @@ class MailService implements MailTransport {
         ),
       );
 
+  /// A bounded slice of the body. The partial fetch is a raw string on
+  /// purpose: a truncated multipart body does not parse as MIME, and the code
+  /// in a one-time-password mail is in the first few hundred bytes anyway.
+  @override
+  Future<String> fetchPreview(
+    MessageSummary summary, {
+    int bytes = MailLimits.previewBytes,
+  }) =>
+      _queue.run(
+        () => _guard(
+          () async {
+            final FetchImapResult result = await _client.uidFetchMessage(
+              summary.uid,
+              'BODY.PEEK[TEXT]<0.$bytes>',
+            );
+            if (result.messages.isEmpty) return '';
+            return result.messages.first.decodeTextPlainPart() ??
+                result.messages.first.decodeTextHtmlPart() ??
+                '';
+          },
+          fallback: 'Could not read a preview.',
+        ),
+      );
+
   // --- flags --------------------------------------------------------------
 
   @override

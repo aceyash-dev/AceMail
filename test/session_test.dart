@@ -287,6 +287,39 @@ void main() {
       expect(session.messages.first.isFlagged, isFalse);
     });
 
+    test('refreshing keeps the list on screen instead of blanking it', () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(4));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+      final int before = session.messages.length;
+      expect(before, greaterThan(0));
+
+      final Future<void> refreshing = session.refreshMessages();
+
+      // Mid-refresh the rows are still there: a refresh must not empty the
+      // list out from under whoever is reading it.
+      expect(session.messages.length, before);
+      expect(session.loadingMessages, isFalse);
+      expect(session.refreshing, isTrue);
+
+      await refreshing;
+      expect(session.refreshing, isFalse);
+      expect(session.messages.length, before);
+    });
+
+    test('switching folders does clear, because the rows belong to the old one',
+        () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(4));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+      expect(session.messages, isNotEmpty);
+
+      final Future<void> switching = session.openFolder(transport.archive);
+      expect(session.messages, isEmpty);
+      expect(session.loadingMessages, isTrue);
+      await switching;
+    });
+
     test('search narrows the list and clearing restores the folder', () async {
       final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(60));
       final MailSession session = sessionWith(transport);

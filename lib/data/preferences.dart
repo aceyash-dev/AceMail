@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../models/message_sort.dart';
 import '../models/swipe_action.dart';
 
 /// Which appearance the app follows.
@@ -82,6 +83,8 @@ class Preferences extends ChangeNotifier {
   static const String _keyPageSize = 'ace.pageSize';
   static const String _keyDensity = 'ace.listDensity';
   static const String _keyConfirmDelete = 'ace.confirmDelete';
+  static const String _keyDetectCodes = 'ace.detectCodes';
+  static const String _keyMessageSort = 'ace.messageSort';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -97,6 +100,8 @@ class Preferences extends ChangeNotifier {
     _keyPageSize,
     _keyDensity,
     _keyConfirmDelete,
+    _keyDetectCodes,
+    _keyMessageSort,
   ];
 
   final FlutterSecureStorage _storage;
@@ -114,6 +119,8 @@ class Preferences extends ChangeNotifier {
   PageSize _pageSize = PageSize.forty;
   ListDensity _density = ListDensity.comfortable;
   bool _confirmDelete = true;
+  bool _detectCodes = true;
+  MessageSort _messageSort = MessageSort.newest;
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -159,6 +166,12 @@ class Preferences extends ChangeNotifier {
   /// Whether deleting asks first.
   bool get confirmDelete => _confirmDelete;
 
+  /// Whether one-time codes are picked out of messages and shown in the list.
+  bool get detectCodes => _detectCodes;
+
+  /// The order the message list is shown in.
+  MessageSort get messageSort => _messageSort;
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -185,6 +198,9 @@ class Preferences extends ChangeNotifier {
     _pageSize = _decodeEnum(raw[_keyPageSize], PageSize.values, _pageSize);
     _density = _decodeEnum(raw[_keyDensity], ListDensity.values, _density);
     _confirmDelete = _decodeBool(raw[_keyConfirmDelete], _confirmDelete);
+    _detectCodes = _decodeBool(raw[_keyDetectCodes], _detectCodes);
+    _messageSort =
+        _decodeEnum(raw[_keyMessageSort], MessageSort.values, _messageSort);
 
     notifyListeners();
   }
@@ -227,6 +243,12 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setConfirmDelete(bool value) =>
       _write(_keyConfirmDelete, '$value', () => _confirmDelete = value);
+
+  Future<void> setDetectCodes(bool value) =>
+      _write(_keyDetectCodes, '$value', () => _detectCodes = value);
+
+  Future<void> setMessageSort(MessageSort value) =>
+      _write(_keyMessageSort, value.name, () => _messageSort = value);
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

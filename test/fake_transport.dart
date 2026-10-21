@@ -42,6 +42,9 @@ class FakeTransport implements MailTransport {
   bool disconnected = false;
   bool deletedPermanently = false;
   String? movedTo;
+
+  /// Body text a preview fetch should return, keyed by uid.
+  final Map<int, String> previews = <int, String>{};
   String? lastSearch;
   String? lastInReplyTo;
   String? lastReferences;
@@ -175,6 +178,10 @@ class FakeTransport implements MailTransport {
       flagged.remove(summary.uid);
     }
   }
+
+  @override
+  Future<String> fetchPreview(MessageSummary summary, {int bytes = 4096}) async =>
+      previews[summary.uid] ?? '';
 
   @override
   Future<void> moveMessage(MessageSummary summary, String targetPath) async {
