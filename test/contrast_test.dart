@@ -85,6 +85,33 @@ void main() {
         );
       });
 
+      test('the secondary and tertiary containers are usable too', () {
+        // These were Material's own secondary/tertiary, which for an orange
+        // seed came out green — the Close button in About was the visible
+        // symptom. They are the accent now, so they have to pass like it.
+        expect(
+          contrast(c.scheme.secondaryContainer, c.scheme.onSecondaryContainer),
+          greaterThanOrEqualTo(aa),
+        );
+        expect(
+          contrast(c.scheme.tertiaryContainer, c.scheme.onTertiaryContainer),
+          greaterThanOrEqualTo(aa),
+        );
+      });
+
+      test('the page carries the accent\u2019s hue, not just a tint of grey', () {
+        // A brown theme has to look beige, not grey.
+        final AstryxColors brown = AstryxColors.fromScheme(
+          buildAstryxScheme(brightness, accent: AceAccent.brown),
+        );
+        final AstryxColors grey = AstryxColors.fromScheme(
+          buildAstryxScheme(brightness, accent: AceAccent.indigo),
+        );
+        expect(brown.backgroundBody, isNot(grey.backgroundBody));
+        // Warm means more red than blue.
+        expect(brown.backgroundBody.r, greaterThan(brown.backgroundBody.b));
+      });
+
       test('accent text passes AA on the page', () {
         // The fill role cannot do this job: the brand orange is 2.8:1 on Milk,
         // which is why there is a separate ink for accent-coloured text.

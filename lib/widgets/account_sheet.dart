@@ -153,7 +153,7 @@ class _AccountTile extends StatelessWidget {
         horizontal: AstryxSpace.s3,
         vertical: AstryxSpace.s2,
       ),
-      leading: MailAvatar(email: email, name: email, size: 42),
+      leading: MailAvatar(email: email, name: email, size: 42, isSelf: true),
       title: email,
       subtitle: active
           ? 'Active'

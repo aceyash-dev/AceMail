@@ -20,19 +20,20 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  /// Rotating, in a period voice, because a loading line that never changes
-  /// stops being read after the first second.
+  /// Rotating, because a loading line that never changes stops being read after
+  /// the first second — and in plain, current English, because the app is not a
+  /// period drama.
   static const List<String> _lines = <String>[
-    'Summoning thy letters from yonder server…',
-    'Hark! Thy correspondence approacheth…',
-    'The post doth ride, and rides swiftly…',
-    'Gathering thy tidings anon…',
-    'Prithee, a moment — thy missives are afoot…',
-    'Lo! Thine inbox doth assemble itself…',
-    'Swift as Mercury, thy letters come…',
-    'Thy scrolls are yet in transit…',
-    'The courier tarries but a breath…',
-    'Fret not, good soul — thy mail is nigh…',
+    'Loading your mail…',
+    'Signing in to your provider…',
+    'Fetching your folders…',
+    'Opening your inbox…',
+    'Getting your messages…',
+    'Sorting things out…',
+    'Almost there…',
+    'Talking to the server…',
+    'Checking for new mail…',
+    'Bringing your inbox up…',
   ];
 
   int _index = 0;

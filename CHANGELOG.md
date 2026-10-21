@@ -3,6 +3,47 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.0+15
+
+The first 0.4. Patches follow from here until asked otherwise.
+
+### Added
+- **Raw headers**, behind a setting. The message's headers as the server sent
+  them, at the foot of the reader in a box that scrolls on its own — for the
+  Received chain, the authentication results, the unsubscribe address. Capped at
+  16 KB: a header block can be longer than the body.
+- **Choosing the account to send from.** With more than one account signed in,
+  Compose shows a From row and the message is routed to the account you picked.
+  A message sent from the wrong address is the kind of mistake you only notice
+  when the reply comes back.
+- **Your own picture**, in the account switcher and the rail, looked up even
+  when third-party lookups are off — it is your address, and you are the one
+  looking at it. Sender pictures keep the chain they had: BIMI, then Gravatar,
+  then initials.
+- The website, `ace-base.cc`, in About.
+
+### Changed
+- **The theme carries the accent's hue.** The surfaces were tinted 4.5%; they
+  are tinted 11% (16% on the muted steps), so a brown theme gives a beige page
+  rather than a grey one with brown buttons. That moved every contrast ratio, so
+  the inks are now walked along their own lightness until they are readable on
+  the surface they actually sit on — and the contrast test, which covers all ten
+  accents in both modes, is what demanded it.
+- **The tonal button belongs to the accent.** Material's expressive variant puts
+  secondary a long way from the seed: with an orange accent, `secondaryContainer`
+  came out *green*, which is why the Close button in About was green. Secondary
+  and tertiary are the accent at two strengths now.
+- **Back is a chevron, not an arrow.**
+- **The loading lines are plain, current English.** They were in a period voice —
+  "Prithee, a moment" — which is a joke that wears off in about a second, on a
+  screen you see every launch.
+
+### Not done
+- Hugeicons: the package is a `HugeIcon` widget rather than `IconData`, so every
+  icon call site changes shape and ~60 Material icons need matching by name.
+- CSS in the HTML renderer: `<style>` blocks and class rules are still ignored.
+- Long-press to select, sorting and folder work, and the gesture-navigation pass.
+
 ## 0.3.10+14
 
 ### Added

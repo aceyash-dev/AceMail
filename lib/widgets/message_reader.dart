@@ -98,6 +98,11 @@ class _MessageReaderState extends State<MessageReader> {
                     ),
                     const SizedBox(height: AstryxSpace.s2),
                     _meta(c, message),
+                    if (context.watch<Preferences>().showRawHeaders &&
+                        message.rawHeaders.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: AstryxSpace.s5),
+                      _rawHeaders(context, c, message),
+                    ],
                     if (message.attachments.isNotEmpty ||
                         message.skippedAttachments > 0) ...<Widget>[
                       const SizedBox(height: AstryxSpace.s4),
@@ -147,7 +152,7 @@ class _MessageReaderState extends State<MessageReader> {
       child: Row(
         children: <Widget>[
           AceIconButton(
-            icon: Icons.arrow_back_rounded,
+            icon: Icons.chevron_left_rounded,
             tooltip: 'Back',
             onPressed: widget.onBack,
           ),
@@ -234,6 +239,43 @@ class _MessageReaderState extends State<MessageReader> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The headers, in a box that scrolls on its own so a long Received chain
+  /// does not turn the message into a wall of text.
+  Widget _rawHeaders(BuildContext context, AstryxColors c, FullMessage message) {
+    return Container(
+      padding: const EdgeInsets.all(AstryxSpace.s3),
+      decoration: BoxDecoration(
+        color: c.backgroundMuted,
+        borderRadius: BorderRadius.circular(AstryxRadius.element),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.data_object_rounded, size: 15, color: c.iconSecondary),
+              const SizedBox(width: AstryxSpace.s2),
+              Text('Headers', style: AstryxText.label(c.textSecondary)),
+            ],
+          ),
+          const SizedBox(height: AstryxSpace.s2),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 260),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                message.rawHeaders,
+                style: AstryxText.supporting(c.textSecondary).copyWith(
+                  fontFamily: 'monospace',
+                  fontSize: AstryxType.sXs,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

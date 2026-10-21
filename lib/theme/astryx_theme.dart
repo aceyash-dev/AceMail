@@ -99,6 +99,18 @@ ColorScheme buildAstryxScheme(
   // identical. Mixing a little of the accent into every surface is what makes
   // the theme read as global — and because the mix is small, the contrast
   // ratios barely move, which is what the contrast test checks.
+  /// Walks an ink along its own lightness until it is readable on [surface].
+  /// The page moved, so the ink has to move with it.
+  Color readableOn(Color ink, Color surface, {double target = 4.5}) {
+    Color candidate = ink;
+    final Color toward = dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+    for (int step = 0; step <= 20; step++) {
+      if (contrastRatio(candidate, surface) >= target) return candidate;
+      candidate = Color.lerp(candidate, toward, 0.06)!;
+    }
+    return candidate;
+  }
+
   Color tinted(Color surface, double amount, [Color? fill]) => Color.lerp(
         surface,
         fill ?? readableAccent(accent.seed, dark: dark),
@@ -115,8 +127,11 @@ ColorScheme buildAstryxScheme(
   // measured against. A dark accent on a dark page that has been pulled towards
   // it stops reading as a shape; this walks it further until it does.
   for (int step = 0; step < 12; step++) {
-    final Color page = tinted(dark ? ink : milk, dark ? 0.07 : 0.045, primary);
-    if (contrastRatio(primary, page) >= 3.0) break;
+    final Color page = tinted(dark ? ink : milk, dark ? 0.12 : 0.11, primary);
+    final bool readsAsShape = contrastRatio(primary, page) >= 3.0;
+    final bool carriesALabel =
+        contrastRatio(primary, contrastingInk(primary)) >= 4.5;
+    if (readsAsShape && carriesALabel) break;
     primary = Color.lerp(
       primary,
       dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
@@ -125,8 +140,11 @@ ColorScheme buildAstryxScheme(
   }
 
 
-  final double tint = dark ? 0.07 : 0.045;
-  final double tintStrong = dark ? 0.10 : 0.075;
+  // Enough of the accent to actually read as a hue — a brown theme gets a beige
+  // page, not a grey one with brown buttons. Small enough that the contrast
+  // ratios barely move, which the contrast test then checks.
+  final double tint = dark ? 0.12 : 0.11;
+  final double tintStrong = dark ? 0.18 : 0.16;
 
   return ColorScheme.fromSeed(
     seedColor: accent.seed,
@@ -153,12 +171,30 @@ ColorScheme buildAstryxScheme(
 
     // The ink comes from the seed's own family, so a blue accent does not put
     // warm brown text on a blue page. Contrast is checked, not assumed.
-    onSurface: dark ? const Color(0xFFFAF3E8) : const Color(0xFF2A211B),
-    onSurfaceVariant:
-        dark ? const Color(0xFFB7A99A) : const Color(0xFF6B5D50),
+    onSurface: readableOn(
+      dark ? const Color(0xFFFAF3E8) : const Color(0xFF2A211B),
+      tinted(dark ? ink : milk, tint),
+      target: 7,
+    ),
+    onSurfaceVariant: readableOn(
+      dark ? const Color(0xFFB7A99A) : const Color(0xFF6B5D50),
+      // Measured against the muted surface, which is the darkest thing this
+      // ink is ever put on — not the page, which is lighter.
+      tinted(dark ? inkHighest : milkDeep, tintStrong),
+    ),
     // Also the disabled-ink role, so it has to be readable: 5.1:1 on Milk,
     // where the previous value was 2.5:1.
     outline: dark ? const Color(0xFF9E8F80) : const Color(0xFF7A6A5A),
+    // Material's expressive variant puts secondary and tertiary a long way from
+    // the seed — with an orange accent, secondaryContainer came out *green*,
+    // which is how the Close button ended up the wrong colour. They are the
+    // accent at two strengths instead.
+    secondaryContainer: tinted(dark ? inkRaised : milkDim, tintStrong),
+    onSecondaryContainer:
+        dark ? const Color(0xFFFFDCC2) : const Color(0xFF4A1B00),
+    tertiaryContainer: tinted(dark ? inkRaised : milkDeep, tintStrong * 1.5),
+    onTertiaryContainer:
+        dark ? const Color(0xFFFFDCC2) : const Color(0xFF3A1500),
     outlineVariant: tinted(
       dark ? const Color(0xFF4A4038) : const Color(0xFFE0D2BE),
       tintStrong,

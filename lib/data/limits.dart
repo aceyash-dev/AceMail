@@ -7,6 +7,9 @@ abstract final class MailLimits {
   /// Largest HTML body we will parse. Anything beyond is truncated.
   static const int maxHtmlBytes = 2 * 1024 * 1024;
 
+  /// How much of a message's header block is kept for the raw-headers view.
+  static const int maxHeaderBytes = 16000;
+
   /// How many bodies are fetched per page while looking for one-time codes.
   static const int codeLookups = 12;
 

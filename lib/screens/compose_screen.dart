@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +15,8 @@ import '../util/addresses.dart';
 import '../util/attach_plan.dart';
 import '../util/files.dart';
 import '../widgets/ace_form_field.dart';
+import '../widgets/avatar.dart';
+import '../widgets/settings_group.dart';
 import '../widgets/astryx_widgets.dart';
 
 class ComposeScreen extends StatefulWidget {
@@ -126,6 +130,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
     return total;
   }
 
+  /// The accounts the message could go from, and the one it will.
+  List<String> get accounts => context.read<MailController>().accountEmails;
+  String? _from;
+
+  String? get _chosenFrom =>
+      accounts.length > 1 ? (_from ?? accounts.first) : null;
+
   Future<void> _send() async {
     final String to = _to.text.trim();
     final String cc = _cc.text.trim();
@@ -163,6 +174,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
             attachments: _attachments,
             inReplyTo: widget.inReplyTo,
             references: widget.references,
+            fromEmail: _chosenFrom,
           );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -209,6 +221,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // Only when there is a choice to make.
+              if (accounts.length > 1) ...<Widget>[
+                _FromRow(
+                  accounts: accounts,
+                  selected: _from,
+                  onChanged: (String value) => setState(() => _from = value),
+                ),
+                const SizedBox(height: AstryxSpace.s3),
+              ],
               AceFormField(
                 label: 'To',
                 controller: _to,
@@ -293,4 +314,105 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
   }
 
+}
+
+/// Which account the message goes from, when there is more than one.
+class _FromRow extends StatelessWidget {
+  const _FromRow({
+    required this.accounts,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<String> accounts;
+  final String? selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    final String current = selected ?? accounts.first;
+
+    return AceSpringy(
+      onTap: () => _pick(context),
+      semanticLabel: 'Send from $current',
+      builder: (BuildContext context, double press, bool hover) {
+        final double t = press.clamp(0.0, 1.0);
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AstryxSpace.s4,
+            vertical: AstryxSpace.s3,
+          ),
+          decoration: BoxDecoration(
+            color: c.backgroundMuted,
+            borderRadius: BorderRadius.circular(
+              lerpDouble(AstryxRadius.element, AstryxRadius.container, t)!,
+            ),
+          ),
+          child: Row(
+            children: <Widget>[
+              MailAvatar(email: current, name: current, size: 26, isSelf: true),
+              const SizedBox(width: AstryxSpace.s3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('From', style: AstryxText.label(c.textSecondary)),
+                    Text(
+                      current,
+                      overflow: TextOverflow.ellipsis,
+                      style: AstryxText.body(c.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.expand_more_rounded, size: 20, color: c.iconSecondary),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pick(BuildContext context) async {
+    final String? chosen = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                0,
+                AstryxSpace.s5,
+                AstryxSpace.s3,
+              ),
+              child: Text(
+                'Send from',
+                style: AstryxText.heading3(sheetContext.astryx.textPrimary),
+              ),
+            ),
+            for (final String account in accounts)
+              SettingsRow(
+                icon: Icons.alternate_email_rounded,
+                title: account,
+                trailing: account == (selected ?? accounts.first)
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: 20,
+                        color: sheetContext.astryx.accent,
+                      )
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(account),
+              ),
+            const SizedBox(height: AstryxSpace.s3),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) onChanged(chosen);
+  }
 }

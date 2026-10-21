@@ -50,9 +50,9 @@ void main() {
       final Color surface = buildAstryxScheme(Brightness.light).surface;
       // Still Milk, but no longer the identical constant for every accent —
       // which is what made the theme feel like it only changed the buttons.
-      expect(surface.r, greaterThan(0.9));
-      expect(surface.g, greaterThan(0.9));
-      expect(surface.b, greaterThan(0.9));
+      // Still clearly a light page — the tint carries the hue, not the
+      // lightness.
+      expect(surface.computeLuminance(), greaterThan(0.7));
       expect(surface, isNot(const Color(0xFFFFFCF6)));
     });
 

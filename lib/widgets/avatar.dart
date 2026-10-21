@@ -26,11 +26,16 @@ class MailAvatar extends StatefulWidget {
     required this.email,
     required this.name,
     this.size = 40,
+    this.isSelf = false,
   });
 
   final String email;
   final String name;
   final double size;
+
+  /// Your own account. Its picture is looked up even when third-party lookups
+  /// are off: it is your address, and you are the one looking at it.
+  final bool isSelf;
 
   /// Addresses we have already failed to fetch, so a list of forty senders does
   /// not re-request forty dead URLs on every rebuild.
@@ -110,8 +115,10 @@ class _MailAvatarState extends State<MailAvatar> {
     }
 
     // Gravatar is the opt-in part: it tells a third party which addresses are
-    // in your mail.
-    if (!context.watch<Preferences>().showAvatars) return fallback;
+    // in your mail. Your own address is the exception — you already know it.
+    final bool allowed =
+        widget.isSelf || context.watch<Preferences>().showAvatars;
+    if (!allowed) return fallback;
     if (MailAvatar._missing.contains(address)) return fallback;
 
     return _clipped(

@@ -190,7 +190,7 @@ class _AccountHeader extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                MailAvatar(email: email, name: email, size: 34),
+                MailAvatar(email: email, name: email, size: 34, isSelf: true),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Column(

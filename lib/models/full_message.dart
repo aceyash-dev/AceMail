@@ -38,6 +38,7 @@ class FullMessage {
     this.skippedAttachments = 0,
     this.messageId,
     this.references,
+    this.rawHeaders = '',
   });
 
   final int uid;
@@ -57,6 +58,13 @@ class FullMessage {
 
   /// How many attachments were left out because of the size and count limits.
   final int skippedAttachments;
+
+  /// The message's headers, as the server sent them.
+  ///
+  /// For the reader who wants to see what actually arrived — the route it took,
+  /// the authentication results, the list-unsubscribe address — rather than
+  /// what the client chose to show.
+  final String rawHeaders;
 
   bool get hasHtml => htmlBody != null && htmlBody!.trim().isNotEmpty;
 
@@ -137,7 +145,30 @@ class FullMessage {
       skippedAttachments: skipped,
       messageId: message.getHeaderValue('message-id'),
       references: message.getHeaderValue('references'),
+      rawHeaders: _renderHeaders(message),
     );
+  }
+
+  /// The headers as text, in the order the server sent them.
+  ///
+  /// Capped: a message can carry a header block longer than its body, and this
+  /// is for reading, not for archiving.
+  static String _renderHeaders(MimeMessage message) {
+    final List<Header>? headers = message.headers;
+    if (headers == null || headers.isEmpty) return '';
+
+    final StringBuffer out = StringBuffer();
+    for (final Header header in headers) {
+      if (out.length > MailLimits.maxHeaderBytes) {
+        out.write('… (truncated)');
+        break;
+      }
+      out.write(header.name);
+      out.write(': ');
+      out.write(header.value);
+      out.write('\n');
+    }
+    return out.toString();
   }
 
   /// Truncate a body that is absurdly large rather than parse all of it.

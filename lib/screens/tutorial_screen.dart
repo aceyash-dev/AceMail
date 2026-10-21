@@ -228,7 +228,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       if (_index > 0)
                         AceButton(
                           label: 'Back',
-                          icon: Icons.arrow_back_rounded,
+                          icon: Icons.chevron_left_rounded,
                           onPressed: _back,
                         )
                       else

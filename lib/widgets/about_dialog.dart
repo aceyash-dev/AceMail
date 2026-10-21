@@ -31,6 +31,7 @@ class _AboutSheet extends StatelessWidget {
   /// Where to find the people who made this.
   static final Uri _github = Uri.parse('https://github.com/tab-gl');
   static final Uri _instagram = Uri.parse('https://instagram.com/tab.gl');
+  static final Uri _website = Uri.parse('https://ace-base.cc');
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +90,12 @@ class _AboutSheet extends StatelessWidget {
             const SizedBox(height: AstryxSpace.s6),
             Text('Find us', style: AstryxText.label(c.textSecondary)),
             const SizedBox(height: AstryxSpace.s2),
+            _Handle(
+              icon: Icons.public_rounded,
+              platform: 'Website',
+              handle: 'ace-base.cc',
+              onTap: () => _open(sheetContext, _website),
+            ),
             _Handle(
               icon: Icons.code_rounded,
               platform: 'GitHub',

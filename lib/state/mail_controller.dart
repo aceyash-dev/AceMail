@@ -63,6 +63,25 @@ class MailController extends ChangeNotifier {
   bool connecting = false;
 
   List<MailSession> get sessions => List<MailSession>.unmodifiable(_sessions);
+
+  /// The address each signed-in account sends from, in rail order.
+  List<String> get accountEmails =>
+      <String>[for (final MailSession s in _sessions) s.account.email];
+
+  /// The account a message should go out from.
+  ///
+  /// [fromEmail] picks one of the signed-in accounts; without it, the one in
+  /// front. A message sent from the wrong address is the kind of mistake you
+  /// only notice when the reply comes back, so the choice is explicit.
+  MailSession? _sessionFor(String? fromEmail) {
+    if (fromEmail == null || fromEmail.isEmpty) return active;
+    for (final MailSession session in _sessions) {
+      if (session.account.email.toLowerCase() == fromEmail.toLowerCase()) {
+        return session;
+      }
+    }
+    return active;
+  }
   int get activeIndex => _activeIndex;
   MailSession? get active =>
       _sessions.isEmpty ? null : _sessions[_activeIndex];
@@ -276,8 +295,9 @@ class MailController extends ChangeNotifier {
     List<File> attachments = const <File>[],
     String? inReplyTo,
     String? references,
+    String? fromEmail,
   }) async {
-    final MailSession? session = active;
+    final MailSession? session = _sessionFor(fromEmail);
     if (session == null) throw const MailConnectionException('Not signed in.');
     await session.send(
       to: to,

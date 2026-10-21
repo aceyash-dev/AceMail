@@ -152,7 +152,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
           titleSpacing: AstryxSpace.s4,
           leading: _searching
               ? AceIconButton(
-                  icon: Icons.arrow_back_rounded,
+                  icon: Icons.chevron_left_rounded,
                   tooltip: 'Close search',
                   onPressed: _exitSearch,
                 )

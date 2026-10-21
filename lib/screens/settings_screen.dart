@@ -112,6 +112,14 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
                 SettingsSwitchRow(
+                  icon: Icons.data_object_rounded,
+                  title: 'Show raw headers',
+                  subtitle: 'Show the message headers as the server sent them, '
+                      'at the foot of the message.',
+                  value: prefs.showRawHeaders,
+                  onChanged: prefs.setShowRawHeaders,
+                ),
+                SettingsSwitchRow(
                   icon: Icons.image_outlined,
                   title: 'Load images in messages',
                   subtitle: 'Off by default: fetching an image tells the '
