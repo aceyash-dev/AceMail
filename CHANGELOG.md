@@ -61,6 +61,13 @@ after the `+` is the Android version code.
 ### Changed
 - **"Unread counts on folders" hides the badges.** It only ever changed its own
   state; the rail now reads it where the badges are drawn.
+- **Dependencies brought up to date.** `flutter_lints` 4 → 6,
+  `package_info_plus` 8 → 9 and `flutter_secure_storage` 9 → 10, each merged on
+  its own and checked by CI. The two runtime majors were read against how the
+  app actually uses them — `PackageInfo.fromPlatform()`, and `read` / `write` /
+  `delete` — which is all unchanged. The secure-storage bump is the one worth
+  watching on a real device: an upgrade has to keep reading the credentials the
+  previous version wrote.
 - **Release notes are generated, and fold open.** The release body is built from
   this changelog at release time rather than typed into the workflow, so it
   cannot drift from what the app shows. It opens with an overview and keeps each
