@@ -16,7 +16,13 @@ void main() {
     for (final FileSystemEntity entity
         in Directory('lib').listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      final String source = entity.readAsStringSync();
+      // Comments are stripped first, so the rule can be written down next to
+      // the code it governs without tripping this test.
+      final String source = entity
+          .readAsStringSync()
+          .split('\n')
+          .where((String line) => !line.trimLeft().startsWith('//'))
+          .join('\n');
       for (final String needle in <String>[
         'badCertificateCallback',
         'onBadCertificate',

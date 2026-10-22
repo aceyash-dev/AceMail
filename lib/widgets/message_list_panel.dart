@@ -532,14 +532,6 @@ class MessageTile extends StatelessWidget {
             scale: 1 - 0.02 * press,
             child: Container(
               margin: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
-              padding: EdgeInsets.fromLTRB(
-                // The mark's width is always reserved, so an unread row and a
-                // read one line up with each other.
-                AstryxSpace.s3,
-                density.verticalPadding,
-                AstryxSpace.s3,
-                density.verticalPadding,
-              ),
               decoration: BoxDecoration(
                 // A card, not a bare row: a surface of its own, a corner, and a
                 // little air around it. Rows on a flat page run together and
@@ -548,114 +540,145 @@ class MessageTile extends StatelessWidget {
                     ? c.accentMuted
                     : (hover ? c.surfaceHighest : c.backgroundCard),
                 borderRadius: shape,
-                border: Border(
-                  // Unread, as a strip down the edge. It is the one thing worth
-                  // seeing at a glance, and it says it without spending a line
-                  // of text or a dot in the corner.
-                  left: BorderSide(
-                    color: unread ? c.accent : Colors.transparent,
-                    width: _markWidth,
-                  ),
-                  top: BorderSide(color: c.border.withValues(alpha: 0.5)),
-                  right: BorderSide(color: c.border.withValues(alpha: 0.5)),
-                  bottom: BorderSide(color: c.border.withValues(alpha: 0.5)),
-                ),
+                // Uniform, because a rounded border in Flutter has to be: a
+                // different colour per side is refused when it is painted. The
+                // unread mark is drawn over the edge instead of into it.
+                border: Border.all(color: c.border.withValues(alpha: 0.5)),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // In selection mode the picture becomes the tick, so the
-                  // gesture that started it is visible where it happened.
-                  if (selecting)
+              child: ClipRRect(
+                // So the mark below follows the card's corner rather than
+                // squaring it off.
+                borderRadius: shape,
+                child: Stack(
+                  children: <Widget>[
                     Padding(
-                      padding: const EdgeInsets.only(right: AstryxSpace.s2),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 160),
-                        child: picked
-                            ? HugeIcon(
-                                key: const ValueKey<String>('on'),
-                                icon: AceIcons.checkCircle,
-                                size: density.avatarSize,
-                                color: c.accent,
-                              )
-                            : SizedBox(
-                                key: const ValueKey<String>('off'),
-                                width: density.avatarSize,
-                                height: density.avatarSize,
-                                child: Center(
-                                  child: Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: c.border,
-                                        width: 1.5,
+                      padding: EdgeInsets.fromLTRB(
+                        AstryxSpace.s3,
+                        density.verticalPadding,
+                        AstryxSpace.s3,
+                        density.verticalPadding,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          // In selection mode the picture becomes the tick, so
+                          // the gesture that started it is visible where it
+                          // happened.
+                          if (selecting)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(right: AstryxSpace.s2),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 160),
+                                child: picked
+                                    ? HugeIcon(
+                                        key: const ValueKey<String>('on'),
+                                        icon: AceIcons.checkCircle,
+                                        size: density.avatarSize,
+                                        color: c.accent,
+                                      )
+                                    : SizedBox(
+                                        key: const ValueKey<String>('off'),
+                                        width: density.avatarSize,
+                                        height: density.avatarSize,
+                                        child: Center(
+                                          child: Container(
+                                            width: 20,
+                                            height: 20,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: c.border,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            )
+                          else
+                            MailAvatar(
+                              email: summary.fromEmail,
+                              name: summary.fromName,
+                              size: density.avatarSize,
+                            ),
+                          const SizedBox(width: AstryxSpace.s3),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                // Who and when, on one line: the two things a
+                                // list is scanned for. The star sits with the
+                                // date rather than in front of the subject, so
+                                // the subject keeps the whole width it needs.
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: Text(
+                                        summary.fromName,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: unread
+                                            ? AstryxText.bodyStrong(c.textPrimary)
+                                            : AstryxText.body(c.textSecondary),
                                       ),
                                     ),
-                                  ),
+                                    if (summary.isFlagged) ...<Widget>[
+                                      const SizedBox(width: AstryxSpace.s1_5),
+                                      AceIconView(
+                                        icon: AceIcons.star,
+                                        size: 14,
+                                        color: c.tertiary,
+                                      ),
+                                    ],
+                                    const SizedBox(width: AstryxSpace.s2),
+                                    Text(
+                                      formatListDate(summary.date),
+                                      style: AstryxText.supporting(
+                                        c.textSecondary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                      ),
-                    )
-                  else
-                    MailAvatar(
-                      email: summary.fromEmail,
-                      name: summary.fromName,
-                      size: density.avatarSize,
-                    ),
-                  const SizedBox(width: AstryxSpace.s3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        // Who and when, on one line: the two things a list is
-                        // scanned for. The star sits with the date rather than
-                        // in front of the subject, so the subject keeps the
-                        // whole width it needs.
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                summary.fromName,
-                                overflow: TextOverflow.ellipsis,
-                                style: unread
-                                    ? AstryxText.bodyStrong(c.textPrimary)
-                                    : AstryxText.body(c.textSecondary),
-                              ),
+                                const SizedBox(height: AstryxSpace.s0_5),
+                                Text(
+                                  summary.subject,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: unread
+                                      ? AstryxText.body(c.textPrimary)
+                                      : AstryxText.body(c.textSecondary),
+                                ),
+                                if (summary.otp != null) ...<Widget>[
+                                  const SizedBox(height: AstryxSpace.s1_5),
+                                  _OtpChip(code: summary.otp!),
+                                ],
+                              ],
                             ),
-                            if (summary.isFlagged) ...<Widget>[
-                              const SizedBox(width: AstryxSpace.s1_5),
-                              AceIconView(
-                                icon: AceIcons.star,
-                                size: 14,
-                                color: c.tertiary,
-                              ),
-                            ],
-                            const SizedBox(width: AstryxSpace.s2),
-                            Text(
-                              formatListDate(summary.date),
-                              style: AstryxText.supporting(c.textSecondary),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AstryxSpace.s0_5),
-                        Text(
-                          summary.subject,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: unread
-                              ? AstryxText.body(c.textPrimary)
-                              : AstryxText.body(c.textSecondary),
-                        ),
-                        if (summary.otp != null) ...<Widget>[
-                          const SizedBox(height: AstryxSpace.s1_5),
-                          _OtpChip(code: summary.otp!),
+                          ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    if (unread)
+                      // Unread, as a strip down the edge. It is the one thing
+                      // worth seeing at a glance, and it says it without
+                      // spending a line of text or a dot in the corner. Drawn
+                      // over the card rather than beside the content, so an
+                      // unread row and a read one are laid out identically.
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: AnimatedContainer(
+                          duration: AstryxMotion.of(
+                            const Duration(milliseconds: 180),
+                          ),
+                          width: _markWidth,
+                          color: c.accent,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           );

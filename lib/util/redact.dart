@@ -39,8 +39,10 @@ abstract final class Redact {
   /// logging message contents in the first place.
   static String safe(Object? value) {
     String text = '$value'.replaceAll(_whitespace, ' ').trim();
-    text = text.replaceAll(_authCommand, r'$1 <redacted>');
-    text = text.replaceAll(_namedSecret, r'$1=<redacted>');
+    // replaceAllMapped, not replaceAll: a plain replacement string does not
+    // expand `$1`, it prints it.
+    text = text.replaceAllMapped(_authCommand, (Match m) => '${m[1]} <redacted>');
+    text = text.replaceAllMapped(_namedSecret, (Match m) => '${m[1]}=<redacted>');
     if (text.length > maxLength) {
       text = '${text.substring(0, maxLength)}…';
     }

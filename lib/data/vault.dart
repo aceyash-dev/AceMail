@@ -193,8 +193,12 @@ class AceVault {
 
   /// The versions this vault can still read, oldest first. For a caller that
   /// wants to re-seal old records under the current key.
+  ///
+  /// Deliberately does **not** mint a key when there is none: this is a
+  /// question, and asking it must not change the answer.
   Future<List<int>> readableVersions() async {
-    final int current = await currentVersion();
+    final int? current = int.tryParse(await _keys.read(_currentKey) ?? '');
+    if (current == null) return <int>[];
     final List<int> found = <int>[];
     for (int version = 1; version <= current; version++) {
       if (await _keys.read(_keyName(version)) != null) found.add(version);
