@@ -18,6 +18,7 @@ jobs:
   build:
     name: Analyze, test, build APK
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -87,36 +88,73 @@ jobs:
 
       # arm only: x86/x86_64 are emulator and ChromeOS images, and shipping
       # them just inflates the download. Flutter picks the ABIs, not Gradle.
+      #
+      # Validation and publishing are kept apart: a pull request builds the
+      # debug APK, and only a run that can publish builds — and signs — the
+      # release one.
       - name: Build release APK
+        if: github.event_name != 'pull_request'
         run: flutter build apk --release --target-platform android-arm,android-arm64
 
+      - name: Build debug APK for a pull request
+        if: github.event_name == 'pull_request'
+        run: flutter build apk --debug --target-platform android-arm,android-arm64
+
+      # Fail closed. A publishing run must *prove* the APK carries the expected
+      # release key: a missing fingerprint secret, or an APK whose certificate
+      # cannot be read, is a failure — not a check quietly skipped.
       - name: Verify the signer
+        if: github.event_name != 'pull_request'
         env:
           EXPECTED: ${{ secrets.ANDROID_KEY_SHA256 }}
         run: |
+          PUBLISHING="no"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            PUBLISHING="yes"
+          fi
+
           APK=build/app/outputs/flutter-apk/app-release.apk
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$BT/apksigner" verify --print-certs "$APK" | grep -E "certificate DN|SHA-256" || true
 
+          # Normalised: a fingerprint is the same bytes however it is written.
           ACTUAL=$("$BT/apksigner" verify --print-certs "$APK" \
-            | grep -m1 "SHA-256 digest" | awk '{print $NF}')
+            | grep -m1 "SHA-256 digest" | awk '{print $NF}' \
+            | tr -d ':' | tr 'A-Z' 'a-z')
+          EXPECTED_NORM=$(echo "$EXPECTED" | tr -d ':' | tr 'A-Z' 'a-z')
           echo "signer sha256: $ACTUAL"
-          if [ -n "$EXPECTED" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
+
+          if [ -z "$ACTUAL" ]; then
+            echo "::error::Could not read the APK's signing certificate."
+            exit 1
+          fi
+
+          if [ "$PUBLISHING" = "yes" ] && [ -z "$EXPECTED_NORM" ]; then
+            echo "::error::ANDROID_KEY_SHA256 is not set; refusing to publish a build whose signer cannot be checked."
+            exit 1
+          fi
+
+          if [ -n "$EXPECTED_NORM" ] && [ "$ACTUAL" != "$EXPECTED_NORM" ]; then
             echo "::error::The APK is not signed with the expected release key."
             exit 1
           fi
 
       - name: Upload APK artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: ace-mail-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
-  # The README claims four desktop platforms; this is the one that can actually
-  # be built on a hosted runner, so it is the one that is checked. iOS and macOS
-  # need macOS runners and Windows needs a Windows runner — neither is claimed
-  # here, and the README says so.
+      - name: Upload the debug APK
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-mail-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
   release:
     name: Publish the APK
     needs: build
@@ -125,17 +163,50 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The notes are read from the changelog in the repo, so this job needs the
+      # repo, not just the artifact.
+      - uses: actions/checkout@v4
+
       - name: Download the APK
         uses: actions/download-artifact@v4
         with:
           name: ace-mail-apk
           path: apk
 
-      - name: Attach APK to a release
+      # The body is generated from CHANGELOG.md at release time, so it cannot
+      # drift from the changelog the app itself shows. The self-test runs first:
+      # a broken generator fails the release rather than publishing notes that
+      # are wrong.
+      - name: Write the release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python3 tool/release_notes.py --self-test
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1)
+          python3 tool/release_notes.py \
+            --match "${GITHUB_REF_NAME#v}" \
+            --title "$GITHUB_REF_NAME" \
+            --version "$VERSION" > release-notes.md
+          echo "--- release notes ---"
+          cat release-notes.md
+
+      # A version tag is a real release; the rolling `apk-latest` tag is a
+      # pre-release that the next build replaces.
+      - name: Publish a versioned release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'apk-latest' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'Latest APK' }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: apk/app-release.apk
+          prerelease: false
+
+      - name: Publish the rolling APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Latest APK
           body: |
             Release APK built automatically from `${{ github.sha }}`.
           files: apk/app-release.apk
