@@ -3,6 +3,18 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.5.0+28
+
+### Fixed
+- **No assets were bundled at all.** The pubspec declared fonts but had no
+  `assets:` block, so the in-app mark, the provider logos and the changelog
+  never reached the app. Flutter bundles only what is declared, and a missing
+  asset is a runtime exception rather than a build error — which is why it got
+  as far as a release.
+- A test now reads the pubspec and every `assets/...` path in `lib/`, and fails
+  if one is used but not declared, or declared but missing. That is the test
+  that should have existed before the first asset did.
+
 ## 0.5.0+27
 
 ### Added
