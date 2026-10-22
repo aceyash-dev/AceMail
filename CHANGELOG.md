@@ -3,6 +3,40 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.8+25
+
+### Why it felt laggy
+Two causes, both found by reading rather than guessing:
+
+- **One folder load rebuilt the list a dozen times.** Code detection applied
+  each code and notified after every one, so a page of twelve messages meant
+  twelve full rebuilds of the whole list. It notifies once per pass now.
+- **Every row decoded a full-size avatar.** A 200px Gravatar in a 40px row is
+  four times the pixels for none of the detail, on every row, while scrolling.
+  Images are decoded at the size they are drawn.
+
+### Changed
+- **Rows are cards.** A surface of their own, a corner, and air around them.
+  Bare rows on a flat page run together and each one is harder to pick out than
+  the last.
+- **Swipes arm sooner.** The threshold was a quarter of the row's width; it is
+  under a fifth now, and the reveal follows the finger more closely.
+- **The switch is Material 3 Expressive's**: a tick when it is on, a cross when
+  it is off. Position is a thing you read; a tick is a thing you recognise.
+- **OLED moved in with the theme**, where the dark theme is chosen.
+- **The empty state waits.** A folder still being fetched shows the skeleton
+  rather than "this folder is empty" — saying a folder is empty before it has
+  been read is the app telling a story it does not know the end of.
+
+### Added
+- **A new icon**, built from the envelope artwork: the adaptive foreground, the
+  square and round tiles, the in-app mark and the notification icon are all the
+  same drawing now. The notification icon is the art flattened to one colour,
+  because Android tints it and anything with colour in it comes out as a blob.
+
+### Removed
+- **Linux.** The desktop runner and its CI job are gone with it.
+
 ## 0.4.7+24
 
 ### Removed

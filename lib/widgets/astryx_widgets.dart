@@ -670,12 +670,13 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    // The launcher's own foreground, so the mark in the app and the mark on the
+    // home screen are the same drawing rather than two that resemble each other.
+    return Image.asset(
+      'assets/brand/mark.png',
       width: size,
       height: size,
-      // The brand, not the accent: this is the mark that is on the launcher and
-      // the splash, and it should look the same wherever it appears.
-      child: const CustomPaint(painter: _BrandMarkPainter()),
+      filterQuality: FilterQuality.medium,
     );
   }
 }
@@ -781,48 +782,78 @@ class _AvatarTile extends CustomPainter {
   bool shouldRepaint(covariant _AvatarTile old) => old.color != color;
 }
 
-class _BrandMarkPainter extends CustomPainter {
-  const _BrandMarkPainter();
 
-  /// The envelope, with the flap removed. Shared with the vector drawables by
-  /// using the same numbers.
-  static Path envelopePath(double unit) {
-    final Path body = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(28 * unit, 37 * unit, 52 * unit, 34 * unit),
-          Radius.circular(6 * unit),
+/// A switch in the shape Material 3 Expressive gives it: a pill, and a thumb
+/// that carries a tick when it is on and a cross when it is off.
+///
+/// The mark is the point. A switch's position says which way it is set, but
+/// position is a thing you have to read; a tick is a thing you recognise. It
+/// also means the state survives being glanced at rather than looked at.
+class AceSwitch extends StatelessWidget {
+  const AceSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    final bool enabled = onChanged != null;
+
+    const double trackWidth = 52;
+    const double trackHeight = 32;
+    const double inset = 4;
+
+    return Semantics(
+      toggled: value,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? () => onChanged!(!value) : null,
+        child: AnimatedContainer(
+          duration: AstryxMotion.of(const Duration(milliseconds: 220)),
+          curve: AstryxMotion.standard,
+          width: trackWidth,
+          height: trackHeight,
+          decoration: BoxDecoration(
+            color: value
+                ? (enabled ? c.accent : c.accent.withValues(alpha: 0.4))
+                : c.surfaceHighest,
+            borderRadius: BorderRadius.circular(trackHeight / 2),
+            border: Border.all(
+              color: value ? Colors.transparent : c.border,
+            ),
+          ),
+          child: AnimatedAlign(
+            duration: AstryxMotion.of(const Duration(milliseconds: 220)),
+            curve: AstryxMotion.standard,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: inset),
+              child: AnimatedContainer(
+                duration: AstryxMotion.of(const Duration(milliseconds: 220)),
+                curve: AstryxMotion.standard,
+                width: trackHeight - inset * 2,
+                height: trackHeight - inset * 2,
+                decoration: BoxDecoration(
+                  color: value ? c.onAccent : c.backgroundCard,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: AceIconView(
+                    icon: value ? AceIcons.check : AceIcons.close,
+                    size: 15,
+                    color: value ? c.accent : c.iconSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-      );
-    // The flap is a chevron band: the outer triangle minus the inner one. The
-    // vector drawable expresses the same thing as three subpaths with evenOdd.
-    final Path outer = Path()
-      ..moveTo(28 * unit, 37 * unit)
-      ..lineTo(54 * unit, 58 * unit)
-      ..lineTo(80 * unit, 37 * unit)
-      ..close();
-    final Path inner = Path()
-      ..moveTo(33 * unit, 37 * unit)
-      ..lineTo(54 * unit, 53 * unit)
-      ..lineTo(75 * unit, 37 * unit)
-      ..close();
-    final Path band = Path.combine(PathOperation.difference, outer, inner);
-    return Path.combine(PathOperation.difference, body, band);
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double unit = size.width / 108.0;
-    canvas.drawPath(
-      AstryxShape.squircle(Offset.zero & size),
-      Paint()..color = AstryxBrand.orange,
-    );
-    canvas.drawPath(
-      envelopePath(unit),
-      Paint()..color = AstryxBrand.milk,
+      ),
     );
   }
-
-  @override
-  bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) => false;
 }

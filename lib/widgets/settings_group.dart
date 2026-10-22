@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart' show CupertinoSwitch;
 import 'package:flutter/material.dart';
 
 import '../theme/ace_icons.dart';
@@ -192,11 +191,9 @@ class SettingsSwitchRow extends StatelessWidget {
                 // know: the shape and the travel are the same everywhere they
                 // have seen it, and it reads as a setting rather than a
                 // Material control.
-                CupertinoSwitch(
-                  value: value,
-                  onChanged: onChanged,
-                  activeTrackColor: c.accent,
-                ),
+                // Material 3 Expressive's switch: a tick when it is on, a
+                // cross when it is off.
+                AceSwitch(value: value, onChanged: onChanged),
               ],
             ),
           ),

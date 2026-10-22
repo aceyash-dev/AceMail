@@ -123,6 +123,10 @@ class _MailAvatarState extends State<MailAvatar> {
 
     return _clipped(
       Image.network(
+        // Decoded at the size it is drawn, not at whatever the server sent. A
+        // 200px avatar in a 40px row is four times the pixels for none of the
+        // detail, on every row of a scrolling list.
+        cacheWidth: (widget.size * MediaQuery.devicePixelRatioOf(context)).round(),
         MailAvatar.gravatarUrl(address, size: (widget.size * 3).round()),
         width: widget.size,
         height: widget.size,

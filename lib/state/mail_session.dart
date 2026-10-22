@@ -304,6 +304,7 @@ class MailSession extends ChangeNotifier {
 
     final int token = _folderToken;
     _detecting = true;
+    bool touched = false;
     try {
       final List<MessageSummary> candidates = messages
           .where((MessageSummary m) =>
@@ -323,12 +324,18 @@ class MailSession extends ChangeNotifier {
         if (_bodyCodes.length > 400) _bodyCodes.clear();
         _bodyCodes[summary.uid] = code;
 
-        if (code != null && token == _folderToken) _applyCode(summary.uid, code);
+        if (code != null && token == _folderToken) {
+          _applyCodeQuietly(summary.uid, code);
+          touched = true;
+        }
       }
     } catch (_) {
       // Never let a convenience break the list.
     } finally {
       _detecting = false;
+      // One rebuild for the whole pass. Notifying per code found meant a folder
+      // load could rebuild the list a dozen times, one per message.
+      if (touched && token == _folderToken) _notify();
     }
   }
 
@@ -340,12 +347,16 @@ class MailSession extends ChangeNotifier {
     _pageCache[folder.path] = List<MessageSummary>.of(messages);
   }
 
-  void _applyCode(int uid, String code) {
+  /// Applies a code without notifying.
+  ///
+  /// The caller notifies once when the pass is done. Notifying per message made
+  /// a folder load rebuild the whole list up to a dozen times — one rebuild per
+  /// code found — which is exactly the kind of thing that reads as lag.
+  void _applyCodeQuietly(int uid, String code) {
     final int index = messages.indexWhere((MessageSummary m) => m.uid == uid);
     if (index == -1 || messages[index].otp == code) return;
     messages[index] = messages[index].copyWith(otp: code);
     _rememberPage();
-    _notify();
   }
 
   Future<void> loadMore() async {

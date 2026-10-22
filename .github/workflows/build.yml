@@ -117,41 +117,6 @@ jobs:
   # be built on a hosted runner, so it is the one that is checked. iOS and macOS
   # need macOS runners and Windows needs a Windows runner — neither is claimed
   # here, and the README says so.
-  desktop:
-    name: Linux desktop build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install the Linux desktop toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Linux desktop
-        run: flutter build linux --release
-
-      - name: Upload the Linux bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: ace-mail-linux
-          path: build/linux/x64/release/bundle
-          if-no-files-found: error
-
-  # Publishing is its own job, so the only step that can write to the repository
-  # is one that never runs on a pull request.
   release:
     name: Publish the APK
     needs: build

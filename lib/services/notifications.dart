@@ -32,7 +32,10 @@ abstract final class AceNotifications {
     try {
       await _plugin.initialize(
         settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: // The app's own mark, flattened to one colour. Android tints a
+          // notification icon, so anything with colour in it comes out as a
+          // blob; this is the envelope as a silhouette.
+          AndroidInitializationSettings('@drawable/ic_notification'),
         ),
       );
       _ready = true;

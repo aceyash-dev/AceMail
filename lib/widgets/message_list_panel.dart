@@ -133,6 +133,12 @@ class MessageListPanel extends StatelessWidget {
     }
 
     if (rows.isEmpty) {
+      // Still fetching: the skeleton, not "this folder is empty". Saying a
+      // folder is empty before it has been read is the app telling a story it
+      // does not know the end of.
+      if (controller.loadingMessages) {
+        return <Widget>[const MessageListSkeleton()];
+      }
       return <Widget>[
         SliverFillRemaining(
           hasScrollBody: false,
@@ -472,15 +478,18 @@ class MessageTile extends StatelessWidget {
                 vertical: density.verticalPadding,
               ),
               decoration: BoxDecoration(
+                // A card, not a bare row: a surface of its own, a corner, and a
+                // little air around it. Rows on a flat page run together and
+                // each one is harder to pick out than the last.
                 color: picked
                     ? c.accentMuted
                     : (selected
                         ? c.accentMuted
-                        : (hover ? c.surfaceHighest : Colors.transparent)),
+                        : (hover ? c.surfaceHighest : c.backgroundCard)),
                 borderRadius: shape,
                 border: picked
                     ? Border.all(color: c.accent, width: 1.5)
-                    : null,
+                    : Border.all(color: c.border.withValues(alpha: 0.5)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

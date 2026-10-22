@@ -121,7 +121,7 @@ class _AceSwipeTileState extends State<AceSwipeTile>
     final double value = _slide.value;
     final SwipeAction action = value > 0 ? widget.start : widget.end;
 
-    if (action != SwipeAction.none && value.abs() >= _width * 0.26) {
+    if (action != SwipeAction.none && value.abs() >= _width * 0.18) {
       // Felt as the line is crossed, so the swipe says it is armed before it
       // is released. Once per gesture, not per frame.
       if (!_felt) {
@@ -157,7 +157,7 @@ class _AceSwipeTileState extends State<AceSwipeTile>
               final SwipeAction action =
                   fromLeft ? widget.start : widget.end;
               final double reveal =
-                  (dx.abs() / (_width * 0.3)).clamp(0.0, 1.0);
+                  (dx.abs() / (_width * 0.22)).clamp(0.0, 1.0);
 
               return Stack(
                 children: <Widget>[

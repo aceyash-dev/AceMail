@@ -221,9 +221,9 @@ class SettingsScreen extends StatelessWidget {
                 SettingsSwitchRow(
                   icon: AceIcons.brightness,
                   title: 'True black (OLED)',
-                  subtitle: 'The dark theme goes to #000000. A pixel that is '
-                      'off draws no power, and on an OLED panel the difference '
-                      'is visible at the edges.',
+                  subtitle: 'The dark theme goes to #000000. A pixel that is off '
+                      'draws no power, and on an OLED panel the difference is '
+                      'visible at the edges.',
                   value: prefs.oled,
                   onChanged: prefs.setOled,
                 ),
@@ -232,7 +232,9 @@ class SettingsScreen extends StatelessWidget {
                   title: 'Theme',
                   value: prefs.themeMode.label,
                   onTap: () async {
-                    final AceThemeMode? chosen = await showChoiceSheet<AceThemeMode>(
+                    // OLED is a property of the dark theme, so it belongs in the sheet where
+    // the dark theme is chosen rather than on the list beside it.
+    final AceThemeMode? chosen = await showChoiceSheet<AceThemeMode>(
                       context,
                       title: 'Theme',
                       current: prefs.themeMode,
