@@ -12,6 +12,7 @@ import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../util/addresses.dart';
+import '../util/removal.dart';
 import 'backoff.dart';
 import 'mail_errors.dart';
 import 'mail_transport.dart';
@@ -71,8 +72,14 @@ class MailService implements MailTransport {
       _queue.run(() => _connectRaw(password));
 
   Future<List<MailFolder>> _connectRaw(String password) async {
+    // `isLogEnabled: false` is not a debug convenience: the protocol log is the
+    // `LOGIN` command in full, password included. It stays off in every build.
     final ImapClient client = ImapClient(isLogEnabled: false);
     try {
+      // `isSecure: true`, always, with the library's own certificate
+      // validation. There is no `badCertificateCallback` anywhere in this app
+      // and a test fails the build if one appears — see
+      // test/transport_security_test.dart.
       await client.connectToServer(
         account.imapHost,
         account.imapPort,
@@ -245,21 +252,18 @@ class MailService implements MailTransport {
     ).toString();
   }
 
-  /// Whether an expunge can be trusted not to take messages it was not asked
-  /// to.
+  /// Whether this server can remove one message without risking others.
   ///
-  /// With UIDPLUS the server expunges exactly the UIDs given, so it is always
-  /// safe. Without it the only expunge is mailbox-wide, which removes
-  /// everything carrying `\Deleted` — so it is safe only when the mailbox holds
-  /// no deletions but ours. Pure, so the rule can be asserted without a server.
-  static bool expungeIsSafe({
-    required bool supportsUidPlus,
-    required Set<int> deletedUids,
-    required Set<int> ourUids,
-  }) {
-    if (supportsUidPlus) return true;
-    return deletedUids.difference(ourUids).isEmpty;
-  }
+  /// UIDPLUS is the whole answer. `UID EXPUNGE` (RFC 2359) removes exactly the
+  /// UIDs it is given. A server without it offers only the mailbox-wide
+  /// `EXPUNGE`, which removes *every* message carrying `\Deleted` — including
+  /// ones another client flagged and has not finished with.
+  ///
+  /// Checking the mailbox first narrows that window but cannot close it:
+  /// another client can flag a message between the check and the expunge. So
+  /// the policy is to refuse and say why, rather than to guess. Pure, so the
+  /// rule can be asserted without a server.
+  static bool removalIsSafe({required bool supportsUidPlus}) => supportsUidPlus;
 
   /// `BODY.PEEK[]` so reading a message does not set `\Seen` as a side effect.
   /// The flag is set deliberately afterwards, which keeps local and server
@@ -361,8 +365,15 @@ class MailService implements MailTransport {
           () async {
             final MessageSequence sequence =
                 MessageSequence.fromId(summary.uid, isUid: true);
-            await _copyTo(sequence, targetPath);
-            await _deleteAndExpunge(sequence);
+            // The refusal comes first, before the copy. It used to come after,
+            // so a move this server cannot complete left a copy in the target
+            // folder and told the user nothing had happened.
+            await removeMessage(
+              canRemoveSafely: _canRemoveSafely,
+              refusal: _removalRefusal,
+              copy: () => _copyTo(sequence, targetPath),
+              flagAndExpunge: () => _deleteAndExpunge(sequence),
+            );
           },
           fallback: 'Could not move the message, so it was left where it was.',
         ),
@@ -385,17 +396,23 @@ class MailService implements MailTransport {
             final MessageSequence sequence =
                 MessageSequence.fromId(summary.uid, isUid: true);
 
-            if (!permanently) {
-              if (trashPath == null) {
-                throw const MailRejectedException(
-                  'This account has no Trash folder, so the message was not '
-                  'deleted.',
-                );
-              }
-              await _copyTo(sequence, trashPath);
+            if (!permanently && trashPath == null) {
+              // Before anything is touched, and before the copy below.
+              throw const MailRejectedException(
+                'This account has no Trash folder, so the message was not '
+                'deleted.',
+              );
             }
 
-            await _deleteAndExpunge(sequence);
+            await removeMessage(
+              canRemoveSafely: _canRemoveSafely,
+              refusal: _removalRefusal,
+              // A permanent delete has nothing to copy; a move to Trash does.
+              copy: permanently
+                  ? () async {}
+                  : () => _copyTo(sequence, trashPath!),
+              flagAndExpunge: () => _deleteAndExpunge(sequence),
+            );
           },
           fallback: 'The message could not be removed.',
         ),
@@ -412,50 +429,24 @@ class MailService implements MailTransport {
     }
   }
 
-  /// Flags the message `\Deleted`, then removes it.
+  /// Whether this server can remove a single message without touching others.
+  bool get _canRemoveSafely =>
+      removalIsSafe(supportsUidPlus: _client.serverInfo.supportsUidPlus);
+
+  /// What to say when it cannot.
+  static const String _removalRefusal =
+      'This server cannot remove one message at a time. Removing it would '
+      'expunge the whole mailbox, which would also take anything another app '
+      'has marked for deletion — so nothing was changed.';
+
+  /// Flags the message `\Deleted`, then expunges exactly that UID.
   ///
-  /// The removal needs an EXPUNGE, and the only one a server without UIDPLUS
-  /// offers is mailbox-wide: it takes **every** message carrying `\Deleted`,
-  /// including ones another client flagged and has not finished with. So the
-  /// mailbox is checked *before* anything is flagged, and the operation is
-  /// refused if it could take a message it was not asked to. Refusing is
-  /// recoverable; an expunge is not.
+  /// Only reached when the server supports UIDPLUS: the callers preflight
+  /// through [removeMessage] before anything is copied, so a server that can
+  /// only expunge the whole mailbox never gets here.
   Future<void> _deleteAndExpunge(MessageSequence sequence) async {
-    if (!expungeIsSafe(
-      supportsUidPlus: _client.serverInfo.supportsUidPlus,
-      deletedUids: await _deletedUids(),
-      ourUids: sequence.toList().toSet(),
-    )) {
-      throw const MailRejectedException(
-        'This server cannot delete a single message at a time, and other '
-        'messages are already marked for deletion — by another app, most '
-        'likely. Nothing was removed. Finish those deletions first, then try '
-        'again.',
-      );
-    }
     await _client.uidStore(sequence, <String>[MessageFlags.deleted]);
-    await _expungeOnly(sequence);
-  }
-
-  /// The UIDs currently flagged `\Deleted` in the selected mailbox.
-  Future<Set<int>> _deletedUids() async {
-    final SearchImapResult result =
-        await _client.uidSearchMessages(searchCriteria: 'DELETED');
-    return (result.matchingSequence?.toList() ?? <int>[]).toSet();
-  }
-
-  /// Expunges the message just flagged.
-  ///
-  /// A bare `EXPUNGE` removes **every** message in the mailbox carrying
-  /// `\Deleted`. `UID EXPUNGE` (RFC 2359) removes exactly one. A server that
-  /// does not advertise UIDPLUS only offers the mailbox-wide form — which is
-  /// why [_deleteAndExpunge] checked first that it can only take ours.
-  Future<void> _expungeOnly(MessageSequence sequence) async {
-    if (_client.serverInfo.supportsUidPlus) {
-      await _client.uidExpunge(sequence);
-      return;
-    }
-    await _client.expunge();
+    await _client.uidExpunge(sequence);
   }
 
   // --- sending ------------------------------------------------------------
@@ -496,6 +487,12 @@ class MailService implements MailTransport {
       }
       attachmentBytes += size;
     }
+    if (attachments.length > MailLimits.maxAttachmentCount) {
+      throw const MailRejectedException(
+        'A message can carry at most ${MailLimits.maxAttachmentCount} '
+        'attachments.',
+      );
+    }
     if (attachmentBytes > MailLimits.maxOutboundAttachmentBytes) {
       throw const MailRejectedException(
         'Attachments are limited to '
@@ -534,6 +531,10 @@ class MailService implements MailTransport {
     final SmtpClient smtp = SmtpClient(account.smtpHost, isLogEnabled: false);
     bool handedOver = false;
     try {
+      // 465 speaks TLS from the first byte; anything else starts plain and is
+      // upgraded with STARTTLS before the password is sent. Either way the
+      // certificate is validated, and there is no path that sends credentials
+      // over an unencrypted connection.
       final bool implicitTls = account.smtpPort == 465;
       await smtp.connectToServer(
         account.smtpHost,

@@ -125,6 +125,9 @@ class Preferences extends ChangeNotifier {
   static const String _keyConfirmArchive = 'ace.confirmArchive';
   static const String _keyUndoWindow = 'ace.undoWindow';
   static const String _keyBccSelf = 'ace.bccSelf';
+  static const String _keyCacheMessages = 'ace.cacheMessages';
+  static const String _keyAppLock = 'ace.appLock';
+  static const String _keyPrivatePreviews = 'ace.privatePreviews';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -161,6 +164,9 @@ class Preferences extends ChangeNotifier {
     _keyConfirmArchive,
     _keyUndoWindow,
     _keyBccSelf,
+    _keyCacheMessages,
+    _keyAppLock,
+    _keyPrivatePreviews,
   ];
 
   final FlutterSecureStorage _storage;
@@ -198,6 +204,9 @@ class Preferences extends ChangeNotifier {
   bool _confirmArchive = false;
   UndoWindow _undoWindow = UndoWindow.normal;
   bool _bccSelf = false;
+  bool _cacheMessages = true;
+  bool _appLock = false;
+  bool _privatePreviews = true;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -317,6 +326,22 @@ class Preferences extends ChangeNotifier {
   /// Whether a copy of every message is blind-copied to the sending account.
   bool get bccSelf => _bccSelf;
 
+  /// Whether messages that have been read are kept on the device.
+  ///
+  /// What is kept is sealed — AES-256-GCM, key in the keychain — but keeping
+  /// nothing at all is a legitimate answer to "should this phone hold my
+  /// mail", so it is a setting rather than a fact of the app.
+  bool get cacheMessages => _cacheMessages;
+
+  /// Whether opening the app asks for a fingerprint or a face first.
+  bool get appLock => _appLock;
+
+  /// Whether a notification names the sender and the subject.
+  ///
+  /// On by default: a notification on a lock screen is read by whoever is
+  /// holding the phone, and "you have mail" is enough for most people.
+  bool get privatePreviews => _privatePreviews;
+
   Future<void> setQuoteReplies(bool value) =>
       _write(_keyQuoteReplies, '$value', () => _quoteReplies = value);
 
@@ -331,6 +356,15 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setBccSelf(bool value) =>
       _write(_keyBccSelf, '$value', () => _bccSelf = value);
+
+  Future<void> setCacheMessages(bool value) =>
+      _write(_keyCacheMessages, '$value', () => _cacheMessages = value);
+
+  Future<void> setAppLock(bool value) =>
+      _write(_keyAppLock, '$value', () => _appLock = value);
+
+  Future<void> setPrivatePreviews(bool value) =>
+      _write(_keyPrivatePreviews, '$value', () => _privatePreviews = value);
 
   Future<void> setLastSeenVersion(String value) =>
       _write(_keySeenVersion, value, () => _lastSeenVersion = value);
@@ -399,6 +433,10 @@ class Preferences extends ChangeNotifier {
     _undoWindow =
         _decodeEnum(raw[_keyUndoWindow], UndoWindow.values, _undoWindow);
     _bccSelf = _decodeBool(raw[_keyBccSelf], _bccSelf);
+    _cacheMessages = _decodeBool(raw[_keyCacheMessages], _cacheMessages);
+    _appLock = _decodeBool(raw[_keyAppLock], _appLock);
+    _privatePreviews =
+        _decodeBool(raw[_keyPrivatePreviews], _privatePreviews);
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

@@ -3,6 +3,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'mail_check.dart';
 import 'notifications.dart';
+import '../util/redact.dart';
 
 /// Starts, stops and drives the background mail check.
 ///
@@ -25,7 +26,7 @@ abstract final class NotificationSetup {
       await Workmanager().initialize(mailCheckDispatcher);
       _initialised = true;
     } catch (error) {
-      debugPrint('Ace Mail: background checks unavailable ($error)');
+      debugPrint('Ace Mail: background checks unavailable (${Redact.safe(error)})');
     }
     await AceNotifications.initialise();
   }
@@ -41,7 +42,7 @@ abstract final class NotificationSetup {
       try {
         await Workmanager().cancelByUniqueName(kMailCheckTask);
       } catch (error) {
-        debugPrint('Ace Mail: could not cancel the check ($error)');
+        debugPrint('Ace Mail: could not cancel the check (${Redact.safe(error)})');
       }
       return false;
     }
@@ -59,7 +60,7 @@ abstract final class NotificationSetup {
       );
       return true;
     } catch (error) {
-      debugPrint('Ace Mail: could not schedule the check ($error)');
+      debugPrint('Ace Mail: could not schedule the check (${Redact.safe(error)})');
       return false;
     }
   }

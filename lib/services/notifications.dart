@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../util/redact.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// One place that knows how to put a notification on the screen.
@@ -25,6 +26,10 @@ abstract final class AceNotifications {
     priority: Priority.defaultPriority,
     // Grouped, so ten messages are one line rather than ten.
     groupKey: 'ace_mail_new',
+    // The text is only on the lock screen when the setting says so; the
+    // *visibility* is private either way, which also keeps the notification off
+    // the lock screen on a device that has been told to hide sensitive content.
+    visibility: NotificationVisibility.private,
   );
 
   static Future<void> initialise() async {
@@ -40,7 +45,7 @@ abstract final class AceNotifications {
       );
       _ready = true;
     } catch (error) {
-      debugPrint('Ace Mail: notifications unavailable ($error)');
+      debugPrint('Ace Mail: notifications unavailable (${Redact.safe(error)})');
     }
   }
 
@@ -56,29 +61,41 @@ abstract final class AceNotifications {
       if (android == null) return true;
       return await android.requestNotificationsPermission() ?? false;
     } catch (error) {
-      debugPrint('Ace Mail: could not ask for permission ($error)');
+      debugPrint('Ace Mail: could not ask for permission (${Redact.safe(error)})');
       return false;
     }
   }
 
   /// Says [count] messages arrived in [account].
+  ///
+  /// [privatePreviews] drops the sender and the subject. A notification is read
+  /// by whoever is holding the phone — on a locked screen that is anyone in the
+  /// room — so the default is to say that there is mail and not what it says.
   static Future<void> newMail({
     required String account,
     required int count,
     required String? subject,
+    bool privatePreviews = true,
   }) async {
     if (!_ready) return;
     try {
+      final String title = privatePreviews
+          ? 'New mail'
+          : (count == 1 ? 'New message' : '$count new messages');
+      final String body = privatePreviews
+          ? 'Open Ace Mail to read it.'
+          : (subject == null || subject.isEmpty
+              ? account
+              : '$account — $subject');
+
       await _plugin.show(
         id: account.hashCode,
-        title: count == 1 ? 'New message' : '$count new messages',
-        body: subject == null || subject.isEmpty
-            ? account
-            : '$account — $subject',
+        title: title,
+        body: body,
         notificationDetails: const NotificationDetails(android: _android),
       );
     } catch (error) {
-      debugPrint('Ace Mail: could not notify ($error)');
+      debugPrint('Ace Mail: could not notify (${Redact.safe(error)})');
     }
   }
 

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'util/redact.dart';
 import 'data/app_info.dart';
+import 'data/local_store.dart';
 import 'data/preferences.dart';
 import 'services/notification_setup.dart';
 import 'state/mail_controller.dart';
@@ -15,10 +17,22 @@ Future<void> main() async {
   // same attachment on every pass is the kind of cost that shows up as jank.
   PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20;
 
+  // The encrypted local store: the draft in progress, and the messages already
+  // read. Best effort — a device that will not hand over a directory must not
+  // stop the app starting. Without it nothing is cached, which is a working
+  // mail client, just a slower one.
+  LocalStore? localStore;
+  try {
+    localStore = await LocalStore.open();
+  } catch (error) {
+    debugPrint('Ace Mail: no local cache (${Redact.safe(error)})');
+  }
+
   // Created here rather than in a provider callback so the controller can hold
   // the same instance — the reading settings live on it.
   final Preferences preferences = Preferences();
-  final MailController controller = MailController(preferences: preferences);
+  final MailController controller =
+      MailController(preferences: preferences, localStore: localStore);
 
   // Read the keychain and the settings before the first frame, so the app opens
   // straight into the mailbox or the sign-in screen. There is no intermediate
@@ -42,6 +56,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<Preferences>.value(value: preferences),
         ChangeNotifierProvider<MailController>.value(value: controller),
+        Provider<LocalStore?>.value(value: localStore),
       ],
       child: const AceMailApp(),
     ),

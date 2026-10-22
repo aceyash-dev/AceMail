@@ -10,6 +10,7 @@ import 'screens/sign_in_screen.dart';
 import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
 import 'theme/astryx_tokens.dart';
+import 'widgets/app_lock_gate.dart';
 import 'widgets/whats_new.dart';
 import 'util/haptics.dart';
 
@@ -95,7 +96,9 @@ class AceMailApp extends StatelessWidget {
             data: data.copyWith(
               textScaler: TextScaler.linear(systemScale * prefs.textScale),
             ),
-            child: child ?? const SizedBox.shrink(),
+            // The lock sits above everything, including the sheets and the
+            // reader, so there is no screen that shows mail while it is up.
+            child: AppLockGate(child: child ?? const SizedBox.shrink()),
           ),
         );
       },

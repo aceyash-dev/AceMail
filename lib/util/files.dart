@@ -32,16 +32,22 @@ typedef PickedAttachments = ({List<File> files, int skipped});
 /// here as well used to stop the whole selection at the first file that did not
 /// fit, and the screen had no way to mention the files it had already dropped.
 ///
+/// [alreadyCount] is how many files the message already carries, so the cap is
+/// the *message's* cap and not this dialog's. Picking ten files three times
+/// used to be allowed, because each dialog only counted its own.
+///
 /// [choose] is injectable so both caps can be tested without a file dialog.
 Future<PickedAttachments> pickAttachmentFiles({
   Future<List<XFile>> Function()? choose,
+  int alreadyCount = 0,
 }) async {
   final List<XFile> picked = await (choose ?? openFiles)();
   final List<File> files = <File>[];
   int skipped = 0;
+  final int room = MailLimits.maxAttachmentCount - alreadyCount;
 
   for (final XFile file in picked) {
-    if (files.length >= MailLimits.maxAttachmentCount) {
+    if (files.length >= room) {
       // Counted, not just dropped: the screen reports what it left off.
       skipped++;
       continue;

@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../util/redact.dart';
 import '../data/limits.dart';
+import '../data/local_store.dart';
 import '../services/notifications.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
@@ -25,8 +27,13 @@ class MailSession extends ChangeNotifier {
     required this.password,
     MailTransport? transport,
     Preferences? preferences,
+    LocalStore? store,
   })  : _injected = transport,
-        _preferences = preferences;
+        _preferences = preferences,
+        _store = store;
+
+  /// The encrypted local store, when there is one. Read messages are kept here
+  /// so a message opens without the network — and so what is kept is sealed.
 
   final AceAccount account;
   final String password;
@@ -35,6 +42,8 @@ class MailSession extends ChangeNotifier {
   /// Read live, so toggling "mark as read when opened" applies to the very
   /// next message without rebuilding the session.
   final Preferences? _preferences;
+
+  final LocalStore? _store;
 
   bool get _markAsRead => _preferences?.markAsReadOnOpen ?? true;
 
@@ -474,9 +483,13 @@ class MailSession extends ChangeNotifier {
     _notify();
 
     try {
-      final FullMessage loaded = await _transport.fetchMessage(summary);
+      // The cache first, when it is on. A message read once opens without the
+      // network, and the copy it opens from came off an encrypted disk.
+      final FullMessage? cached = await _cachedBody(summary);
+      final FullMessage loaded = cached ?? await _transport.fetchMessage(summary);
       if (token != _messageToken) return; // a newer message won
       openMessage = loaded;
+      if (cached == null) unawaited(_rememberBody(summary, loaded));
       if (_markAsRead) {
         _replace(summary.uid, summary.copyWith(isSeen: true));
         // Set \Seen deliberately rather than as a side effect of reading, so
@@ -492,6 +505,39 @@ class MailSession extends ChangeNotifier {
         loadingMessage = false;
         _notify();
       }
+    }
+  }
+
+  /// The cached body for [summary], when caching is on and there is one.
+  Future<FullMessage?> _cachedBody(MessageSummary summary) async {
+    final LocalStore? store = _store;
+    final MailFolder? folder = selectedFolder;
+    if (store == null || folder == null) return null;
+    if (!(_preferences?.cacheMessages ?? true)) return null;
+    try {
+      final Map<String, Object?>? record =
+          await store.message(folder.path, summary.uid);
+      return record == null ? null : FullMessage.fromCache(record);
+    } catch (_) {
+      // An unreadable cache is an absent one; fetch it instead.
+      return null;
+    }
+  }
+
+  /// Writes a fetched body to the encrypted cache.
+  ///
+  /// Best effort, and skipped for anything the cache cannot hand back whole: a
+  /// message with attachments is left out rather than cached without them.
+  Future<void> _rememberBody(MessageSummary summary, FullMessage message) async {
+    final LocalStore? store = _store;
+    final MailFolder? folder = selectedFolder;
+    if (store == null || folder == null) return;
+    if (!(_preferences?.cacheMessages ?? true)) return;
+    if (!message.isCacheable) return;
+    try {
+      await store.saveMessage(folder.path, summary.uid, message.toCache());
+    } catch (_) {
+      // The message is on screen either way.
     }
   }
 
@@ -605,7 +651,7 @@ class MailSession extends ChangeNotifier {
       }
     } catch (error) {
       errorMessage = 'Could not empty the trash.';
-      debugPrint('Ace Mail: emptyTrash failed ($error)');
+      debugPrint('Ace Mail: emptyTrash failed (${Redact.safe(error)})');
     } finally {
       loadingMessages = false;
       _notify();

@@ -86,6 +86,63 @@ class FullMessage {
   final String? messageId;
   final String? references;
 
+  /// This message as the local cache stores it.
+  ///
+  /// Attachments are deliberately absent. A cached message is one the cache can
+  /// hand back **whole** — a cache that quietly loses the PDF you were sent is
+  /// worse than no cache — so a message carrying attachments is simply not
+  /// cached, and [isCacheable] is the test for that.
+  Map<String, Object?> toCache() => <String, Object?>{
+        'uid': uid,
+        'subject': subject,
+        'fromName': fromName,
+        'fromEmail': fromEmail,
+        'toLine': toLine,
+        'ccLine': ccLine,
+        'toEmails': toEmails,
+        'ccEmails': ccEmails,
+        'date': date?.toIso8601String(),
+        'text': textBody,
+        'html': htmlBody,
+        'headers': rawHeaders,
+        'messageId': messageId,
+        'references': references,
+      };
+
+  /// Whether the cache can hold this message and give it back intact.
+  bool get isCacheable => attachments.isEmpty;
+
+  /// Rebuilds a message [toCache] wrote, or null when the record is not one.
+  ///
+  /// Null rather than a throw: a cache that cannot read its own record should
+  /// fetch the message again, not bring the reader down.
+  static FullMessage? fromCache(Map<String, Object?> record) {
+    final Object? uid = record['uid'];
+    final Object? subject = record['subject'];
+    final Object? text = record['text'];
+    if (uid is! int || subject is! String || text is! String) return null;
+
+    final Object? html = record['html'];
+    final Object? date = record['date'];
+    return FullMessage(
+      uid: uid,
+      subject: subject,
+      fromName: record['fromName'] as String? ?? '',
+      fromEmail: record['fromEmail'] as String? ?? '',
+      toLine: record['toLine'] as String? ?? '',
+      ccLine: record['ccLine'] as String? ?? '',
+      toEmails: record['toEmails'] as String? ?? '',
+      ccEmails: record['ccEmails'] as String? ?? '',
+      date: date is String ? DateTime.tryParse(date) : null,
+      textBody: text,
+      htmlBody: html is String ? html : null,
+      attachments: const <MailAttachment>[],
+      messageId: record['messageId'] as String?,
+      references: record['references'] as String?,
+      rawHeaders: record['headers'] as String? ?? '',
+    );
+  }
+
   factory FullMessage.fromMime(MimeMessage message) {
     final MailAddress? from =
         (message.from != null && message.from!.isNotEmpty)

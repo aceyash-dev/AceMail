@@ -6,6 +6,7 @@ import '../data/preferences.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import 'mail_service.dart';
+import '../util/redact.dart';
 import 'mail_watcher.dart';
 import 'notifications.dart';
 
@@ -38,7 +39,7 @@ Future<List<String>> checkAllAccounts() async {
   try {
     loaded = await AccountStore().loadAll();
   } catch (error) {
-    debugPrint('Ace Mail: could not read accounts ($error)');
+    debugPrint('Ace Mail: could not read accounts (${Redact.safe(error)})');
     return withNews;
   }
 
@@ -49,7 +50,10 @@ Future<List<String>> checkAllAccounts() async {
     } catch (error) {
       // One account failing must not stop the others, and must not crash a
       // background isolate where nobody would see it.
-      debugPrint('Ace Mail: check failed for ${stored.account.email} ($error)');
+      debugPrint(
+        'Ace Mail: check failed for ${Redact.address(stored.account.email)} '
+        '(${Redact.safe(error)})',
+      );
     }
   }
   return withNews;
@@ -99,6 +103,7 @@ Future<bool> checkOne(StoredAccount stored) async {
         account: stored.account.email,
         count: result.count,
         subject: result.newestSubject,
+        privatePreviews: prefs.privatePreviews,
       );
     }
     return result.hasNews;

@@ -10,7 +10,8 @@ void main() {
         limit: 1000,
       );
       expect(plan.accepted, <int>[0, 1, 2]);
-      expect(plan.rejected, 0);
+      expect(plan.overSize, 0);
+      expect(plan.overCount, 0);
     });
 
     test('counts the bytes already attached', () {
@@ -20,7 +21,7 @@ void main() {
         limit: 1000,
       );
       expect(plan.accepted, <int>[0]);
-      expect(plan.rejected, 1);
+      expect(plan.overSize, 1);
     });
 
     test('skips one oversized file without rejecting the ones behind it', () {
@@ -30,7 +31,7 @@ void main() {
         limit: 100,
       );
       expect(plan.accepted, <int>[0, 2]);
-      expect(plan.rejected, 1);
+      expect(plan.overSize, 1);
     });
 
     test('the reported case: a 30 MB file keeps the 1 MB file behind it', () {
@@ -43,7 +44,7 @@ void main() {
         limit: 25 * mib,
       );
       expect(plan.accepted, <int>[0, 2]);
-      expect(plan.rejected, 1);
+      expect(plan.overSize, 1);
     });
 
     test('a file exactly at the limit still fits', () {
@@ -59,7 +60,8 @@ void main() {
       final AttachPlan plan =
           planAttachments(alreadyBytes: 0, sizes: <int>[], limit: 100);
       expect(plan.accepted, isEmpty);
-      expect(plan.rejected, 0);
+      expect(plan.overSize, 0);
+      expect(plan.overCount, 0);
     });
 
     test('a negative running total is treated as zero, not as credit', () {
@@ -81,7 +83,58 @@ void main() {
         limit: 25 * 1024 * 1024,
       );
       expect(plan.accepted, isEmpty);
-      expect(plan.rejected, 1);
+      expect(plan.overSize, 1);
+    });
+
+    group('the file count', () {
+      test('is measured against what the message already carries', () {
+        // Ten files three times used to be allowed: each dialog only ever saw
+        // its own ten, and the planner only checked bytes.
+        final AttachPlan plan = planAttachments(
+          alreadyBytes: 0,
+          alreadyCount: 9,
+          sizes: <int>[1, 1, 1],
+          limit: 1000,
+          maxCount: 10,
+        );
+        expect(plan.accepted, <int>[0]);
+        expect(plan.overCount, 2);
+      });
+
+      test('a full message takes nothing more', () {
+        final AttachPlan plan = planAttachments(
+          alreadyBytes: 0,
+          alreadyCount: 10,
+          sizes: <int>[1, 1],
+          limit: 1000,
+          maxCount: 10,
+        );
+        expect(plan.accepted, isEmpty);
+        expect(plan.overCount, 2);
+      });
+
+      test('a size refusal is not counted as a count refusal', () {
+        final AttachPlan plan = planAttachments(
+          alreadyBytes: 0,
+          alreadyCount: 0,
+          sizes: <int>[5000, 10],
+          limit: 100,
+          maxCount: 10,
+        );
+        expect(plan.accepted, <int>[1]);
+        expect(plan.overSize, 1);
+        expect(plan.overCount, 0);
+      });
+
+      test('zero means no count limit', () {
+        final AttachPlan plan = planAttachments(
+          alreadyBytes: 0,
+          alreadyCount: 500,
+          sizes: <int>[1],
+          limit: 1000,
+        );
+        expect(plan.accepted, <int>[0]);
+      });
     });
   });
 }

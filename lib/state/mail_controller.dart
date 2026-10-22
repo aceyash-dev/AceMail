@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../data/account_store.dart';
+import '../data/local_store.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/full_message.dart';
@@ -34,9 +35,11 @@ class MailController extends ChangeNotifier {
     AccountStore? store,
     MailTransportFactory? transportFactory,
     Preferences? preferences,
+    LocalStore? localStore,
   })  : _store = store ?? AccountStore(),
         _transportFactory = transportFactory,
-        _preferences = preferences;
+        _preferences = preferences,
+        _localStore = localStore;
 
   final AccountStore _store;
 
@@ -45,6 +48,11 @@ class MailController extends ChangeNotifier {
 
   /// Held by the sessions, which read the reading settings live.
   final Preferences? _preferences;
+
+  /// Handed to every session, so a message read in any account is kept in the
+  /// one encrypted store.
+  final LocalStore? _localStore;
+
   final List<MailSession> _sessions = <MailSession>[];
   int _activeIndex = 0;
 
@@ -366,6 +374,7 @@ class MailController extends ChangeNotifier {
         password: password,
         transport: _transportFactory?.call(account, password),
         preferences: _preferences,
+        store: _localStore,
       );
 
   void _attach(MailSession session) {

@@ -54,6 +54,28 @@ void main() {
       expect(picked.skipped, 3);
     });
 
+    test('the cap is the message\'s, not this dialog\'s', () async {
+      // Ten files three times used to be allowed: each dialog counted only its
+      // own ten. With nine already attached there is room for one more.
+      final PickedAttachments picked = await pickAttachmentFiles(
+        choose: () async => <XFile>[XFile('a'), XFile('b'), XFile('c')],
+        alreadyCount: MailLimits.maxAttachmentCount - 1,
+      );
+
+      expect(picked.files, hasLength(1));
+      expect(picked.skipped, 2);
+    });
+
+    test('a full message takes nothing more', () async {
+      final PickedAttachments picked = await pickAttachmentFiles(
+        choose: () async => <XFile>[XFile('a')],
+        alreadyCount: MailLimits.maxAttachmentCount,
+      );
+
+      expect(picked.files, isEmpty);
+      expect(picked.skipped, 1);
+    });
+
     test('an empty selection is not an error', () async {
       final PickedAttachments picked =
           await pickAttachmentFiles(choose: () async => <XFile>[]);

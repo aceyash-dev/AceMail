@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show lerpDouble;
 
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/limits.dart';
+import '../data/local_store.dart';
 import '../data/preferences.dart';
 import '../services/mail_service.dart';
 import '../state/mail_controller.dart';
@@ -61,25 +63,106 @@ class _ComposeScreenState extends State<ComposeScreen> {
   String? _ccError;
   String? _error;
 
+  /// The encrypted store, held rather than read from the context so [dispose]
+  /// can still write the draft after the widget is gone.
+  LocalStore? _store;
+  Timer? _draftTimer;
+
   @override
   void initState() {
     super.initState();
     final Preferences prefs = context.read<Preferences>();
     final String signature = prefs.signature.trim();
-    if (signature.isEmpty) return;
-    if (widget.initialBody.isEmpty) {
-      // A brand-new message starts with the signature.
-      _body.text = '\n\n-- \n$signature';
-    } else if (prefs.signatureOnReplies) {
-      // A reply carries the quoted original below. The signature goes above
-      // it, where a signature belongs, rather than after the quote where nobody
-      // scrolls to look for it.
-      _body.text = '\n\n-- \n$signature${widget.initialBody}';
+    if (signature.isNotEmpty) {
+      if (widget.initialBody.isEmpty) {
+        // A brand-new message starts with the signature.
+        _body.text = '\n\n-- \n$signature';
+      } else if (prefs.signatureOnReplies) {
+        // A reply carries the quoted original below. The signature goes above
+        // it, where a signature belongs, rather than after the quote where
+        // nobody scrolls to look for it.
+        _body.text = '\n\n-- \n$signature${widget.initialBody}';
+      }
+    }
+
+    for (final TextEditingController field in <TextEditingController>[
+      _to,
+      _cc,
+      _subject,
+      _body,
+    ]) {
+      field.addListener(_scheduleDraft);
     }
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final LocalStore? store = context.read<LocalStore?>();
+    if (identical(store, _store)) return;
+    _store = store;
+    unawaited(_restoreDraft());
+  }
+
+  /// A brand-new message picks up the draft that was left behind. A reply does
+  /// not: it already has a body, and filling it from an unrelated draft is how
+  /// you send the wrong thing to the wrong person.
+  bool get _isBlankCompose =>
+      widget.inReplyTo == null &&
+      widget.initialTo.isEmpty &&
+      widget.initialSubject.isEmpty &&
+      widget.initialBody.isEmpty;
+
+  Future<void> _restoreDraft() async {
+    final LocalStore? store = _store;
+    if (store == null || !_isBlankCompose) return;
+
+    final Map<String, Object?>? draft = await store.loadDraft();
+    if (draft == null || !mounted) return;
+
+    setState(() {
+      _to.text = draft['to'] as String? ?? _to.text;
+      _cc.text = draft['cc'] as String? ?? _cc.text;
+      _subject.text = draft['subject'] as String? ?? _subject.text;
+      _body.text = draft['body'] as String? ?? _body.text;
+    });
+    AceSnack.show(context, 'Draft restored');
+  }
+
+  void _scheduleDraft() {
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 1200), _saveDraftNow);
+  }
+
+  /// Writes the draft, if there is one worth writing.
+  ///
+  /// The fields are read **before** the first await, so this is safe to call
+  /// from [dispose], where the controllers are about to be torn down.
+  void _saveDraftNow() {
+    final LocalStore? store = _store;
+    if (store == null) return;
+    if (_to.text.trim().isEmpty &&
+        _subject.text.trim().isEmpty &&
+        _body.text.trim().isEmpty) {
+      // Nothing to keep, and an empty draft would overwrite a real one.
+      return;
+    }
+    unawaited(
+      store.saveDraft(<String, Object?>{
+        'to': _to.text,
+        'cc': _cc.text,
+        'subject': _subject.text,
+        'body': _body.text,
+        'at': DateTime.now().toIso8601String(),
+      }),
+    );
+  }
+
+  @override
   void dispose() {
+    _draftTimer?.cancel();
+    // Leaving the screen is not throwing the draft away.
+    _saveDraftNow();
     _to.dispose();
     _cc.dispose();
     _subject.dispose();
@@ -87,46 +170,60 @@ class _ComposeScreenState extends State<ComposeScreen> {
     super.dispose();
   }
 
+  /// True while the file picker is open, so a second tap cannot start a second
+  /// selection over the same list of attachments.
+  bool _pickingAttachments = false;
+
   Future<void> _attach() async {
-    final PickedAttachments picked = await pickAttachmentFiles();
-    if (!mounted || picked.files.isEmpty) return;
+    if (_pickingAttachments) return;
+    _pickingAttachments = true;
+    try {
+      final PickedAttachments picked =
+          await pickAttachmentFiles(alreadyCount: _attachments.length);
+      if (!mounted || picked.files.isEmpty) return;
 
-    // Sizes are read in bytes, and a file that cannot be read is left off
-    // rather than attached as an empty one — a failed size check is not the
-    // same thing as a zero-byte file.
-    final List<File> readable = <File>[];
-    final List<int> sizes = <int>[];
-    int unreadable = 0;
-    for (final File file in picked.files) {
-      final int? size = await _sizeOf(file);
-      if (size == null) {
-        unreadable++;
-        continue;
+      // Sizes are read in bytes, and a file that cannot be read is left off
+      // rather than attached as an empty one — a failed size check is not the
+      // same thing as a zero-byte file.
+      final List<File> readable = <File>[];
+      final List<int> sizes = <int>[];
+      int unreadable = 0;
+      for (final File file in picked.files) {
+        final int? size = await _sizeOf(file);
+        if (size == null) {
+          unreadable++;
+          continue;
+        }
+        readable.add(file);
+        sizes.add(size);
       }
-      readable.add(file);
-      sizes.add(size);
-    }
 
-    // The byte cap is applied here, once, and it skips an oversized file
-    // individually: the smaller files picked behind it still attach.
-    final AttachPlan plan = planAttachments(
-      alreadyBytes: await _totalBytes(),
-      sizes: sizes,
-      limit: MailLimits.maxOutboundAttachmentBytes,
-    );
-    final List<File> accepted = <File>[
-      for (final int index in plan.accepted) readable[index],
-    ];
-
-    if (!mounted) return;
-    setState(() {
-      _attachments.addAll(accepted);
-      _error = _leftOff(
-        tooLarge: plan.rejected,
-        tooMany: picked.skipped,
-        unreadable: unreadable,
+      // Both caps are applied here, once, and against what the message already
+      // carries — an oversized file is skipped individually, so the smaller
+      // files picked behind it still attach.
+      final AttachPlan plan = planAttachments(
+        alreadyBytes: await _totalBytes(),
+        alreadyCount: _attachments.length,
+        sizes: sizes,
+        limit: MailLimits.maxOutboundAttachmentBytes,
+        maxCount: MailLimits.maxAttachmentCount,
       );
-    });
+      final List<File> accepted = <File>[
+        for (final int index in plan.accepted) readable[index],
+      ];
+
+      if (!mounted) return;
+      setState(() {
+        _attachments.addAll(accepted);
+        _error = _leftOff(
+          tooLarge: plan.overSize,
+          tooMany: plan.overCount + picked.skipped,
+          unreadable: unreadable,
+        );
+      });
+    } finally {
+      _pickingAttachments = false;
+    }
   }
 
   /// Says what was left off, and why.
@@ -256,6 +353,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
             references: widget.references,
             fromEmail: _chosenFrom,
           );
+      if (!mounted) return;
+      // Sent, so the draft is done. Clearing it before the pop also stops
+      // [dispose] from writing it straight back.
+      _draftTimer?.cancel();
+      await _store?.clearDraft();
       if (!mounted) return;
       // Said before the screen closes. The messenger is the app-wide one, so
       // the bar survives the pop; saying it afterwards would use a context that

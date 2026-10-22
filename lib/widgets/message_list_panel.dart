@@ -496,6 +496,10 @@ class MessageTile extends StatelessWidget {
   /// Whether the list is in selection mode at all.
   final bool selecting;
 
+  /// The unread mark, as a width. Zero for a message already read, so the
+  /// layout does not move — the border is always there, it is just invisible.
+  static const double _markWidth = 3;
+
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
@@ -528,23 +532,34 @@ class MessageTile extends StatelessWidget {
             scale: 1 - 0.02 * press,
             child: Container(
               margin: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
-              padding: EdgeInsets.symmetric(
-                horizontal: AstryxSpace.s3,
-                vertical: density.verticalPadding,
+              padding: EdgeInsets.fromLTRB(
+                // The mark's width is always reserved, so an unread row and a
+                // read one line up with each other.
+                AstryxSpace.s3,
+                density.verticalPadding,
+                AstryxSpace.s3,
+                density.verticalPadding,
               ),
               decoration: BoxDecoration(
                 // A card, not a bare row: a surface of its own, a corner, and a
                 // little air around it. Rows on a flat page run together and
                 // each one is harder to pick out than the last.
-                color: picked
+                color: picked || selected
                     ? c.accentMuted
-                    : (selected
-                        ? c.accentMuted
-                        : (hover ? c.surfaceHighest : c.backgroundCard)),
+                    : (hover ? c.surfaceHighest : c.backgroundCard),
                 borderRadius: shape,
-                border: picked
-                    ? Border.all(color: c.accent, width: 1.5)
-                    : Border.all(color: c.border.withValues(alpha: 0.5)),
+                border: Border(
+                  // Unread, as a strip down the edge. It is the one thing worth
+                  // seeing at a glance, and it says it without spending a line
+                  // of text or a dot in the corner.
+                  left: BorderSide(
+                    color: unread ? c.accent : Colors.transparent,
+                    width: _markWidth,
+                  ),
+                  top: BorderSide(color: c.border.withValues(alpha: 0.5)),
+                  right: BorderSide(color: c.border.withValues(alpha: 0.5)),
+                  bottom: BorderSide(color: c.border.withValues(alpha: 0.5)),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,7 +588,10 @@ class MessageTile extends StatelessWidget {
                                     height: 20,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: c.border, width: 1.5),
+                                      border: Border.all(
+                                        color: c.border,
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -591,6 +609,10 @@ class MessageTile extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
+                        // Who and when, on one line: the two things a list is
+                        // scanned for. The star sits with the date rather than
+                        // in front of the subject, so the subject keeps the
+                        // whole width it needs.
                         Row(
                           children: <Widget>[
                             Expanded(
@@ -602,6 +624,14 @@ class MessageTile extends StatelessWidget {
                                     : AstryxText.body(c.textSecondary),
                               ),
                             ),
+                            if (summary.isFlagged) ...<Widget>[
+                              const SizedBox(width: AstryxSpace.s1_5),
+                              AceIconView(
+                                icon: AceIcons.star,
+                                size: 14,
+                                color: c.tertiary,
+                              ),
+                            ],
                             const SizedBox(width: AstryxSpace.s2),
                             Text(
                               formatListDate(summary.date),
@@ -610,27 +640,13 @@ class MessageTile extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: AstryxSpace.s0_5),
-                        Row(
-                          children: <Widget>[
-                            if (summary.isFlagged) ...<Widget>[
-                              AceIconView(icon: 
-                                AceIcons.star,
-                                size: 15,
-                                color: c.tertiary,
-                              ),
-                              const SizedBox(width: AstryxSpace.s1),
-                            ],
-                            Expanded(
-                              child: Text(
-                                summary.subject,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: unread
-                                    ? AstryxText.body(c.textPrimary)
-                                    : AstryxText.body(c.textSecondary),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          summary.subject,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: unread
+                              ? AstryxText.body(c.textPrimary)
+                              : AstryxText.body(c.textSecondary),
                         ),
                         if (summary.otp != null) ...<Widget>[
                           const SizedBox(height: AstryxSpace.s1_5),
@@ -639,18 +655,6 @@ class MessageTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (unread) ...<Widget>[
-                    const SizedBox(width: AstryxSpace.s2),
-                    Container(
-                      width: 9,
-                      height: 9,
-                      margin: const EdgeInsets.only(top: AstryxSpace.s1_5),
-                      decoration: BoxDecoration(
-                        color: c.accent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

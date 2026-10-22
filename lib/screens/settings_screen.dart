@@ -3,12 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../data/accents.dart';
 import '../data/app_info.dart';
+import '../data/local_store.dart';
 import '../data/preferences.dart';
+import '../services/app_lock.dart';
 import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
 import '../widgets/account_sheet.dart';
@@ -394,6 +397,43 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
             SettingsSection(
+              title: 'Privacy',
+              children: <Widget>[
+                SettingsSwitchRow(
+                  icon: AceIcons.shield,
+                  title: 'Keep messages on this device',
+                  subtitle: 'A message you have read, and the draft you are '
+                      'writing, are kept encrypted — AES-256-GCM, with the key '
+                      'in the keychain — so they open without the network. Off '
+                      'means nothing is kept.',
+                  value: prefs.cacheMessages,
+                  onChanged: (bool value) => _setCaching(context, prefs, value),
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.visibilityOff,
+                  title: 'Private notification previews',
+                  subtitle: 'A notification says that mail has arrived, not who '
+                      'sent it or what it says. A lock screen is read by '
+                      'whoever is in the room.',
+                  value: prefs.privatePreviews,
+                  onChanged: prefs.setPrivatePreviews,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.lock,
+                  title: 'Require unlock',
+                  subtitle: prefs.appLock
+                      ? 'A fingerprint or a face opens the app, and it locks '
+                          'again whenever it is left.'
+                      : 'Ask for a fingerprint or a face before the app opens. '
+                          'Takes effect the next time the app is left or '
+                          'started.',
+                  value: prefs.appLock,
+                  onChanged: (bool value) => _setAppLock(context, prefs, value),
+                ),
+                const _CacheRow(),
+              ],
+            ),
+            SettingsSection(
               title: 'Accessibility',
               children: <Widget>[
                 SettingsSwitchRow(
@@ -436,6 +476,45 @@ class SettingsScreen extends StatelessWidget {
 
   /// Ten accents, as a grid of swatches — a colour is easier to pick by eye
   /// than by name.
+  /// Turning the cache off should not leave behind what was already kept.
+  Future<void> _setCaching(
+    BuildContext context,
+    Preferences prefs,
+    bool value,
+  ) async {
+    await prefs.setCacheMessages(value);
+    if (value) return;
+    await context.read<LocalStore?>()?.clear();
+  }
+
+  /// Turning the lock on checks the device can answer *before* the switch is
+  /// allowed to say yes. A switch that does nothing is worse than no switch,
+  /// and a lock that cannot be asked for is exactly that.
+  Future<void> _setAppLock(
+    BuildContext context,
+    Preferences prefs,
+    bool value,
+  ) async {
+    if (!value) {
+      await prefs.setAppLock(false);
+      return;
+    }
+
+    final bool possible = await AppLock.available();
+    if (!context.mounted) return;
+    if (!possible) {
+      AceSnack.show(
+        context,
+        'This device has no fingerprint or face unlock set up.',
+      );
+      return;
+    }
+
+    await prefs.setAppLock(true);
+    if (!context.mounted) return;
+    AceSnack.show(context, 'Ace Mail will ask for unlock from now on.');
+  }
+
   Future<void> _chooseAccent(BuildContext context, Preferences prefs) async {
     final AceAccent? chosen = await showModalBottomSheet<AceAccent>(
       context: context,
@@ -586,4 +665,79 @@ class _AccentSwatch extends StatelessWidget {
           shape: BoxShape.circle,
         ),
       );
+}
+
+/// What the encrypted cache costs, and the one-tap way to stop paying.
+///
+/// Stateful rather than a FutureBuilder: a builder that makes a new future on
+/// every build would rebuild on every completion, which is a loop.
+class _CacheRow extends StatefulWidget {
+  const _CacheRow();
+
+  @override
+  State<_CacheRow> createState() => _CacheRowState();
+}
+
+class _CacheRowState extends State<_CacheRow> {
+  int? _entries;
+
+  @override
+  void initState() {
+    super.initState();
+    _count();
+  }
+
+  Future<void> _count() async {
+    final LocalStore? store = context.read<LocalStore?>();
+    if (store == null) return;
+    final int entries = store.entries;
+    if (mounted) setState(() => _entries = entries);
+  }
+
+  Future<void> _clear() async {
+    final LocalStore? store = context.read<LocalStore?>();
+    if (store == null) return;
+
+    final bool go = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: const Text('Clear cached content?'),
+            content: const Text(
+              'The draft you are writing and the messages kept for reading '
+              'offline are removed from this device. Your mail on the server '
+              'is not touched.',
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Clear'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!go || !mounted) return;
+
+    await store.clear();
+    if (!mounted) return;
+    AceSnack.show(context, 'Cached content cleared.');
+    await _count();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final int? entries = _entries;
+    return SettingsRow(
+      icon: AceIcons.deleteSweep,
+      title: 'Clear cached content',
+      subtitle: 'The draft in progress and the messages kept for reading '
+          'offline.',
+      value: entries == null ? null : (entries == 0 ? 'Empty' : '$entries'),
+      onTap: _clear,
+    );
+  }
 }

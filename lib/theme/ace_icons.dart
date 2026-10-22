@@ -95,6 +95,8 @@ abstract final class AceIcons {
   static const AceIcon globe = HugeIcons.strokeRoundedGlobe;
   static const AceIcon cloud = HugeIcons.strokeRoundedCloud;
   static const AceIcon shield = HugeIcons.strokeRoundedShield01;
+  static const AceIcon lock = HugeIcons.strokeRoundedLock;
+  static const AceIcon fingerprint = HugeIcons.strokeRoundedFingerprintScan;
   static const AceIcon instagram = HugeIcons.strokeRoundedInstagram;
   static const AceIcon github = HugeIcons.strokeRoundedGithub;
   static const AceIcon openInNew = HugeIcons.strokeRoundedArrowUpRight01;

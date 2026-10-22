@@ -3,6 +3,69 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.5.0+31
+
+### Added
+- **The local cache is encrypted.** Drafts, cached message bodies and the
+  metadata that goes with them are sealed with **AES-256-GCM** before they touch
+  the disk, with the key in the platform keychain. A fresh 12-byte nonce per
+  record, drawn from the platform CSPRNG and stored beside the ciphertext; the
+  record carries its format version and its key version, so keys can be rotated
+  without making anything already written unreadable. Records are bound to where
+  they belong with authenticated associated data — a body to its folder and uid
+  — so one message's body cannot be served as another's, and a record that has
+  been altered fails to open instead of opening as something else. The store is
+  bounded, and "Clear cached content" deletes the keys as well as the files.
+- **Drafts survive leaving the screen.** What you were writing is autosaved
+  while you type and offered back the next time you start a new message. A reply
+  never picks one up: it already has a body, and filling it from an unrelated
+  draft is how you send the wrong thing to the wrong person.
+- **Read messages open without the network.** A message you have read comes back
+  from the encrypted cache first. Anything with an attachment is deliberately
+  not cached, so a cache hit always has everything the message arrived with.
+- **Optional app lock.** A fingerprint or a face before the app opens — and
+  again whenever it is left, because a lock that only runs at launch is not much
+  of a lock. The switch checks the device can answer before it lets itself be
+  turned on, and the device passcode is an accepted fallback so a scratched
+  sensor cannot lock you out of your own mail.
+- **Private notification previews, on by default.** A notification says mail has
+  arrived, not who sent it or what it says. A lock screen is read by whoever is
+  in the room. Notification visibility is private either way.
+
+### Fixed
+- **A refused move no longer leaves a duplicate.** The deletion-safety check ran
+  *after* the copy, so a move the server could not complete had already put a
+  copy in the target folder — and the user was told nothing had happened. The
+  check is now the first step, and a test pins the order without needing a mail
+  server.
+- **Servers without UIDPLUS are refused, not guessed at.** The old rule asked
+  whether any *other* message was flagged `\Deleted` and allowed the
+  mailbox-wide `EXPUNGE` when none was. Another client can flag a message
+  between that check and the expunge, so it was a race, not a guarantee. Now the
+  answer depends only on UIDPLUS — the one thing that makes removing a single
+  message safe — and the refusal says why. On such a server, deleting or
+  archiving a message reports that it cannot be done and changes nothing.
+- **The attachment count is the message's, not the dialog's.** Ten files three
+  times was allowed, because each picker only ever counted its own ten. The cap
+  is now measured against what the message already carries, re-checked against
+  the same total just before attaching, guarded against a second picker opening
+  over the first, and enforced once more in the sending service.
+
+### Changed
+- **Message cards.** Unread is a strip down the edge rather than a dot in the
+  corner — visible at a glance without spending a line of text — and the star
+  sits with the date instead of in front of the subject, so the subject keeps
+  the width it needs. The unread mark's width is always reserved, so read and
+  unread rows line up.
+- **Nothing sensitive is logged.** Failures are scrubbed before they are
+  printed: a failed `LOGIN` or `AUTHENTICATE` has its arguments taken out, as
+  does anything written as `password=`, `token:` or `Authorization: Bearer`, and
+  a sender's address is logged as `y***@example.com`. The protocol log — which
+  prints the whole `LOGIN` command — stays off in every build, and a test fails
+  the build if a certificate-validation escape hatch ever appears.
+
+Version 0.5.0+31.
+
 ## 0.5.0+30
 
 ### Fixed
