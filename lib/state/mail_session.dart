@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../data/limits.dart';
+import '../services/notifications.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/full_message.dart';
@@ -214,6 +215,9 @@ class MailSession extends ChangeNotifier {
 
       folders = loaded;
       _connected = true;
+    // Opening the app is seeing the mail: whatever the background check put in
+    // the shade for this account is no longer news.
+    unawaited(AceNotifications.clear(account.email));
       connecting = false;
       _notify();
 

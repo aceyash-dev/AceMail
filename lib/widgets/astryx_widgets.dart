@@ -671,95 +671,14 @@ class BrandMark extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      // The flag wears the accent, so the mark follows the theme like
-      // everything else. The launcher icon cannot — Android draws it before the
-      // app exists — but everything inside the app can.
-      child: CustomPaint(painter: _BrandMarkPainter(context.astryx.accent)),
+      // The brand, not the accent: this is the mark that is on the launcher and
+      // the splash, and it should look the same wherever it appears.
+      child: const CustomPaint(painter: _BrandMarkPainter()),
     );
   }
 }
 
-class _BrandMarkPainter extends CustomPainter {
-  const _BrandMarkPainter(this.accent);
 
-  final Color accent;
-
-  /// The mark's ink: a warm near-black, so it sits in the brand family rather
-  /// than reading as a flat grey.
-  static const Color ink = Color(0xFF2A1E14);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double u = size.width / 108.0;
-
-    Rect r(double l, double t, double right, double b) =>
-        Rect.fromLTRB(l * u, t * u, right * u, b * u);
-
-    final Paint inkFill = Paint()..color = ink;
-    final Paint inkStroke = Paint()
-      ..color = ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4 * u
-      ..strokeJoin = StrokeJoin.round;
-    final Paint milkFill = Paint()..color = AstryxBrand.milk;
-
-    // The tile.
-    canvas.drawPath(
-      AstryxShape.squircle(Offset.zero & size, radius: size.width * 0.22),
-      milkFill,
-    );
-
-    // Post.
-    canvas.drawRect(r(48, 68, 52, 80), inkFill);
-    canvas.drawRect(r(58, 68, 62, 80), inkFill);
-
-    // A hairline of background, so the letter reads as being in front of the
-    // box rather than part of it.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(r(24, 50, 53, 70), Radius.circular(5 * u)),
-      milkFill,
-    );
-
-    // Body: an arch with a flat bottom.
-    final Path body = Path()
-      ..moveTo(38 * u, 68 * u)
-      ..lineTo(38 * u, 54 * u)
-      ..quadraticBezierTo(38 * u, 40 * u, 52 * u, 40 * u)
-      ..lineTo(62 * u, 40 * u)
-      ..quadraticBezierTo(76 * u, 40 * u, 76 * u, 54 * u)
-      ..lineTo(76 * u, 68 * u)
-      ..close();
-    canvas.drawPath(body, milkFill);
-    canvas.drawPath(body, inkStroke);
-
-    // The flag: the accent, and the only filled colour in the mark.
-    canvas.drawRect(r(64, 30, 67.5, 46), inkFill);
-    canvas.drawRect(r(67.5, 30, 78, 38), Paint()..color = accent);
-
-    // The letter.
-    final RRect letter =
-        RRect.fromRectAndRadius(r(26, 52, 50, 68), Radius.circular(4 * u));
-    canvas.drawRRect(letter, milkFill);
-    canvas.drawRRect(letter, inkStroke);
-
-    canvas.drawPath(
-      Path()
-        ..moveTo(30 * u, 56 * u)
-        ..lineTo(37 * u, 62 * u)
-        ..lineTo(44 * u, 56 * u),
-      Paint()
-        ..color = ink
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.6 * u
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) =>
-      oldDelegate.accent != accent;
-}
 
 /// The Material 3 Expressive loading indicator.
 ///
@@ -858,4 +777,50 @@ class _AvatarTile extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AvatarTile old) => old.color != color;
+}
+
+class _BrandMarkPainter extends CustomPainter {
+  const _BrandMarkPainter();
+
+  /// The envelope, with the flap removed. Shared with the vector drawables by
+  /// using the same numbers.
+  static Path envelopePath(double unit) {
+    final Path body = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(28 * unit, 37 * unit, 52 * unit, 34 * unit),
+          Radius.circular(6 * unit),
+        ),
+      );
+    // The flap is a chevron band: the outer triangle minus the inner one. The
+    // vector drawable expresses the same thing as three subpaths with evenOdd.
+    final Path outer = Path()
+      ..moveTo(28 * unit, 37 * unit)
+      ..lineTo(54 * unit, 58 * unit)
+      ..lineTo(80 * unit, 37 * unit)
+      ..close();
+    final Path inner = Path()
+      ..moveTo(33 * unit, 37 * unit)
+      ..lineTo(54 * unit, 53 * unit)
+      ..lineTo(75 * unit, 37 * unit)
+      ..close();
+    final Path band = Path.combine(PathOperation.difference, outer, inner);
+    return Path.combine(PathOperation.difference, body, band);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double unit = size.width / 108.0;
+    canvas.drawPath(
+      AstryxShape.squircle(Offset.zero & size),
+      Paint()..color = AstryxBrand.orange,
+    );
+    canvas.drawPath(
+      envelopePath(unit),
+      Paint()..color = AstryxBrand.milk,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrandMarkPainter oldDelegate) => false;
 }

@@ -3,6 +3,33 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.5+22
+
+### Fixed
+- **Tables render as grids.** Cells used to be joined with a few spaces, which
+  is why a status table arrived as "Status Job Annotations" on one line and the
+  columns meant nothing. Mail is laid out in tables more than in anything else,
+  so this was most of what "renders badly" was. A `<table>` becomes a real
+  `Table` now, each cell rendered with the renderer's own rules — so a link in a
+  cell is still a link, a script in a cell still contributes nothing, and a
+  table with no rows falls back to text rather than vanishing.
+- **The sidebar icon is the sidebar icon.** The drawer toggle was a hamburger,
+  which says "a menu". It is Hugeicons' `SidebarLeft`, which says what it opens.
+- **The mark is back to the milk envelope on orange** — the launcher icon, the
+  splash and the in-app mark. Restored from the commit that had it rather than
+  redrawn, so it is the same drawing and not an approximation of it.
+
+### Changed
+- **The list is grouped, like the settings screen.** Messages are headed Today,
+  Yesterday, This week, This month, Earlier, with no date dropped. A list of
+  forty identical rows tells you nothing about where to start; the same rows
+  under headings tell you immediately. The order of the headings is fixed, so
+  they do not shuffle as mail arrives, and an empty group is not shown.
+
+### Improved
+- Opening the app clears the notification for that account: you have seen it, so
+  it is no longer news.
+
 ## 0.4.4+21
 
 New-mail notifications, which had been outstanding for three passes.

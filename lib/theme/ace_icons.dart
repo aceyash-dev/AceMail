@@ -53,6 +53,10 @@ abstract final class AceIcons {
   static const AceIcon list = HugeIcons.strokeRoundedLeftToRightListBullet;
   static const AceIcon menu = HugeIcons.strokeRoundedMenu01;
 
+  /// The drawer toggle. A hamburger says "a menu"; this says "the sidebar",
+  /// which is what it opens.
+  static const AceIcon sidebar = HugeIcons.strokeRoundedSidebarLeft;
+
   // --- settings ----------------------------------------------------------
   static const AceIcon settings = HugeIcons.strokeRoundedSettings01;
   static const AceIcon palette = HugeIcons.strokeRoundedPalette;

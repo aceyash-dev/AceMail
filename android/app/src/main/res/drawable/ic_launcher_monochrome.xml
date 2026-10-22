@@ -1,41 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ace Mail monochrome layer: a postbox with its flag up and a letter at
-     the front, drawn as an outline.
+<!-- Ace Mail launcher foreground: the envelope, for themed icons.
 
-     The flag is the one filled part, in the accent orange — the accent, not a
-     tint. Everything else is a Milk fill with an ink outline, so the mark reads
-     as a drawing rather than a silhouette, and the orange means something.
+     The flap is a real notch cut through the envelope, drawn as one path with
+     evenOdd: the body, then a chevron, then the inside of that chevron. The
+     band between the two chevrons is even-odd, so it drops out and the orange
+     background shows through — no flap-coloured stroke that would only match
+     one background.
 
      Adaptive icons are a 108dp canvas of which only the central 72dp is
-     guaranteed visible, so the mark stays inside 26..80. -->
+     guaranteed visible, so the mark stays inside 28..80. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- the grey back of the box, showing where the front opens -->
-    <path android:pathData="M34,68 L34,54 Q34,38 52,38 L60,38 Q72,38 72,52 L72,68 Z" android:fillColor="#00000000" />
-
-    <!-- post -->
-    <path android:pathData="M48,68 L52,68 L52,80 L48,80 Z M58,68 L62,68 L62,80 L58,80 Z" android:fillColor="#FF000000" />
-
-    <!-- a hairline of background, so the letter reads as being in front -->
-    <path android:pathData="M23,49 L47,49 Q52,49 52,54 L52,66 Q52,71 47,71 L23,71 Q18,71 18,66 L18,54 Q18,49 23,49 Z" android:fillColor="@android:color/transparent" />
-
-    <!-- body -->
-    <path android:pathData="M38,68 L38,54 Q38,40 52,40 L62,40 Q76,40 76,54 L76,68 Z" android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000" android:strokeWidth="4" />
-
-    <!-- the flag, hooked at the top: the one accented part -->
-    <path android:pathData="M64,30 L70,30 L70,48 L64,48 Z M58,30 L70,30 L70,37 L58,37 Z" android:fillColor="#FF000000" />
-
-    <!-- the letter -->
-    <path android:pathData="M26,52 L46,52 Q50,52 50,56 L50,64 Q50,68 46,68 L26,68 Q22,68 22,64 L22,56 Q22,52 26,52 Z" android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000" android:strokeWidth="4" />
-    <path android:pathData="M29,55 L36,62 L43,55" android:strokeColor="#FF000000"
-        android:strokeWidth="3.4" android:strokeLineCap="round" />
-
-    <!-- the ground -->
-    <path android:pathData="M30,68 L78,68 L78,71 L30,71 Z" android:fillColor="#FF000000" />
+    <path
+        android:pathData="M34,37 L74,37 Q80,37 80,43 L80,65 Q80,71 74,71 L34,71 Q28,71 28,65 L28,43 Q28,37 34,37 Z M28,37 L54,58 L80,37 Z M33,37 L54,53 L75,37 Z"
+        android:fillColor="#000000"
+        android:fillType="evenOdd" />
 </vector>

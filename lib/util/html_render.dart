@@ -8,6 +8,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/limits.dart';
+import '../theme/astryx_tokens.dart';
 import '../widgets/html_image.dart';
 
 /// Converts an HTML mail body into styled spans.
@@ -24,6 +25,7 @@ class HtmlRenderer {
     required this.codeStyle,
     this.loadRemoteImages = false,
     this.confirmLink,
+    this.borderColor = const Color(0x22000000),
   });
 
   final TextStyle baseStyle;
@@ -41,6 +43,10 @@ class HtmlRenderer {
   /// the link does — `yahoo.com` can point anywhere. Showing the address before
   /// the browser opens is the difference between a decision and a reflex.
   final Future<bool> Function(Uri uri)? confirmLink;
+
+  /// The rule between table cells. Passed in rather than assumed, so the grid
+  /// matches the theme instead of a grey the renderer picked.
+  final Color borderColor;
 
   final List<TapGestureRecognizer> _recognizers = <TapGestureRecognizer>[];
 
@@ -70,6 +76,7 @@ class HtmlRenderer {
       codeStyle: codeStyle,
       loadRemoteImages: loadRemoteImages,
       confirmLink: confirmLink,
+      borderColor: borderColor,
     );
 
     try {
@@ -109,6 +116,7 @@ class _Builder {
     required this.codeStyle,
     required this.loadRemoteImages,
     required this.confirmLink,
+    required this.borderColor,
   });
 
   final TextStyle baseStyle;
@@ -116,6 +124,7 @@ class _Builder {
   final TextStyle codeStyle;
   final bool loadRemoteImages;
   final Future<bool> Function(Uri uri)? confirmLink;
+  final Color borderColor;
 
   final _Stylesheet _stylesheet = _Stylesheet();
 
@@ -221,6 +230,14 @@ class _Builder {
         return;
       // A table is a grid on the web and a column here, so rows break and cells
       // are separated. Without this every cell ran into the next one.
+      case 'table':
+        final Widget? grid = _table(node);
+        if (grid != null) {
+          writeWidget(grid);
+          return;
+        }
+        // Not a table we can lay out — fall through to the text path.
+        break;
       case 'tr':
         _inRow = false;
         _break(2);
@@ -346,6 +363,91 @@ class _Builder {
   /// An image becomes a placeholder, the size it says it is, rather than a
   /// bracket of alt text dropped into the middle of a sentence — which is what
   /// "the layout broke" looked like, with a stray `[Yahoo]` where a logo was.
+  /// A table, as a grid.
+  ///
+  /// Cells used to be joined with a few spaces, which is why a status table
+  /// arrived as "Status Job Annotations" in one line and the columns meant
+  /// nothing. Mail is laid out in tables more than anything else, so this is
+  /// most of what "renders badly" was.
+  Widget? _table(dom.Element node) {
+    final List<dom.Element> rows = node.querySelectorAll('tr');
+    if (rows.isEmpty) return null;
+
+    final List<List<dom.Element>> grid = <List<dom.Element>>[];
+    int columns = 0;
+    for (final dom.Element row in rows) {
+      final List<dom.Element> cells = row.children
+          .where((dom.Element c) =>
+              c.localName == 'td' || c.localName == 'th')
+          .toList();
+      if (cells.isEmpty) continue;
+      if (cells.length > columns) columns = cells.length;
+      grid.add(cells);
+    }
+    if (grid.isEmpty || columns == 0) return null;
+
+    final List<TableRow> tableRows = <TableRow>[];
+    for (final List<dom.Element> cells in grid) {
+      final List<Widget> children = <Widget>[
+        for (final dom.Element cell in cells) _cell(cell),
+      ];
+      // A Table insists every row has the same number of children.
+      while (children.length < columns) {
+        children.add(const SizedBox.shrink());
+      }
+      tableRows.add(TableRow(children: children));
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Table(
+        defaultColumnWidth: const IntrinsicColumnWidth(),
+        border: TableBorder.symmetric(
+          inside: BorderSide(color: borderColor),
+        ),
+        defaultVerticalAlignment: TableCellVerticalAlignment.top,
+        children: tableRows,
+      ),
+    );
+  }
+
+  /// One cell, rendered with the renderer's own rules so a link inside a table
+  /// is still a link and an image is still a placeholder.
+  Widget _cell(dom.Element cell) {
+    final _Builder inner = _Builder(
+      // The style in force where the table sits, so a bold table stays bold.
+      baseStyle: _frame.styleFor(baseStyle, linkColor, codeStyle),
+      linkColor: linkColor,
+      codeStyle: codeStyle,
+      loadRemoteImages: loadRemoteImages,
+      confirmLink: confirmLink,
+      borderColor: borderColor,
+    );
+    inner._stylesheet.add(_stylesheet.source);
+    inner.walk(cell);
+    inner.finish();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AstryxSpace.s2,
+        vertical: AstryxSpace.s1,
+      ),
+      child: Text.rich(TextSpan(children: inner.spans)),
+    );
+  }
+
+  /// Puts a widget in the flow, at the position it appeared.
+  void writeWidget(Widget widget) {
+    _flush();
+    _breaks = 0;
+    spans.add(
+      WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: widget,
+      ),
+    );
+  }
+
   void writeImage(dom.Element node) {
     // A tracking pixel is an image nobody is meant to see. Emitting a
     // placeholder for one puts an "Image" chip in the middle of a message that
@@ -639,7 +741,14 @@ class _Stylesheet {
     'yellow': Color(0xFFF9A825),
   };
 
+  /// The rules as text, so a nested builder can share them.
+  String get source => _source.toString();
+
+  final StringBuffer _source = StringBuffer();
+
   void add(String css) {
+    _source.write(css);
+    _source.write('\n');
     if (css.trim().isEmpty) return;
     final String clean = css.replaceAll(_comments, ' ');
 

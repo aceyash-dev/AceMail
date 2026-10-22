@@ -652,6 +652,7 @@ class _HtmlBodyState extends State<_HtmlBody> {
       // This is the line that makes the switch in Settings do anything at all.
       loadRemoteImages: _loadRemote,
       confirmLink: _confirmLink,
+      borderColor: c.border,
       baseStyle: AstryxText.body(c.textPrimary),
       linkColor: c.textAccent,
       codeStyle: AstryxText.body(c.textPrimary).copyWith(

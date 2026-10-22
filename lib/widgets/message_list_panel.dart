@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../models/message_group.dart';
 import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../models/swipe_action.dart';
@@ -148,13 +149,23 @@ class MessageListPanel extends StatelessWidget {
 
     final Preferences prefs = context.watch<Preferences>();
 
+    // Headings and rows in one list, so the sliver stays lazy. A String is a
+    // heading; a summary is a row.
+    final List<Object> items = <Object>[];
+    for (final MessageGroup group in groupByDate(rows)) {
+      items.add(group.label);
+      items.addAll(group.messages);
+    }
+
     return <Widget>[
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
         sliver: SliverList.builder(
-          itemCount: rows.length,
+          itemCount: items.length,
           itemBuilder: (BuildContext context, int index) {
-            final MessageSummary summary = rows[index];
+            final Object item = items[index];
+            if (item is String) return _GroupHeading(label: item);
+            final MessageSummary summary = item as MessageSummary;
             return RepaintBoundary(
               // Each row paints on its own layer: scrolling a long list then
               // repaints the rows that move rather than the whole list.
@@ -639,6 +650,32 @@ class _OtpChip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// A small heading over a run of messages, the way the settings screen heads a
+/// section.
+class _GroupHeading extends StatelessWidget {
+  const _GroupHeading({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AstryxSpace.s3,
+        AstryxSpace.s5,
+        AstryxSpace.s3,
+        AstryxSpace.s2,
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: AstryxText.label(c.textSecondary).copyWith(letterSpacing: 1.1),
+      ),
     );
   }
 }

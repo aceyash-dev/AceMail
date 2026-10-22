@@ -203,7 +203,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   onPressed: _exitSearch,
                 )
               : AceIconButton(
-                  icon: AceIcons.menu,
+                  icon: AceIcons.sidebar,
                   tooltip: 'Folders',
                   onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
