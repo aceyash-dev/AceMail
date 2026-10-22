@@ -483,7 +483,7 @@ class SettingsScreen extends StatelessWidget {
     bool value,
   ) async {
     await prefs.setCacheMessages(value);
-    if (value) return;
+    if (value || !context.mounted) return;
     await context.read<LocalStore?>()?.clear();
   }
 
