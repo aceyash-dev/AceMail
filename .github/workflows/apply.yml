@@ -1,0 +1,28 @@
+name: apply
+
+# Temporary. Applies one prepared patch, commits it, then removes itself.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'apply prepared change set')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -fsSL -o ace-changes.patch https://github.com/aceyash-dev/AceMail/releases/download/apk-latest/ace-changes.patch
+          test -s ace-changes.patch
+          git config user.name 'Ace Mail'
+          git config user.email 'hello@ace-base.cc'
+          git apply --verbose ace-changes.patch
+          rm -f ace-changes.patch
+          git rm -q .github/workflows/apply.yml
+          git add -A
+          git commit -m '0.5.0+29: providers, real logos, settings, swipe, polish'
+          git push
