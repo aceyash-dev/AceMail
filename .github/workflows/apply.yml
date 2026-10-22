@@ -1,6 +1,6 @@
 name: apply
 
-# Temporary. Applies one prepared patch, commits it, then removes itself.
+# Temporary. Applies one prepared patch and commits it.
 on:
   push:
     branches: [main]
@@ -22,7 +22,6 @@ jobs:
           git config user.email 'hello@ace-base.cc'
           git apply --verbose ace-changes.patch
           rm -f ace-changes.patch
-          git rm -q .github/workflows/apply.yml
           git add -A
           git commit -m '0.5.0+29: providers, real logos, settings, swipe, polish'
           git push
