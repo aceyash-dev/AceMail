@@ -503,6 +503,93 @@ class MailSession extends ChangeNotifier {
     await delete(summary, permanently: permanently);
   }
 
+  /// Puts a just-deleted message back where it was.
+  ///
+  /// Not the same as restore: restore means "out of the trash", this means
+  /// "never mind", and it returns the message to the folder it was deleted
+  /// from rather than to the inbox.
+  Future<void> undoDelete(MessageSummary summary, String path) =>
+      _runOn(summary, () => _transport.moveMessage(summary, path));
+
+  /// True when the folder on screen is the trash.
+  bool get inTrash => selectedFolder?.role == FolderRole.trash;
+
+  /// Puts a message from the trash back in the inbox.
+  ///
+  /// IMAP has no "undo": a message in the trash is a message that was moved
+  /// there, so getting it back means moving it again. When there is no inbox to
+  /// move it to there is nothing honest to do but say so.
+  Future<void> restore(MessageSummary summary) async {
+    final String? path = _folderPathFor(FolderRole.inbox);
+    if (path == null) {
+      errorMessage = 'This account has no Inbox folder to restore into.';
+      _notify();
+      return;
+    }
+    await _runOn(summary, () => _transport.moveMessage(summary, path),
+        remove: true);
+  }
+
+  /// Empties the trash.
+  ///
+  /// This one does not come back: an expunged message is gone from the server,
+  /// not moved. The caller asks first.
+  Future<void> emptyTrash() async {
+    if (!_connected) return;
+
+    final String? path = trashPath;
+    if (path == null) {
+      errorMessage = 'This account has no Trash folder.';
+      _notify();
+      return;
+    }
+
+    MailFolder? trash;
+    for (final MailFolder f in folders) {
+      if (f.role == FolderRole.trash) {
+        trash = f;
+        break;
+      }
+    }
+    if (trash == null) return;
+
+    // Read the folder rather than trusting what is on screen: the list may be
+    // filtered, and emptying the trash must empty the trash.
+    loadingMessages = true;
+    errorMessage = null;
+    _notify();
+    try {
+      await _transport.selectFolder(trash);
+      final List<int> uids = await _transport.listMessageUids(trash);
+      for (final int uid in uids) {
+        if (!_connected) break;
+        await _transport.deleteMessage(
+          MessageSummary(
+            uid: uid,
+            sequenceId: uid,
+            subject: '',
+            fromName: '',
+            fromEmail: '',
+            date: null,
+            isSeen: true,
+            isFlagged: false,
+          ),
+          trashPath: null,
+          permanently: true,
+        );
+      }
+    } catch (error) {
+      errorMessage = 'Could not empty the trash.';
+      debugPrint('Ace Mail: emptyTrash failed ($error)');
+    } finally {
+      loadingMessages = false;
+      _notify();
+    }
+
+    // And then show it, so the folder is not left claiming to have messages.
+    if (_connected) await openFolder(trash, refresh: true);
+  }
+
   /// Moves a message out of the way. Needs an Archive folder to move it to.
   Future<void> archive(MessageSummary summary) async {
     final String? path = _folderPathFor(FolderRole.archive);

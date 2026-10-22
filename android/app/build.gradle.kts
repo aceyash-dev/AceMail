@@ -21,7 +21,7 @@ if (hasReleaseKey) {
 }
 
 android {
-    namespace = "dev.acebase.ace_mail"
+    namespace = "app.tab.mail"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -35,7 +35,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.acebase.ace_mail"
+        applicationId = "app.tab.mail"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

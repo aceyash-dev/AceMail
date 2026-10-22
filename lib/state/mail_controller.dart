@@ -130,6 +130,23 @@ class MailController extends ChangeNotifier {
   MessageSummary? get openSummary => active?.openSummary;
   FullMessage? get openMessage => active?.openMessage;
   bool get loadingMessages => active?.loadingMessages ?? false;
+
+  /// Whether the folder on screen is the trash. The actions change there:
+  /// a message in the trash is restored or destroyed, not archived or deleted.
+  bool get inTrash => active?.inTrash ?? false;
+
+  /// Named for the message, because `restore` on this class already means
+  /// restoring the signed-in accounts from storage.
+  Future<void> restoreMessage(MessageSummary message) async =>
+      active?.restore(message);
+
+  Future<void> emptyTrash() async => active?.emptyTrash();
+
+  /// The folder the user is looking at, for an undo to put a message back into.
+  String? get currentFolderPath => active?.selectedFolder?.path;
+
+  Future<void> undoDelete(MessageSummary message, String path) async =>
+      active?.undoDelete(message, path);
   bool get refreshing => active?.refreshing ?? false;
   bool get loadingMessage => active?.loadingMessage ?? false;
   bool get loadingMore => active?.loadingMore ?? false;

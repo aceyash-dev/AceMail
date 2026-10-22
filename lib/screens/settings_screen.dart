@@ -219,6 +219,21 @@ class SettingsScreen extends StatelessWidget {
               title: 'Appearance',
               children: <Widget>[
                 SettingsSwitchRow(
+                  icon: AceIcons.list,
+                  title: 'Group by date',
+                  subtitle: 'Headings for Today, Yesterday and so on. Off is '
+                      'one undivided run of messages.',
+                  value: prefs.groupByDate,
+                  onChanged: prefs.setGroupByDate,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.folder,
+                  title: 'Unread counts on folders',
+                  subtitle: 'How much is waiting, on the folder itself.',
+                  value: prefs.showFolderCounts,
+                  onChanged: prefs.setShowFolderCounts,
+                ),
+                SettingsSwitchRow(
                   icon: AceIcons.brightness,
                   title: 'True black (OLED)',
                   subtitle: 'The dark theme goes to #000000. A pixel that is off '

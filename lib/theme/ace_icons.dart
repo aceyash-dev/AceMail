@@ -37,6 +37,8 @@ abstract final class AceIcons {
 
   // --- actions -----------------------------------------------------------
   static const AceIcon search = HugeIcons.strokeRoundedSearch01;
+  static const AceIcon restore = HugeIcons.strokeRoundedUndo;
+  static const AceIcon deleteSweep = HugeIcons.strokeRoundedDelete02;
   static const AceIcon close = HugeIcons.strokeRoundedCancel01;
   static const AceIcon check = HugeIcons.strokeRoundedTick02;
   static const AceIcon checkCircle = HugeIcons.strokeRoundedCheckmarkCircle01;

@@ -3,6 +3,33 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.9+26
+
+### Added
+- **The trash does something now.** In the Trash folder the actions change:
+  messages are **restored to the inbox** or **deleted permanently**, and there
+  is an **Empty trash** action where the trash is and nowhere else — an action
+  that destroys everything should not be one tap away from a folder where it
+  means nothing. Emptying asks first, because an expunged message is gone from
+  the server rather than moved, and it is the one action in the app that cannot
+  be undone.
+- **Two more settings**: group the list by date, and unread counts on folders.
+- **Undo on the snackbar.** A swipe that deletes now offers to take it back, and
+  the undo returns the message to the folder it came from rather than to the
+  inbox. The mistake is one flick away, so the way back is on the bar.
+
+### Changed
+- **Every transient message goes through one helper**, so they have the same
+  shape and the same place on screen. A message is recognised before it is read.
+- **The package is `app.tab.mail`.** A different application id means a separate
+  app: this installs *alongside* the old one rather than over it, and the old one
+  keeps its mail. Uninstall it when you are satisfied the new one works.
+
+### Noted
+- `restore` on the controller already meant "restore the accounts from
+  storage", so the message one is `restoreMessage`. Two things with one name is
+  how a method ends up doing the wrong one.
+
 ## 0.4.8+25
 
 ### Why it felt laggy

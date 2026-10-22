@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
 import '../models/message_group.dart';
+import '../util/ace_snack.dart';
 import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../models/swipe_action.dart';
@@ -158,9 +159,13 @@ class MessageListPanel extends StatelessWidget {
     // Headings and rows in one list, so the sliver stays lazy. A String is a
     // heading; a summary is a row.
     final List<Object> items = <Object>[];
-    for (final MessageGroup group in groupByDate(rows)) {
-      items.add(group.label);
-      items.addAll(group.messages);
+    if (prefs.groupByDate) {
+      for (final MessageGroup group in groupByDate(rows)) {
+        items.add(group.label);
+        items.addAll(group.messages);
+      }
+    } else {
+      items.addAll(rows);
     }
 
     return <Widget>[
@@ -264,15 +269,37 @@ class MessageListPanel extends StatelessWidget {
     SwipeAction action,
   ) {
     final MailController controller = context.read<MailController>();
+
+    // Where it was, so an undo can put it back there rather than in the inbox.
+    final String? from = controller.currentFolderPath;
+
     switch (action) {
       case SwipeAction.archive:
         controller.archive(summary);
+        AceSnack.show(context, 'Archived.');
       case SwipeAction.trash:
+        // The mistake is one flick away, so the way back is on the bar.
         controller.delete(summary);
+        if (from != null) {
+          AceSnack.undo(
+            context,
+            'Moved to trash.',
+            onUndo: () => controller.undoDelete(summary, from),
+          );
+        } else {
+          AceSnack.show(context, 'Moved to trash.');
+        }
       case SwipeAction.toggleRead:
+        final bool wasSeen = summary.isSeen;
         controller.toggleRead(summary);
+        AceSnack.undo(
+          context,
+          wasSeen ? 'Marked unread.' : 'Marked read.',
+          onUndo: () => controller.toggleRead(summary),
+        );
       case SwipeAction.flag:
         controller.toggleFlag(summary);
+        AceSnack.show(context, summary.isFlagged ? 'Star removed.' : 'Starred.');
       case SwipeAction.none:
         break;
     }

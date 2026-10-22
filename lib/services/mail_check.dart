@@ -10,7 +10,7 @@ import 'mail_watcher.dart';
 import 'notifications.dart';
 
 /// The task name WorkManager knows this by.
-const String kMailCheckTask = 'dev.acebase.ace_mail.check';
+const String kMailCheckTask = 'app.tab.mail.check';
 
 /// The entry point WorkManager calls when it decides it is time.
 ///

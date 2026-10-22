@@ -10,6 +10,7 @@ import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/confirm_exit.dart';
@@ -168,30 +169,46 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   style: AstryxText.heading3(c.textPrimary),
                 ),
                 actions: <Widget>[
-                  AceIconButton(
-                    icon: AceIcons.mailOpen,
-                    tooltip: 'Mark as read',
+                  if (controller.inTrash)
+                    AceIconButton(
+                      icon: AceIcons.restore,
+                      tooltip: 'Restore to inbox',
+                      onPressed: () => controller.forEachSelected(
+                        (MessageSummary m) => controller.restoreMessage(m),
+                      ),
+                    ),
+                  if (!controller.inTrash)
+                    AceIconButton(
+                      icon: AceIcons.mailOpen,
+                      tooltip: 'Mark as read',
                     onPressed: () => context
                         .read<MailController>()
                         .forEachSelected((MessageSummary m) => context
                             .read<MailController>()
                             .toggleRead(m)),
                   ),
-                  AceIconButton(
-                    icon: AceIcons.archive,
-                    tooltip: 'Archive',
-                    onPressed: () => context
-                        .read<MailController>()
-                        .forEachSelected((MessageSummary m) =>
-                            context.read<MailController>().archive(m)),
-                  ),
+                  if (!controller.inTrash)
+                    AceIconButton(
+                      icon: AceIcons.archive,
+                      tooltip: 'Archive',
+                      onPressed: () => controller.forEachSelected(
+                        (MessageSummary m) => controller.archive(m),
+                      ),
+                    ),
                   AceIconButton(
                     icon: AceIcons.trash,
-                    tooltip: 'Delete',
-                    onPressed: () => context
-                        .read<MailController>()
-                        .forEachSelected((MessageSummary m) =>
-                            context.read<MailController>().delete(m)),
+                    // In the trash this does not move anything — it destroys,
+                    // and the tooltip is the only place that can say so before
+                    // the fact.
+                    tooltip: controller.inTrash
+                        ? 'Delete permanently'
+                        : 'Delete',
+                    onPressed: () => controller.forEachSelected(
+                      (MessageSummary m) => controller.delete(
+                        m,
+                        permanently: controller.inTrash,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: AstryxSpace.s2),
                 ],
@@ -222,6 +239,15 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   style: AstryxText.heading3(c.textPrimary),
                 ),
           actions: <Widget>[
+            // Emptying the trash lives where the trash does, and nowhere else:
+            // an action that destroys everything should not be one tap away
+            // from a folder where it means nothing.
+            if (controller.inTrash && !_searching)
+              AceIconButton(
+                icon: AceIcons.deleteSweep,
+                tooltip: 'Empty trash',
+                onPressed: () => _confirmEmptyTrash(context),
+              ),
             if (!_searching && !(reading && !wide))
               AceIconButton(
                 icon: AceIcons.search,
@@ -346,4 +372,36 @@ class _MailboxScreenState extends State<MailboxScreen> {
     if (prefs.confirmExit && !await confirmExit(context)) return;
     await SystemNavigator.pop();
   }
+  /// Asks, then empties. An expunged message is gone from the server rather
+  /// than moved, so this is the one action in the app that cannot be undone and
+  /// the one that must ask.
+  Future<void> _confirmEmptyTrash(BuildContext context) async {
+    final MailController controller = context.read<MailController>();
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Empty the trash?'),
+        content: const Text(
+          'Every message in it is deleted from the server. This cannot be '
+          'undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Empty'),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !context.mounted) return;
+
+    await controller.emptyTrash();
+    if (!context.mounted) return;
+    AceSnack.show(context, 'Trash emptied.');
+  }
+
 }
