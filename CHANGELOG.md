@@ -3,6 +3,40 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.4+21
+
+New-mail notifications, which had been outstanding for three passes.
+
+### Added
+- **Notifications for new mail**, checked in the background. `workmanager`
+  schedules a periodic task at Android's floor of fifteen minutes, so the check
+  runs when the app is closed rather than only while you are looking at your
+  mail — which is what a foreground timer would have given, and what would have
+  looked like it worked.
+- The background task runs in its own isolate with no widget tree, so it reads
+  everything from storage: the accounts and their passwords from the keychain,
+  the highest uid seen per account from the settings. It connects, lists the
+  inbox, and compares.
+- **The first check says nothing.** With no record of what was seen, every
+  message in the mailbox is technically new — reporting that would be a
+  notification storm on the first run rather than a delivery. It records and
+  stays quiet.
+- **Deletions are not news.** Uids only climb, so a mailbox with fewer messages
+  is not a delivery, and a message that arrived and was deleted between two
+  checks is not announced — nobody wants to be told about mail they can no
+  longer see. Seven tests cover these cases.
+- The setting asks the platform for permission **at the moment it is turned on**,
+  not at launch, and the switch shows what actually happened: a refused
+  permission leaves it off rather than showing a state that did not occur.
+
+### Notes
+- `flutter_local_notifications` needs core library desugaring on Android. Without
+  it the release build fails while dexing, with a message that never mentions
+  notifications — so the Gradle change is in the diff next to the reason.
+- The last-seen uid lives in the app's existing storage rather than a second
+  one: it is one small number per account, and a background isolate can read it
+  the same way the app does.
+
 ## 0.4.4+20
 
 The icon bug, properly this time.

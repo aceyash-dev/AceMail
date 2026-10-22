@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -92,6 +94,8 @@ class Preferences extends ChangeNotifier {
   static const String _keyDynamicColour = 'ace.dynamicColour';
   static const String _keyWarnEmptySubject = 'ace.warnEmptySubject';
   static const String _keyWarnExternalLinks = 'ace.warnExternalLinks';
+  static const String _keyNotifyNewMail = 'ace.notifyNewMail';
+  static const String _keyLastSeen = 'ace.lastSeen';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -115,6 +119,8 @@ class Preferences extends ChangeNotifier {
     _keyDynamicColour,
     _keyWarnEmptySubject,
     _keyWarnExternalLinks,
+    _keyNotifyNewMail,
+    _keyLastSeen,
   ];
 
   final FlutterSecureStorage _storage;
@@ -140,6 +146,8 @@ class Preferences extends ChangeNotifier {
   bool _useDynamicColour = false;
   bool _warnEmptySubject = true;
   bool _warnExternalLinks = true;
+  bool _notifyNewMail = false;
+  Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -212,6 +220,20 @@ class Preferences extends ChangeNotifier {
   /// Whether a link in a message asks before it leaves the app.
   bool get warnExternalLinks => _warnExternalLinks;
 
+  /// Whether new mail is announced. Off until asked for, and it asks the
+  /// platform for permission at that moment rather than at launch.
+  bool get notifyNewMail => _notifyNewMail;
+
+  /// The highest inbox uid seen for an account, so the next check knows what is
+  /// new. Kept here rather than in a second storage: it is one small number per
+  /// account, and a background isolate can read it the same way the app does.
+  int lastSeenUid(String email) => _lastSeen[email.toLowerCase()] ?? 0;
+
+  Future<void> setLastSeenUid(String email, int uid) async {
+    _lastSeen[email.toLowerCase()] = uid;
+    await _write(_keyLastSeen, jsonEncode(_lastSeen), () {});
+  }
+
   Future<void> load() async {
     final Map<String, String?> raw = <String, String?>{};
     for (final String key in _keys) {
@@ -251,6 +273,8 @@ class Preferences extends ChangeNotifier {
         _decodeBool(raw[_keyWarnEmptySubject], _warnEmptySubject);
     _warnExternalLinks =
         _decodeBool(raw[_keyWarnExternalLinks], _warnExternalLinks);
+    _notifyNewMail = _decodeBool(raw[_keyNotifyNewMail], _notifyNewMail);
+    _lastSeen = _decodeLastSeen(raw[_keyLastSeen]);
 
     notifyListeners();
   }
@@ -317,6 +341,25 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setWarnExternalLinks(bool value) =>
       _write(_keyWarnExternalLinks, '$value', () => _warnExternalLinks = value);
+
+  Future<void> setNotifyNewMail(bool value) =>
+      _write(_keyNotifyNewMail, '$value', () => _notifyNewMail = value);
+
+  /// Best effort: a corrupt entry means no memory of what was seen, which costs
+  /// one quiet check, not a crash.
+  static Map<String, int> _decodeLastSeen(String? raw) {
+    if (raw == null || raw.isEmpty) return <String, int>{};
+    try {
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, int>{};
+      return <String, int>{
+        for (final MapEntry<Object?, Object?> e in decoded.entries)
+          if (e.value is int) '${e.key}': e.value! as int,
+      };
+    } catch (_) {
+      return <String, int>{};
+    }
+  }
 
   /// Applies [change] and notifies immediately, then persists. A toggle must
   /// not wait on the keychain before it looks like it worked.

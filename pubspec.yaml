@@ -1,12 +1,17 @@
 name: ace_mail
 description: A fast, native IMAP/SMTP mail client for mobile and desktop.
 publish_to: "none"
-version: 0.4.4+20
+version: 0.4.4+21
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
+  # New-mail notifications. The notifications plugin draws them; workmanager is
+  # what runs the check when the app is not open — a timer would only fire while
+  # you were already looking at your mail.
+  flutter_local_notifications: ^22.3.2
+  workmanager: ^0.10.10
   # Pinned below 2.0: from 2.0 this package depends on `material_ui`, a parallel
   # Material implementation whose ColorScheme is a different type from
   # Flutter's — which makes DynamicColorBuilder unusable with a normal

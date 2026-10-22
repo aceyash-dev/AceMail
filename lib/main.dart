@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'data/app_info.dart';
 import 'data/preferences.dart';
+import 'services/notification_setup.dart';
 import 'state/mail_controller.dart';
 
 Future<void> main() async {
@@ -22,6 +23,14 @@ Future<void> main() async {
     controller.restore(),
     AppInfo.load(),
   ]);
+
+  // Registered before the first frame, so a scheduled check that fires while
+  // the app is closed has somewhere to land. Nothing is scheduled unless the
+  // setting says so.
+  await NotificationSetup.initialise();
+  if (preferences.notifyNewMail) {
+    await NotificationSetup.apply(enabled: true);
+  }
 
   runApp(
     MultiProvider(

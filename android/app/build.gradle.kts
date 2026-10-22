@@ -28,6 +28,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications schedules by time, which needs java.time
+        // on API levels that predate it. Without this the release build fails
+        // in dexing, not in Dart, so it is easy to miss until CI.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -82,4 +86,11 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Backs `isCoreLibraryDesugaringEnabled` above. Without it the release
+    // build fails while dexing, with a message that does not mention
+    // notifications at all.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

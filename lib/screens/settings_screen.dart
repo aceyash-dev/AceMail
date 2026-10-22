@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/accents.dart';
 import '../data/app_info.dart';
 import '../data/preferences.dart';
+import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
@@ -120,6 +121,22 @@ class SettingsScreen extends StatelessWidget {
                       'at the foot of the message.',
                   value: prefs.showRawHeaders,
                   onChanged: prefs.setShowRawHeaders,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.mailUnread,
+                  title: 'Notify me about new mail',
+                  subtitle: 'Checked in the background about every fifteen '
+                      'minutes — Android\u2019s floor for work like this. '
+                      'Nothing is sent anywhere: the check talks to your '
+                      'provider and tells you.',
+                  value: prefs.notifyNewMail,
+                  onChanged: (bool value) async {
+                    final bool on =
+                        await NotificationSetup.apply(enabled: value);
+                    // The switch shows what happened, not what was asked for:
+                    // a refused permission must not look like it worked.
+                    await prefs.setNotifyNewMail(on);
+                  },
                 ),
                 SettingsSwitchRow(
                   icon: AceIcons.openInNew,
