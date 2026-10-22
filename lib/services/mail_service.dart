@@ -245,6 +245,22 @@ class MailService implements MailTransport {
     ).toString();
   }
 
+  /// Whether an expunge can be trusted not to take messages it was not asked
+  /// to.
+  ///
+  /// With UIDPLUS the server expunges exactly the UIDs given, so it is always
+  /// safe. Without it the only expunge is mailbox-wide, which removes
+  /// everything carrying `\Deleted` — so it is safe only when the mailbox holds
+  /// no deletions but ours. Pure, so the rule can be asserted without a server.
+  static bool expungeIsSafe({
+    required bool supportsUidPlus,
+    required Set<int> deletedUids,
+    required Set<int> ourUids,
+  }) {
+    if (supportsUidPlus) return true;
+    return deletedUids.difference(ourUids).isEmpty;
+  }
+
   /// `BODY.PEEK[]` so reading a message does not set `\Seen` as a side effect.
   /// The flag is set deliberately afterwards, which keeps local and server
   /// state in step even when the mark-read call fails.
@@ -396,18 +412,44 @@ class MailService implements MailTransport {
     }
   }
 
+  /// Flags the message `\Deleted`, then removes it.
+  ///
+  /// The removal needs an EXPUNGE, and the only one a server without UIDPLUS
+  /// offers is mailbox-wide: it takes **every** message carrying `\Deleted`,
+  /// including ones another client flagged and has not finished with. So the
+  /// mailbox is checked *before* anything is flagged, and the operation is
+  /// refused if it could take a message it was not asked to. Refusing is
+  /// recoverable; an expunge is not.
   Future<void> _deleteAndExpunge(MessageSequence sequence) async {
+    if (!expungeIsSafe(
+      supportsUidPlus: _client.serverInfo.supportsUidPlus,
+      deletedUids: await _deletedUids(),
+      ourUids: sequence.toList().toSet(),
+    )) {
+      throw const MailRejectedException(
+        'This server cannot delete a single message at a time, and other '
+        'messages are already marked for deletion — by another app, most '
+        'likely. Nothing was removed. Finish those deletions first, then try '
+        'again.',
+      );
+    }
     await _client.uidStore(sequence, <String>[MessageFlags.deleted]);
     await _expungeOnly(sequence);
   }
 
-  /// Expunges only the message just flagged.
+  /// The UIDs currently flagged `\Deleted` in the selected mailbox.
+  Future<Set<int>> _deletedUids() async {
+    final SearchImapResult result =
+        await _client.uidSearchMessages(searchCriteria: 'DELETED');
+    return (result.matchingSequence?.toList() ?? <int>[]).toSet();
+  }
+
+  /// Expunges the message just flagged.
   ///
   /// A bare `EXPUNGE` removes **every** message in the mailbox carrying
-  /// `\Deleted` — including anything another client flagged and has not
-  /// finished with. `UID EXPUNGE` (RFC 2359) removes exactly one. A server that
-  /// does not advertise UIDPLUS only offers the mailbox-wide form; that is a
-  /// protocol limit, so it is noted here rather than pretended away.
+  /// `\Deleted`. `UID EXPUNGE` (RFC 2359) removes exactly one. A server that
+  /// does not advertise UIDPLUS only offers the mailbox-wide form — which is
+  /// why [_deleteAndExpunge] checked first that it can only take ours.
   Future<void> _expungeOnly(MessageSequence sequence) async {
     if (_client.serverInfo.supportsUidPlus) {
       await _client.uidExpunge(sequence);
@@ -437,6 +479,29 @@ class MailService implements MailTransport {
         MailAddresses.validate(cc, field: 'Cc') ??
         MailAddresses.validate(bcc, field: 'Bcc');
     if (problem != null) throw MailRejectedException(problem);
+
+    // The screen caps attachments too, but the service is the last gate before
+    // the network: a caller that does not go through the screen must not be
+    // able to send an unbounded message, and a file that has moved since it was
+    // picked must be caught here rather than half-way through the transfer.
+    int attachmentBytes = 0;
+    for (final File file in attachments) {
+      final int size;
+      try {
+        size = await file.length();
+      } catch (_) {
+        throw const MailRejectedException(
+          'An attachment could not be read, so nothing was sent.',
+        );
+      }
+      attachmentBytes += size;
+    }
+    if (attachmentBytes > MailLimits.maxOutboundAttachmentBytes) {
+      throw MailRejectedException(
+        'Attachments are limited to '
+        '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB in total.',
+      );
+    }
 
     final MessageBuilder builder =
         MessageBuilder.prepareMultipartAlternativeMessage(

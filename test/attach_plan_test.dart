@@ -33,6 +33,19 @@ void main() {
       expect(plan.rejected, 1);
     });
 
+    test('the reported case: a 30 MB file keeps the 1 MB file behind it', () {
+      // photo.png 2 MiB, video.mp4 30 MiB, notes.pdf 1 MiB, at a 25 MiB cap.
+      // The video is left off; the PDF is not, which is the bug that was filed.
+      const int mib = 1024 * 1024;
+      final AttachPlan plan = planAttachments(
+        alreadyBytes: 0,
+        sizes: <int>[2 * mib, 30 * mib, 1 * mib],
+        limit: 25 * mib,
+      );
+      expect(plan.accepted, <int>[0, 2]);
+      expect(plan.rejected, 1);
+    });
+
     test('a file exactly at the limit still fits', () {
       final AttachPlan plan = planAttachments(
         alreadyBytes: 0,

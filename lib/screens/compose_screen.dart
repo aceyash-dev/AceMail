@@ -88,52 +88,83 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   Future<void> _attach() async {
-    final List<File> picked = await pickAttachmentFiles();
-    if (!mounted || picked.isEmpty) return;
+    final PickedAttachments picked = await pickAttachmentFiles();
+    if (!mounted || picked.files.isEmpty) return;
 
-    // Sizes are read from the files in bytes, and anything that would push the
-    // message past the cap is left off rather than attached and refused later.
-    final List<int> sizes = <int>[
-      for (final File file in picked) await _sizeOf(file),
-    ];
+    // Sizes are read in bytes, and a file that cannot be read is left off
+    // rather than attached as an empty one — a failed size check is not the
+    // same thing as a zero-byte file.
+    final List<File> readable = <File>[];
+    final List<int> sizes = <int>[];
+    int unreadable = 0;
+    for (final File file in picked.files) {
+      final int? size = await _sizeOf(file);
+      if (size == null) {
+        unreadable++;
+        continue;
+      }
+      readable.add(file);
+      sizes.add(size);
+    }
+
+    // The byte cap is applied here, once, and it skips an oversized file
+    // individually: the smaller files picked behind it still attach.
     final AttachPlan plan = planAttachments(
       alreadyBytes: await _totalBytes(),
       sizes: sizes,
       limit: MailLimits.maxOutboundAttachmentBytes,
     );
     final List<File> accepted = <File>[
-      for (final int index in plan.accepted) picked[index],
+      for (final int index in plan.accepted) readable[index],
     ];
 
     if (!mounted) return;
     setState(() {
       _attachments.addAll(accepted);
-      _error = plan.rejected == 0
-          ? null
-          : '${plan.rejected} file(s) were left off: attachments are limited to '
-              '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB '
-              'in total.';
+      _error = _leftOff(
+        tooLarge: plan.rejected,
+        tooMany: picked.skipped,
+        unreadable: unreadable,
+      );
     });
   }
 
-  Future<int> _sizeOf(File file) async {
+  /// Says what was left off, and why.
+  ///
+  /// A file the picker discarded is still the user's file, and a message that
+  /// quietly omits one is the failure this whole path exists to prevent — so
+  /// every omission is named, not just the size ones.
+  String? _leftOff({
+    required int tooLarge,
+    required int tooMany,
+    required int unreadable,
+  }) {
+    final int total = tooLarge + tooMany + unreadable;
+    if (total == 0) return null;
+    final List<String> reasons = <String>[
+      if (tooLarge > 0)
+        '$tooLarge over the '
+            '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB total',
+      if (tooMany > 0)
+        '$tooMany over the ${MailLimits.maxAttachmentCount}-file limit',
+      if (unreadable > 0) '$unreadable that could not be read',
+    ];
+    return '$total file(s) were left off: ${reasons.join('; ')}.';
+  }
+
+  /// The file's size, or null when it cannot be read.
+  Future<int?> _sizeOf(File file) async {
     try {
       return await file.length();
     } catch (_) {
-      // A file that has moved since it was picked contributes nothing here and
-      // will surface on send.
-      return 0;
+      return null;
     }
   }
 
   Future<int> _totalBytes() async {
     int total = 0;
     for (final File file in _attachments) {
-      try {
-        total += await file.length();
-      } catch (_) {
-        // The file may have moved; it will surface on send.
-      }
+      total += await _sizeOf(file) ?? 0;
     }
     return total;
   }

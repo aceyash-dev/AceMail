@@ -3,6 +3,47 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.5.0+30
+
+### Fixed
+- **A file picked behind an oversized one is no longer dropped.** The picker
+  stopped the whole selection at the first file that did not fit, so choosing a
+  2 MB photo, a 30 MB video and a 1 MB PDF attached only the photo — and the
+  screen could not say what had gone, because the picker had already discarded
+  it. The byte cap now belongs to the planner, which skips an oversized file
+  individually; the picker counts what the file-count cap leaves off; and the
+  compose screen names every omission — too large, too many, or unreadable.
+- **A delete can no longer take a message it was not asked to.** On a server
+  without UIDPLUS the only expunge is mailbox-wide, and it removes *every*
+  message carrying `\Deleted` — including ones another app flagged and has not
+  finished with. The mailbox is now checked before anything is flagged, and the
+  delete is refused with an explanation rather than expunging someone else's
+  pending deletion.
+- **A file that cannot be read is no longer attached as an empty one.** A failed
+  size check used to count as zero bytes.
+
+### Changed
+- **Release notes are generated, and fold open.** The release body is built from
+  this changelog at release time rather than typed into the workflow, so it
+  cannot drift from what the app shows. It opens with an overview and keeps each
+  section in an accordion.
+- **Validation and publishing are separated in CI.** A pull request builds and
+  uploads the **debug** APK and never sees the release secrets; only a tag or a
+  manual run builds the signed release APK.
+- **The signer check fails closed.** A publishing run now requires
+  `ANDROID_KEY_SHA256` and fails if the APK's certificate cannot be read, rather
+  than skipping the comparison when the secret is missing. Fingerprints are
+  compared with separators and case normalised.
+- The sending service enforces the attachment limit itself, so a caller that
+  does not go through the compose screen cannot send an unbounded message.
+
+### Noted
+- Regression tests cover the attachment picker's caps, the expunge rule (with
+  and without UIDPLUS), and the exact reported case — a 30 MB file no longer
+  dropping the 1 MB file behind it.
+
+Version 0.5.0+30.
+
 ## 0.5.0+29
 
 ### Removed
