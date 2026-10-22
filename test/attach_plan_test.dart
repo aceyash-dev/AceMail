@@ -33,6 +33,18 @@ void main() {
       expect(plan.rejected, 1);
     });
 
+    test('enforces the attachment-count cap across repeated selections', () {
+      final AttachPlan plan = planAttachments(
+        alreadyBytes: 0,
+        sizes: <int>[10, 20, 30],
+        limit: 100,
+        alreadyCount: 1,
+        maxCount: 3,
+      );
+      expect(plan.accepted, <int>[0, 1]);
+      expect(plan.rejected, 1);
+    });
+
     test('a file exactly at the limit still fits', () {
       final AttachPlan plan = planAttachments(
         alreadyBytes: 0,

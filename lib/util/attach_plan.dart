@@ -1,9 +1,13 @@
+import '../data/limits.dart';
+
 /// The outcome of deciding which attachments fit.
 typedef AttachPlan = ({List<int> accepted, int rejected});
 
-/// Decides which of [sizes] fit under [limit], given [alreadyBytes] in use.
+/// Decides which of [sizes] fit under [limit], given [alreadyBytes] and
+/// [alreadyCount] already in use.
 ///
-/// Sizes are **bytes**. Counting characters of a file path is not a size at
+/// Files that exceed the byte or count budget are skipped individually, so a
+/// rejected file does not block smaller files behind it. Sizes are **bytes**. Counting characters of a file path is not a size at
 /// all, and a guard that measures the wrong thing is worse than none: it
 /// reports a limit it is not enforcing.
 ///
@@ -13,6 +17,8 @@ AttachPlan planAttachments({
   required int alreadyBytes,
   required List<int> sizes,
   required int limit,
+  int alreadyCount = 0,
+  int maxCount = MailLimits.maxAttachmentCount,
 }) {
   final List<int> accepted = <int>[];
   int rejected = 0;
@@ -20,7 +26,7 @@ AttachPlan planAttachments({
 
   for (int i = 0; i < sizes.length; i++) {
     final int size = sizes[i] < 0 ? 0 : sizes[i];
-    if (running + size > limit) {
+    if (alreadyCount + accepted.length >= maxCount || running + size > limit) {
       rejected++;
       continue;
     }

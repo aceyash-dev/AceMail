@@ -88,8 +88,19 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   Future<void> _attach() async {
-    final List<File> picked = await pickAttachmentFiles();
-    if (!mounted || picked.isEmpty) return;
+    final AttachmentSelection selection = await pickAttachmentFiles();
+    final List<File> picked = selection.files;
+    if (!mounted) return;
+    if (picked.isEmpty) {
+      if (selection.rejected > 0) {
+        setState(() {
+          _error = '${selection.rejected} file(s) were left off: attachments are limited to '
+              '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB total '
+              'and ${MailLimits.maxAttachmentCount} files.';
+        });
+      }
+      return;
+    }
 
     // Sizes are read from the files in bytes, and anything that would push the
     // message past the cap is left off rather than attached and refused later.
@@ -100,6 +111,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
       alreadyBytes: await _totalBytes(),
       sizes: sizes,
       limit: MailLimits.maxOutboundAttachmentBytes,
+      alreadyCount: _attachments.length,
+      maxCount: MailLimits.maxAttachmentCount,
     );
     final List<File> accepted = <File>[
       for (final int index in plan.accepted) picked[index],
@@ -108,11 +121,12 @@ class _ComposeScreenState extends State<ComposeScreen> {
     if (!mounted) return;
     setState(() {
       _attachments.addAll(accepted);
-      _error = plan.rejected == 0
+      final int rejected = selection.rejected + plan.rejected;
+      _error = rejected == 0
           ? null
-          : '${plan.rejected} file(s) were left off: attachments are limited to '
-              '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB '
-              'in total.';
+          : '$rejected file(s) were left off: attachments are limited to '
+              '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB total '
+              'and ${MailLimits.maxAttachmentCount} files.';
     });
   }
 

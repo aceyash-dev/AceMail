@@ -12,6 +12,7 @@ import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../util/addresses.dart';
+import '../util/imap_safety.dart';
 import 'backoff.dart';
 import 'mail_errors.dart';
 import 'mail_transport.dart';
@@ -343,6 +344,7 @@ class MailService implements MailTransport {
       _queue.run(
         () => _guard(
           () async {
+            _requireSafeUidExpunge();
             final MessageSequence sequence =
                 MessageSequence.fromId(summary.uid, isUid: true);
             await _copyTo(sequence, targetPath);
@@ -366,6 +368,7 @@ class MailService implements MailTransport {
       _queue.run(
         () => _guard(
           () async {
+            _requireSafeUidExpunge();
             final MessageSequence sequence =
                 MessageSequence.fromId(summary.uid, isUid: true);
 
@@ -397,23 +400,29 @@ class MailService implements MailTransport {
   }
 
   Future<void> _deleteAndExpunge(MessageSequence sequence) async {
+    // Check before setting \Deleted: a mailbox-wide EXPUNGE would also remove
+    // messages another client has marked for deletion.
+    _requireSafeUidExpunge();
     await _client.uidStore(sequence, <String>[MessageFlags.deleted]);
     await _expungeOnly(sequence);
+  }
+
+  void _requireSafeUidExpunge() {
+    final String? reason = uidExpungeUnavailableReason(
+      supportsUidPlus: _client.serverInfo.supportsUidPlus,
+    );
+    if (reason != null) throw MailRejectedException(reason);
   }
 
   /// Expunges only the message just flagged.
   ///
   /// A bare `EXPUNGE` removes **every** message in the mailbox carrying
   /// `\Deleted` — including anything another client flagged and has not
-  /// finished with. `UID EXPUNGE` (RFC 2359) removes exactly one. A server that
-  /// does not advertise UIDPLUS only offers the mailbox-wide form; that is a
-  /// protocol limit, so it is noted here rather than pretended away.
+  /// finished with. `UID EXPUNGE` (RFC 2359) removes exactly one. Servers
+  /// without UIDPLUS are refused here rather than risking unrelated mail.
   Future<void> _expungeOnly(MessageSequence sequence) async {
-    if (_client.serverInfo.supportsUidPlus) {
-      await _client.uidExpunge(sequence);
-      return;
-    }
-    await _client.expunge();
+    _requireSafeUidExpunge();
+    await _client.uidExpunge(sequence);
   }
 
   // --- sending ------------------------------------------------------------

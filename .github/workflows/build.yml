@@ -18,6 +18,7 @@ jobs:
   build:
     name: Analyze, test, build APK
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -88,9 +89,15 @@ jobs:
       # arm only: x86/x86_64 are emulator and ChromeOS images, and shipping
       # them just inflates the download. Flutter picks the ABIs, not Gradle.
       - name: Build release APK
+        if: github.event_name != 'pull_request'
         run: flutter build apk --release --target-platform android-arm,android-arm64
 
+      - name: Build debug APK for pull requests
+        if: github.event_name == 'pull_request'
+        run: flutter build apk --debug --target-platform android-arm,android-arm64
+
       - name: Verify the signer
+        if: github.event_name != 'pull_request'
         env:
           EXPECTED: ${{ secrets.ANDROID_KEY_SHA256 }}
         run: |
@@ -101,22 +108,93 @@ jobs:
           ACTUAL=$("$BT/apksigner" verify --print-certs "$APK" \
             | grep -m1 "SHA-256 digest" | awk '{print $NF}')
           echo "signer sha256: $ACTUAL"
-          if [ -n "$EXPECTED" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
-            echo "::error::The APK is not signed with the expected release key."
-            exit 1
+          PUBLISHING="no"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            PUBLISHING="yes"
+          fi
+
+          if [ "$PUBLISHING" = "yes" ]; then
+            if [ -z "$EXPECTED" ]; then
+              echo "::error::ANDROID_KEY_SHA256 is required for release publication."
+              exit 1
+            fi
+            if [ -z "$ACTUAL" ]; then
+              echo "::error::Could not read the APK signer fingerprint."
+              exit 1
+            fi
+          fi
+
+          if [ -n "$EXPECTED" ]; then
+            EXPECTED_NORMALIZED=$(printf '%s' "$EXPECTED" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+            ACTUAL_NORMALIZED=$(printf '%s' "$ACTUAL" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+            if [ -z "$ACTUAL_NORMALIZED" ] || [ "$ACTUAL_NORMALIZED" != "$EXPECTED_NORMALIZED" ]; then
+              echo "::error::The APK is not signed with the expected release key."
+              exit 1
+            fi
           fi
 
       - name: Upload APK artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: ace-mail-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
+      - name: Upload debug APK artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-mail-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
   # The README claims four desktop platforms; this is the one that can actually
   # be built on a hosted runner, so it is the one that is checked. iOS and macOS
   # need macOS runners and Windows needs a Windows runner — neither is claimed
   # here, and the README says so.
+  desktop:
+    name: Linux desktop build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the Linux desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Ensure Linux desktop scaffold
+        run: |
+          if [ ! -d linux ]; then
+            flutter create --platforms=linux .
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Linux desktop
+        run: flutter build linux --release
+
+      - name: Upload the Linux bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-mail-linux
+          path: build/linux/x64/release/bundle
+          if-no-files-found: error
+
+  # Publishing is its own job, so the only step that can write to the repository
+  # is one that never runs on a pull request.
   release:
     name: Publish the APK
     needs: build
