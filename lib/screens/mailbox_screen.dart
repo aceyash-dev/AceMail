@@ -179,12 +179,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     AceIconButton(
                       icon: AceIcons.mailOpen,
                       tooltip: 'Mark as read',
-                    onPressed: () => context
-                        .read<MailController>()
-                        .forEachSelected((MessageSummary m) => context
-                            .read<MailController>()
-                            .toggleRead(m)),
-                  ),
+                      // Marks read, and leaves read messages alone. This used to
+                      // call toggleRead, so "Mark as read" quietly marked the
+                      // already-read ones *unread*.
+                      onPressed: () => controller.forEachSelected(
+                        (MessageSummary m) => controller.markRead(m),
+                      ),
+                    ),
                   if (!controller.inTrash)
                     AceIconButton(
                       icon: AceIcons.archive,
@@ -199,12 +200,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     tooltip: controller.inTrash
                         ? 'Delete permanently'
                         : 'Delete',
-                    onPressed: () => controller.forEachSelected(
-                      (MessageSummary m) => controller.delete(
-                        m,
-                        permanently: controller.inTrash,
-                      ),
-                    ),
+                    onPressed: () => _deleteSelected(context),
                   ),
                   const SizedBox(width: AstryxSpace.s2),
                 ],
@@ -398,6 +394,25 @@ class _MailboxScreenState extends State<MailboxScreen> {
     await controller.emptyTrash();
     if (!context.mounted) return;
     AceSnack.show(context, 'Trash emptied.');
+  }
+
+  /// Deletes everything picked.
+  ///
+  /// From the Trash that is permanent — it destroys, and there is nothing to
+  /// undo — so it asks first, the way the reader and "Empty trash" already do.
+  Future<void> _deleteSelected(BuildContext context) async {
+    final MailController controller = context.read<MailController>();
+    final bool permanent = controller.inTrash;
+
+    if (permanent) {
+      final int count = controller.selectedMessages.length;
+      if (!await confirmPermanentDelete(context, count: count)) return;
+      if (!context.mounted) return;
+    }
+
+    await controller.forEachSelected(
+      (MessageSummary m) => controller.delete(m, permanently: permanent),
+    );
   }
 
   /// Archives everything picked, asking first when the setting is on.

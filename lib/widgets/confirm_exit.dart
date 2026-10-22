@@ -26,6 +26,45 @@ Future<bool> confirmArchive(BuildContext context) async {
   return go ?? false;
 }
 
+/// Asks before a permanent delete, which is the one action that cannot be
+/// undone.
+///
+/// Every permanent-delete path asks — the reader, "Empty trash", and the
+/// selection toolbar, which used to expunge the selected messages out of the
+/// Trash with no question at all.
+Future<bool> confirmPermanentDelete(
+  BuildContext context, {
+  required int count,
+}) async {
+  final bool one = count == 1;
+  final bool? go = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(
+      title: Text(
+        one ? 'Delete permanently?' : 'Delete $count messages permanently?',
+      ),
+      content: Text(
+        one
+            ? 'This message is in the Trash, so it will be deleted permanently '
+                'and cannot be recovered.'
+            : 'These messages are in the Trash, so they will be deleted '
+                'permanently and cannot be recovered.',
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Delete permanently'),
+        ),
+      ],
+    ),
+  );
+  return go ?? false;
+}
+
 /// Asks whether to close the app, from either entry point that can.
 ///
 /// Both the sign-in screen and the mailbox need this, and they had drifted into

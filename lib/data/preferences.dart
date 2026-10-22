@@ -120,7 +120,6 @@ class Preferences extends ChangeNotifier {
   static const String _keyGroupByDate = 'ace.groupByDate';
   static const String _keyFolderCounts = 'ace.folderCounts';
   static const String _keySeenVersion = 'ace.seenVersion';
-  static const String _keyPreviewLines = 'ace.previewLines';
   static const String _keyQuoteReplies = 'ace.quoteReplies';
   static const String _keySignatureOnReplies = 'ace.signatureOnReplies';
   static const String _keyConfirmArchive = 'ace.confirmArchive';
@@ -157,7 +156,6 @@ class Preferences extends ChangeNotifier {
     _keyGroupByDate,
     _keyFolderCounts,
     _keySeenVersion,
-    _keyPreviewLines,
     _keyQuoteReplies,
     _keySignatureOnReplies,
     _keyConfirmArchive,
@@ -195,7 +193,6 @@ class Preferences extends ChangeNotifier {
   bool _groupByDate = true;
   bool _showFolderCounts = true;
   String? _lastSeenVersion;
-  int _previewLines = 1;
   bool _quoteReplies = true;
   bool _signatureOnReplies = false;
   bool _confirmArchive = false;
@@ -301,9 +298,6 @@ class Preferences extends ChangeNotifier {
   /// app has not been through an update yet.
   String? get lastSeenVersion => _lastSeenVersion;
 
-  /// How many lines of the message follow the subject in the list.
-  int get previewLines => _previewLines;
-
   /// Whether a reply starts with the original message quoted beneath it.
   bool get quoteReplies => _quoteReplies;
 
@@ -322,9 +316,6 @@ class Preferences extends ChangeNotifier {
 
   /// Whether a copy of every message is blind-copied to the sending account.
   bool get bccSelf => _bccSelf;
-
-  Future<void> setPreviewLines(int value) =>
-      _write(_keyPreviewLines, '$value', () => _previewLines = value);
 
   Future<void> setQuoteReplies(bool value) =>
       _write(_keyQuoteReplies, '$value', () => _quoteReplies = value);
@@ -401,8 +392,6 @@ class Preferences extends ChangeNotifier {
     _groupByDate = _decodeBool(raw[_keyGroupByDate], _groupByDate);
     _showFolderCounts =
         _decodeBool(raw[_keyFolderCounts], _showFolderCounts);
-    _previewLines =
-        _decodeInt(raw[_keyPreviewLines], _previewLines).clamp(0, 3);
     _quoteReplies = _decodeBool(raw[_keyQuoteReplies], _quoteReplies);
     _signatureOnReplies =
         _decodeBool(raw[_keySignatureOnReplies], _signatureOnReplies);
@@ -538,5 +527,3 @@ class Preferences extends ChangeNotifier {
   }
 }
 
-/// Best effort: a setting that will not parse falls back rather than throwing.
-int _decodeInt(String? raw, int fallback) => int.tryParse(raw ?? '') ?? fallback;

@@ -6,6 +6,15 @@ after the `+` is the Android version code.
 ## 0.5.0+30
 
 ### Fixed
+- **The message list no longer crashes while loading.** The loading placeholder
+  was a `ListView` inside a `SliverToBoxAdapter`, which lays its child out with
+  an unbounded extent — a nested vertical viewport given infinite height, and a
+  thrown exception. It draws exactly when a folder with no cached page is
+  opened, which is the first open after launch. The placeholder is a column of
+  rows now; nothing there scrolled anyway.
+- **Deleting from the Trash asks first.** The selection toolbar expunged the
+  selected messages permanently with no confirmation — one tap, no way back, and
+  the only permanent-delete path that did not ask.
 - **A file picked behind an oversized one is no longer dropped.** The picker
   stopped the whole selection at the first file that did not fit, so choosing a
   2 MB photo, a 30 MB video and a 1 MB PDF attached only the photo — and the
@@ -19,10 +28,39 @@ after the `+` is the Android version code.
   finished with. The mailbox is now checked before anything is flagged, and the
   delete is refused with an explanation rather than expunging someone else's
   pending deletion.
+- **Deleting an open message from the Trash deletes it.** The reader asked
+  "Move to Trash?" and did a non-permanent delete *into the folder the message
+  was already in* — which left a duplicate, left the message in the Trash, and
+  made its row vanish from the list as if it had worked.
+- **"Mark as read" marks read.** It called the toggle, so the messages that were
+  already read came back unread — the opposite of what the label and the icon
+  promise.
+- **Nested tables render as they were written.** Rows were collected with a
+  descendant search, so the rows of a table inside a cell were counted as rows
+  of the outer grid and then rendered again inside that cell. A
+  `text-transform` on an ancestor is inherited again instead of being dropped at
+  the first nested tag, and the link recognisers created inside table cells are
+  disposed with the rest rather than leaking for the life of the process.
+- **Switching folders clears the selection.** A uid is unique only within a
+  folder, so a selection carried across a folder change left the list in
+  selection mode and let Archive or Delete act on whatever messages in the new
+  folder happened to share a uid.
+- **A one-time code is cached per folder, not per uid.** The cache was
+  session-wide, so a code found in one folder could be shown — and copied — on a
+  different message with the same uid in another folder. A wrong code is worse
+  than none.
 - **A file that cannot be read is no longer attached as an empty one.** A failed
   size check used to count as zero bytes.
 
+### Removed
+- **"Preview lines."** It was a shipped control that changed nothing: the list
+  is header-only by design, so there was no body to preview. A switch that does
+  nothing is worse than no switch — and wiring it would mean pulling bodies for
+  the whole page, which is the cost the list is built to avoid.
+
 ### Changed
+- **"Unread counts on folders" hides the badges.** It only ever changed its own
+  state; the rail now reads it where the badges are drawn.
 - **Release notes are generated, and fold open.** The release body is built from
   this changelog at release time rather than typed into the workflow, so it
   cannot drift from what the app shows. It opens with an overview and keeps each

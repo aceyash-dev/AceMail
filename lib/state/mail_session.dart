@@ -79,9 +79,15 @@ class MailSession extends ChangeNotifier {
   final Map<String, List<MessageSummary>> _pageCache =
       <String, List<MessageSummary>>{};
 
-  /// Codes found in bodies, keyed by uid, so a refresh does not refetch the
-  /// same message.
-  final Map<int, String?> _bodyCodes = <int, String?>{};
+  /// Codes found in bodies, keyed by folder path and then uid, so a refresh
+  /// does not refetch the same message.
+  ///
+  /// Keyed by folder because a uid is unique only *within* a folder. A cache by
+  /// uid alone is a session-wide one, so a code found for uid 42 in the inbox
+  /// could be shown — and copied — on a different uid 42 in another folder, on
+  /// a message that has no code at all. A wrong code is worse than none.
+  final Map<String, Map<int, String?>> _bodyCodes =
+      <String, Map<int, String?>>{};
   bool _detecting = false;
 
   /// True while reloading a folder that is already on screen. The contents stay
@@ -250,6 +256,11 @@ class MailSession extends ChangeNotifier {
     openMessage = null;
     openSummary = null;
     errorMessage = null;
+    // A selection belongs to the folder it was made in. A uid is unique only
+    // within a folder, so carrying one across a folder change would leave the
+    // list in selection mode and let Archive or Delete act on an unrelated
+    // message that happens to share a uid.
+    selected.clear();
 
     if (keepContents) {
       refreshing = true;
@@ -316,13 +327,7 @@ class MailSession extends ChangeNotifier {
       for (final MessageSummary summary in candidates) {
         if (!_connected || token != _folderToken) return;
 
-        final String? code = _bodyCodes.containsKey(summary.uid)
-            ? _bodyCodes[summary.uid]
-            : OtpDetector.findInBody(
-                await _transport.fetchPreview(summary),
-              );
-        if (_bodyCodes.length > 400) _bodyCodes.clear();
-        _bodyCodes[summary.uid] = code;
+        final String? code = await _codeFor(selectedFolder?.path ?? '', summary);
 
         if (code != null && token == _folderToken) {
           _applyCodeQuietly(summary.uid, code);
@@ -337,6 +342,26 @@ class MailSession extends ChangeNotifier {
       // load could rebuild the list a dozen times, one per message.
       if (touched && token == _folderToken) _notify();
     }
+  }
+
+  /// The one-time code for [summary] in [folder], cached per folder.
+  ///
+  /// The cache is re-read after the fetch: the await gives another pass time to
+  /// run, and a code belongs to the folder it was found in.
+  Future<String?> _codeFor(String folder, MessageSummary summary) async {
+    final Map<int, String?> cached = _codesFor(folder);
+    if (cached.containsKey(summary.uid)) return cached[summary.uid];
+    final String? code =
+        OtpDetector.findInBody(await _transport.fetchPreview(summary));
+    _codesFor(folder)[summary.uid] = code;
+    return code;
+  }
+
+  /// One folder's slice of the code cache, bounded so a long session over many
+  /// folders cannot grow it without end.
+  Map<int, String?> _codesFor(String folder) {
+    if (_bodyCodes.length > 400) _bodyCodes.clear();
+    return _bodyCodes.putIfAbsent(folder, () => <int, String?>{});
   }
 
   /// Updates the cache after a flag or a read changes on a row, so going back
@@ -611,6 +636,19 @@ class MailSession extends ChangeNotifier {
           ? _transport.markSeen(summary)
           : _transport.markUnread(summary),
       updated: summary.copyWith(isSeen: next),
+    );
+  }
+
+  /// Marks a message read from the list, and does nothing to one already read.
+  ///
+  /// Not `toggleRead`: a button that says "Mark as read" must not do the
+  /// opposite to the messages that already are.
+  Future<void> markRead(MessageSummary summary) async {
+    if (summary.isSeen) return;
+    await _runOn(
+      summary,
+      () => _transport.markSeen(summary),
+      updated: summary.copyWith(isSeen: true),
     );
   }
 

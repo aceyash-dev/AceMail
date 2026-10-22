@@ -478,8 +478,12 @@ class _MessageReaderState extends State<MessageReader> {
   Future<void> _confirmDelete(BuildContext context) async {
     final MailController controller = context.read<MailController>();
     // No Trash folder means a permanent delete, which has to be asked for
-    // explicitly and said plainly.
-    final bool safe = controller.canDeleteSafely;
+    // explicitly and said plainly. So does being *in* the Trash: a message
+    // there has nowhere left to go, and `canDeleteSafely` — which only asks
+    // whether the account has a Trash folder — was the wrong question. It used
+    // to copy the message into the folder it already sat in and leave it there,
+    // while its row disappeared from the list and read as a success.
+    final bool safe = controller.canDeleteSafely && !controller.inTrash;
 
     // The user can turn the question off — but never for a permanent delete,
     // which is the one case where asking is the whole point.

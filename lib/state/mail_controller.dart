@@ -324,6 +324,9 @@ class MailController extends ChangeNotifier {
   Future<void> toggleRead(MessageSummary summary) async =>
       active?.toggleRead(summary);
 
+  Future<void> markRead(MessageSummary summary) async =>
+      active?.markRead(summary);
+
   Future<void> toggleFlag(MessageSummary summary) async =>
       active?.toggleFlag(summary);
 

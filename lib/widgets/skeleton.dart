@@ -76,50 +76,57 @@ class MessageListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AstryxSpace.s4,
-        vertical: AstryxSpace.s2,
-      ),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: rows,
-      itemBuilder: (BuildContext context, int index) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AstryxSpace.s3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            AceSkeleton(
-              width: avatarSize,
-              height: avatarSize,
-              radius: AstryxRadius.container,
+    // A Column, not a ListView. The caller drops this inside a
+    // SliverToBoxAdapter, which lays its child out with an unbounded main-axis
+    // extent — and a nested vertical viewport given infinite height is the
+    // "Vertical viewport was given unbounded height" crash. Nothing here
+    // scrolls anyway; the placeholder is a fixed block of rows.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (int index = 0; index < rows; index++)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AstryxSpace.s4,
+              vertical: AstryxSpace.s3,
             ),
-            const SizedBox(width: AstryxSpace.s3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                AceSkeleton(
+                  width: avatarSize,
+                  height: avatarSize,
+                  radius: AstryxRadius.container,
+                ),
+                const SizedBox(width: AstryxSpace.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      // Varied widths, so the block does not read as a table.
-                      Expanded(
-                        flex: 3 + (index % 3),
-                        child: const AceSkeleton(height: 12),
+                      Row(
+                        children: <Widget>[
+                          // Varied widths, so the block does not read as a
+                          // table.
+                          Expanded(
+                            flex: 3 + (index % 3),
+                            child: const AceSkeleton(height: 12),
+                          ),
+                          const SizedBox(width: AstryxSpace.s4),
+                          const AceSkeleton(width: 34, height: 12),
+                        ],
                       ),
-                      const SizedBox(width: AstryxSpace.s4),
-                      const AceSkeleton(width: 34, height: 12),
+                      const SizedBox(height: AstryxSpace.s2),
+                      AceSkeleton(
+                        height: 12,
+                        width: 140 + ((index * 37) % 120).toDouble(),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: AstryxSpace.s2),
-                  AceSkeleton(
-                    height: 12,
-                    width: 140 + ((index * 37) % 120).toDouble(),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }

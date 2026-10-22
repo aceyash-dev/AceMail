@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/preferences.dart';
 import '../models/mail_folder.dart';
 import '../screens/settings_screen.dart';
 import '../screens/tutorial_screen.dart';
@@ -62,6 +63,9 @@ class FolderRail extends StatelessWidget {
                   return _FolderTile(
                     folder: folder,
                     selected: controller.selectedFolder == folder,
+                    // Read where it is used. The "Unread counts on folders"
+                    // switch used to change nothing but its own state.
+                    showCounts: context.watch<Preferences>().showFolderCounts,
                   );
                 },
               ),
@@ -229,10 +233,18 @@ class _AccountHeader extends StatelessWidget {
 }
 
 class _FolderTile extends StatelessWidget {
-  const _FolderTile({required this.folder, required this.selected});
+  const _FolderTile({
+    required this.folder,
+    required this.selected,
+    required this.showCounts,
+  });
 
   final MailFolder folder;
   final bool selected;
+
+  /// Whether to draw the unread badge. Off is the "Unread counts on folders"
+  /// switch; the rail still shows the folders, just without the counts.
+  final bool showCounts;
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +303,7 @@ class _FolderTile extends StatelessWidget {
                           : AstryxText.body(foreground),
                     ),
                   ),
-                  if (folder.unseen > 0)
+                  if (showCounts && folder.unseen > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AstryxSpace.s2,

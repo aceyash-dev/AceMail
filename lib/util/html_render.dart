@@ -291,7 +291,12 @@ class _Builder {
         href: href ?? _frame.href,
         color: css.color,
         sizeScale: css.sizeScale,
-        upper: css.upper ?? false,
+        // Inherited like every other inline property here. Passing `?? false`
+        // rebuilt the flag as off for every nested element, so an ancestor's
+        // `text-transform: uppercase` was dropped the moment a tag appeared
+        // inside it — `<td style="text-transform:uppercase">Order <b>#1</b>`
+        // upper-cased the label and left the number alone.
+        upper: css.upper ?? _frame.upper,
       ),
     );
     _depth++;
@@ -360,9 +365,29 @@ class _Builder {
     if (count > _breaks) _breaks = count;
   }
 
-  /// An image becomes a placeholder, the size it says it is, rather than a
-  /// bracket of alt text dropped into the middle of a sentence — which is what
-  /// "the layout broke" looked like, with a stray `[Yahoo]` where a logo was.
+  /// The rows that belong to *this* table.
+  ///
+  /// A descendant search also finds the rows of a nested table — and mail nests
+  /// tables constantly — so those rows were counted as rows of the outer grid
+  /// and then rendered a second time inside the cell that held them. Only
+  /// direct children count here; a `tbody` (or thead or tfoot) is unwrapped to
+  /// reach its rows, but a table sitting inside a cell is not.
+  List<dom.Element> _rowsOf(dom.Element table) {
+    final List<dom.Element> rows = <dom.Element>[];
+    for (final dom.Element child in table.children) {
+      if (child.localName == 'tr') {
+        rows.add(child);
+      } else if (child.localName == 'tbody' ||
+          child.localName == 'thead' ||
+          child.localName == 'tfoot') {
+        rows.addAll(
+          child.children.where((dom.Element e) => e.localName == 'tr'),
+        );
+      }
+    }
+    return rows;
+  }
+
   /// A table, as a grid.
   ///
   /// Cells used to be joined with a few spaces, which is why a status table
@@ -370,7 +395,7 @@ class _Builder {
   /// nothing. Mail is laid out in tables more than anything else, so this is
   /// most of what "renders badly" was.
   Widget? _table(dom.Element node) {
-    final List<dom.Element> rows = node.querySelectorAll('tr');
+    final List<dom.Element> rows = _rowsOf(node);
     if (rows.isEmpty) return null;
 
     final List<List<dom.Element>> grid = <List<dom.Element>>[];
@@ -430,6 +455,10 @@ class _Builder {
     inner._stylesheet.add(_stylesheet.source);
     inner.walk(cell);
     inner.finish();
+    // The recognisers the inner builder made are handed back to this one, which
+    // is the list the renderer disposes. Without this, every link inside a
+    // table cell left a TapGestureRecognizer alive for the life of the process.
+    recognizers.addAll(inner.recognizers);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -454,6 +483,9 @@ class _Builder {
     );
   }
 
+  /// An image becomes a placeholder, the size it says it is, rather than a
+  /// bracket of alt text dropped into the middle of a sentence — which is what
+  /// "the layout broke" looked like, with a stray `[Yahoo]` where a logo was.
   void writeImage(dom.Element node) {
     // A tracking pixel is an image nobody is meant to see. Emitting a
     // placeholder for one puts an "Image" chip in the middle of a message that
