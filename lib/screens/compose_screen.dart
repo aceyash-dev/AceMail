@@ -11,6 +11,7 @@ import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/ace_snack.dart';
 import '../util/addresses.dart';
 import '../util/attach_plan.dart';
 import '../util/files.dart';
@@ -63,11 +64,17 @@ class _ComposeScreenState extends State<ComposeScreen> {
   @override
   void initState() {
     super.initState();
-    // A brand-new message starts with the signature. A reply already carries a
-    // quoted body, so the signature is not forced into it.
+    final Preferences prefs = context.read<Preferences>();
+    final String signature = prefs.signature.trim();
+    if (signature.isEmpty) return;
     if (widget.initialBody.isEmpty) {
-      final String signature = context.read<Preferences>().signature.trim();
-      if (signature.isNotEmpty) _body.text = '\n\n-- \n$signature';
+      // A brand-new message starts with the signature.
+      _body.text = '\n\n-- \n$signature';
+    } else if (prefs.signatureOnReplies) {
+      // A reply carries the quoted original below. The signature goes above
+      // it, where a signature belongs, rather than after the quote where nobody
+      // scrolls to look for it.
+      _body.text = '\n\n-- \n$signature${widget.initialBody}';
     }
   }
 
@@ -142,6 +149,14 @@ class _ComposeScreenState extends State<ComposeScreen> {
   String? get _chosenFrom =>
       accounts.length > 1 ? (_from ?? accounts.first) : null;
 
+  /// The address the message actually leaves from.
+  ///
+  /// `_chosenFrom` is null when there is only one account — nothing to choose —
+  /// so this falls back to that account. It is what a blind copy to self needs
+  /// to name, and it is the same address the transport will stamp on the
+  /// message.
+  String get _senderEmail => _chosenFrom ?? (accounts.isEmpty ? '' : accounts.first);
+
   Future<void> _send() async {
     // A message with no subject is the one people regret, so it asks once.
     if (context.read<Preferences>().warnEmptySubject &&
@@ -202,6 +217,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       await context.read<MailController>().send(
             to: to,
             cc: cc,
+            bcc: context.read<Preferences>().bccSelf ? _senderEmail : '',
             subject: _subject.text,
             body: _body.text,
             attachments: _attachments,
@@ -210,10 +226,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
             fromEmail: _chosenFrom,
           );
       if (!mounted) return;
+      // Said before the screen closes. The messenger is the app-wide one, so
+      // the bar survives the pop; saying it afterwards would use a context that
+      // no longer has a Scaffold.
+      AceSnack.show(context, 'Message sent.');
       Navigator.of(context).pop();
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text('Message sent.')),
-      );
     } catch (error) {
       if (!mounted) return;
       setState(() {

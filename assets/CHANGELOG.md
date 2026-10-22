@@ -3,6 +3,66 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.5.0+29
+
+### Removed
+- **Five providers that can no longer work.** The picker offered ten; six
+  remain, and every one of them will actually let this app in — **free**, over
+  IMAP/SMTP, with an **app password**. A provider that cannot work is a dead
+  end the user only discovers after typing a password.
+  - **Outlook, Hotmail, Live** — Microsoft retired basic authentication for
+    personal accounts in September 2024. App passwords no longer work over
+    IMAP; the account needs OAuth, which this app does not implement.
+  - **Proton** — its IMAP/SMTP bridge is a paid feature, so a free Proton
+    account has no IMAP at all.
+  - **Fastmail** — there is no free tier, and even the paid Basic plan excludes
+    IMAP and app passwords.
+  - **Rediffmail** — IMAP is a paid Rediffmail Pro feature; a free account
+    offers only POP3, which this app does not speak.
+
+  Zoho stays, with a caveat: an existing free account can still switch IMAP on,
+  but Zoho has stopped granting IMAP access to newly signed-up free users.
+
+### Added
+- **Real logos for the last two providers.** Zoho and GMX now show their own
+  marks, so every provider in the picker wears its real logo and the drawn
+  glyphs are gone entirely.
+- **Five more settings**, each wired to real behaviour rather than a switch that
+  changes nothing:
+  - **Blind-copy yourself** — a hidden copy of every message to the account it
+    goes from.
+  - **Quote the original in replies**, on by default.
+  - **Signature on replies** as well as on new messages.
+  - **Ask before archiving.**
+  - **Undo window** — how long an undo stays on the bar: 4, 6 or 10 seconds.
+
+### Changed
+- **The swipe says what it will do.** The reveal carries a word — Archive,
+  Trash, Read — beside its mark, fades its colour in as it is pulled, and turns
+  fully opaque at exactly the point the swipe commits, so "armed" is something
+  you can see and not only feel. The tick now fires as the line is crossed
+  rather than when the finger lifts, which is what it was always described as
+  doing.
+- **Archiving offers an undo.** It moves the message to Archive and puts an undo
+  on the bar, the way a delete already did, instead of reporting it and moving
+  on.
+- **Reduce motion reaches the routes.** A pushed screen no longer scales and
+  fades when the setting is on; the transitions are taken out rather than
+  shortened. The same for the list's entrance cascade and the folder
+  cross-fade.
+- Every transient message goes through the one helper now, including the two
+  that had been left calling `ScaffoldMessenger` directly.
+
+### Fixed
+- **The domain field leaked a controller on every frame.** The read-only
+  "Domain" box built a fresh `TextEditingController` inside `build` and never
+  disposed it — a slow leak with a cursor that reset under the reader. It is
+  held by the field now, and updated rather than rebuilt.
+- **GMX's outgoing server was wrong.** It was `smtp.gmx.com`; GMX's own
+  documentation gives `mail.gmx.com` on 587 with STARTTLS.
+
+Version 0.5.0+29.
+
 ## 0.5.0+28
 
 ### Fixed

@@ -39,8 +39,7 @@ const List<_TutorialStep> _steps = <_TutorialStep>[
   _TutorialStep(
     title: 'We find your servers',
     lead: 'Type your address and the IMAP and SMTP servers are filled in for '
-        'you. Gmail, Outlook, Hotmail, Yahoo, iCloud, Zoho, Rediffmail, '
-        'Fastmail and Proton Bridge are all recognised.',
+        'you. Gmail, Yahoo, iCloud, Zoho, GMX and Yandex are all recognised.',
     points: <String>[
       'Tap the Email address field and type your address',
       'Open Advanced server settings if you want to check what was filled in',
@@ -57,8 +56,8 @@ const List<_TutorialStep> _steps = <_TutorialStep>[
           'Gmail › Settings › Forwarding and POP/IMAP',
       'Yahoo — Account Security › Generate app password',
       'iCloud — Apple ID › Sign-In and Security › App-Specific Passwords',
-      'Outlook / Hotmail — Security › Advanced security options › '
-          'App passwords',
+      'Zoho, GMX and Yandex — Security settings › App passwords. Zoho also '
+          'needs IMAP switched on under Mail Accounts',
     ],
   ),
   _TutorialStep(

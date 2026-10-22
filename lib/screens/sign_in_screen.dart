@@ -314,9 +314,10 @@ class _SignInScreenState extends State<SignInScreen> {
                                     ),
                             ),
                             Text(
-                              'Gmail, Yahoo and iCloud need an app password, not '
-                              'your normal login. Your password is stored in this '
-                              'device\'s keychain and sent only to your provider.',
+                              'These providers want an app password here, not '
+                              'your normal login — "How to sign in" shows where '
+                              'to make one. Your password stays in this device\'s '
+                              'keychain and goes only to your provider.',
                               style: AstryxText.supporting(c.textSecondary),
                             ),
                           ],
@@ -375,18 +376,44 @@ class _SignInScreenState extends State<SignInScreen> {
 ///
 /// Picking a known domain is what fills in the IMAP and SMTP servers, so the
 /// common case never opens the advanced panel at all.
-class _DomainField extends StatelessWidget {
+class _DomainField extends StatefulWidget {
   const _DomainField({required this.form, required this.onChanged});
 
   final SignInFormModel form;
   final VoidCallback onChanged;
 
   @override
+  State<_DomainField> createState() => _DomainFieldState();
+}
+
+class _DomainFieldState extends State<_DomainField> {
+  /// Mirrors the picked domain.
+  ///
+  /// A controller built inside `build` would be a new one on every frame and
+  /// would never be disposed — a slow leak, and a field whose cursor resets
+  /// under the reader. One held here is disposed with the field.
+  late final TextEditingController _shown =
+      TextEditingController(text: '@${widget.form.domain}');
+
+  @override
+  void didUpdateWidget(covariant _DomainField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final String want = '@${widget.form.domain}';
+    if (_shown.text != want) _shown.text = want;
+  }
+
+  @override
+  void dispose() {
+    _shown.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (form.customDomain) {
+    if (widget.form.customDomain) {
       return AceFormField(
         label: 'Domain',
-        controller: form.domainField,
+        controller: widget.form.domainField,
         hint: 'example.com',
         keyboard: TextInputType.url,
         trailing: AceIconButton(
@@ -401,7 +428,7 @@ class _DomainField extends StatelessWidget {
 
     return AceFormField(
       label: 'Domain',
-      controller: TextEditingController(text: '@${form.domain}'),
+      controller: _shown,
       readOnly: true,
       onTap: () => _pick(context),
       trailing: AceIconButton(
@@ -442,9 +469,9 @@ class _DomainField extends StatelessWidget {
                 leading: _ProviderTile(provider: provider),
                 title: provider.label,
                 // Every domain the provider hands out, not just the first:
-                // Proton gives you three and people use all of them.
+                // Gmail hands out two, and people use the one they were given.
                 subtitle: provider.domains.join('  ·  '),
-                trailing: provider.domains.contains(form.domain)
+                trailing: provider.domains.contains(widget.form.domain)
                     ? AceIconView(
                         icon: AceIcons.check,
                         size: 20,
@@ -467,15 +494,15 @@ class _DomainField extends StatelessWidget {
 
     if (chosen == null) return;
     if (chosen == _kCustomDomain) {
-      form.customDomain = true;
-      form.advanced = true;
+      widget.form.customDomain = true;
+      widget.form.advanced = true;
     } else {
-      form.customDomain = false;
-      form.domain = chosen;
+      widget.form.customDomain = false;
+      widget.form.domain = chosen;
       // Selecting a domain fills the servers from the table.
-      form.applyProvider();
+      widget.form.applyProvider();
     }
-    onChanged();
+    widget.onChanged();
   }
 }
 
@@ -517,11 +544,12 @@ class _StepDots extends StatelessWidget {
   }
 }
 
-/// The provider's tile: its colour and its initials.
+/// The provider's tile: its own logo, on a plain tile.
 ///
-/// A monogram rather than the real brand mark — those are trademarks, and
-/// shipping them would mean shipping licensed assets. A coloured initial says
-/// which provider it is just as quickly.
+/// The tile is white so the mark's own colours are the only colours on it. A
+/// logo tinted to the theme would be a logo that is subtly wrong, and a
+/// provider's mark is the one thing in this row the app does not get to
+/// restyle.
 class _ProviderTile extends StatelessWidget {
   const _ProviderTile({required this.provider});
 
@@ -529,53 +557,26 @@ class _ProviderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String? logo = provider.logo;
-
-    // The provider's own logo where we have one, on a plain tile so the mark's
-    // own colours are the only colours. Otherwise the drawn glyph on the
-    // provider's colour, which says the same thing a little more quietly.
-    if (logo != null) {
-      return Container(
-        width: 34,
-        height: 34,
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AstryxRadius.inner),
-          border: Border.all(color: const Color(0x1A000000)),
-        ),
-        child: SvgPicture.asset(logo, fit: BoxFit.contain),
-      );
-    }
-
     return Container(
       width: 34,
       height: 34,
-      alignment: Alignment.center,
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: provider.color,
-        borderRadius: BorderRadius.circular(AstryxRadius.inner),
-      ),
-      child: AceIconView(
-        icon: provider.glyph,
-        size: 20,
         color: Colors.white,
+        borderRadius: BorderRadius.circular(AstryxRadius.inner),
+        border: Border.all(color: const Color(0x1A000000)),
       ),
+      child: SvgPicture.asset(provider.logo, fit: BoxFit.contain),
     );
   }
 }
 
-/// The provider's tile: its colour and its initials.
-///
-/// A monogram rather than the real brand mark — those are trademarks, and
-/// shipping them would mean shipping licensed assets. A coloured initial says
-/// which provider it is just as quickly, and belongs to nobody.
-
 /// Picking a provider, and then an address if it hands out more than one.
 ///
-/// Proton gives you proton.me, protonmail.com and pm.me, and people use all
-/// three. Silently taking the first would sign someone in as an address they do
-/// not use, and they would only find out when a reply went to the wrong place.
+/// Gmail gives you gmail.com and googlemail.com, Yahoo yahoo.com and yahoo.in,
+/// and people use whichever they were handed. Silently taking the first would
+/// sign someone in as an address they do not use, and they would only find out
+/// when a reply went to the wrong place.
 Future<void> chooseProvider(
   BuildContext sheetContext,
   MailProvider provider,

@@ -82,9 +82,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
       _lastError = error;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(error)),
-        );
+        AceSnack.show(context, error);
       });
     }
 
@@ -191,9 +189,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     AceIconButton(
                       icon: AceIcons.archive,
                       tooltip: 'Archive',
-                      onPressed: () => controller.forEachSelected(
-                        (MessageSummary m) => controller.archive(m),
-                      ),
+                      onPressed: () => _archiveSelected(context),
                     ),
                   AceIconButton(
                     icon: AceIcons.trash,
@@ -286,7 +282,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 ],
               )
             : AnimatedSwitcher(
-                duration: const Duration(milliseconds: 240),
+                duration: AstryxMotion.of(const Duration(milliseconds: 240)),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
                 transitionBuilder: (
@@ -402,6 +398,18 @@ class _MailboxScreenState extends State<MailboxScreen> {
     await controller.emptyTrash();
     if (!context.mounted) return;
     AceSnack.show(context, 'Trash emptied.');
+  }
+
+  /// Archives everything picked, asking first when the setting is on.
+  Future<void> _archiveSelected(BuildContext context) async {
+    final MailController controller = context.read<MailController>();
+    if (context.read<Preferences>().confirmArchive &&
+        !await confirmArchive(context)) {
+      return;
+    }
+    await controller.forEachSelected(
+      (MessageSummary m) => controller.archive(m),
+    );
   }
 
 }

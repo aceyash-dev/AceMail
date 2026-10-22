@@ -331,6 +331,16 @@ void main() {
       expect(transport.lastReferences, '<0@x> <1@x>');
     });
 
+    test('send passes a blind copy through to the transport', () async {
+      final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(1));
+      final MailSession session = sessionWith(transport);
+      await session.connect();
+
+      await session.send(to: 'x@y.com', body: 'hi', bcc: 'me@x.com');
+
+      expect(transport.lastBcc, 'me@x.com');
+    });
+
     test('no duplicate Sent copy for a provider that files its own', () async {
       final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(1));
       final MailSession session = sessionWith(transport, account: gmailAccount);

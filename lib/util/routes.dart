@@ -8,8 +8,12 @@ import '../theme/astryx_tokens.dart';
 /// covered fades out on the way. The emphasised easing is Material's, and the
 /// durations are the expressive ones rather than the shorter defaults.
 Route<T> aceRoute<T>(Widget page) => PageRouteBuilder<T>(
-      transitionDuration: const Duration(milliseconds: 320),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
+      // Zeroed when reduce motion is on, so the duration matches the empty
+      // transition below rather than animating nothing over 340ms.
+      transitionDuration:
+          AstryxMotion.of(const Duration(milliseconds: 340)),
+      reverseTransitionDuration:
+          AstryxMotion.of(const Duration(milliseconds: 220)),
       pageBuilder: (_, __, ___) => page,
       transitionsBuilder: (
         BuildContext context,
@@ -17,6 +21,11 @@ Route<T> aceRoute<T>(Widget page) => PageRouteBuilder<T>(
         Animation<double> secondaryAnimation,
         Widget child,
       ) {
+        // Reduce motion takes the movement out entirely rather than shortening
+        // it: someone who asked for less motion asked for less motion, not for
+        // the same motion faster.
+        if (AstryxMotion.reduced) return child;
+
         final CurvedAnimation enter = CurvedAnimation(
           parent: animation,
           curve: AstryxMotion.emphasizedDecelerate,
@@ -33,7 +42,7 @@ Route<T> aceRoute<T>(Widget page) => PageRouteBuilder<T>(
           child: FadeTransition(
             opacity: enter,
             child: ScaleTransition(
-              scale: Tween<double>(begin: 0.92, end: 1).animate(enter),
+              scale: Tween<double>(begin: 0.94, end: 1).animate(enter),
               child: child,
             ),
           ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/cupertino.dart'
@@ -20,6 +21,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
+import 'confirm_exit.dart';
 import 'settings_group.dart';
 import 'skeleton.dart';
 import 'swipe_action.dart';
@@ -42,7 +44,7 @@ class MessageListPanel extends StatelessWidget {
       // Fade through when the folder changes, so the list reads as a new
       // mailbox arriving rather than the same rows being swapped underneath.
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
+        duration: AstryxMotion.of(const Duration(milliseconds: 220)),
         switchInCurve: AstryxMotion.emphasizedDecelerate,
         switchOutCurve: Curves.easeIn,
         child: CustomScrollView(
@@ -263,27 +265,47 @@ class MessageListPanel extends StatelessWidget {
     return 'This folder is empty.';
   }
 
-  void _applySwipe(
+  Future<void> _applySwipe(
     BuildContext context,
     MessageSummary summary,
     SwipeAction action,
-  ) {
+  ) async {
     final MailController controller = context.read<MailController>();
+    final Preferences prefs = context.read<Preferences>();
+    final Duration window = prefs.undoWindow.duration;
 
     // Where it was, so an undo can put it back there rather than in the inbox.
     final String? from = controller.currentFolderPath;
 
     switch (action) {
       case SwipeAction.archive:
-        controller.archive(summary);
-        AceSnack.show(context, 'Archived.');
+        // Archiving is reversible, so it gets an undo on the bar rather than a
+        // question — unless the user has asked for the question as well.
+        if (prefs.confirmArchive) {
+          final bool go = await confirmArchive(context);
+          // The dialog is an await, so the row may be gone by the time it
+          // answers; nothing after this may touch the context unguarded.
+          if (!go || !context.mounted) return;
+        }
+        unawaited(controller.archive(summary));
+        if (from != null) {
+          AceSnack.undo(
+            context,
+            'Archived.',
+            duration: window,
+            onUndo: () => controller.undoDelete(summary, from),
+          );
+        } else {
+          AceSnack.show(context, 'Archived.');
+        }
       case SwipeAction.trash:
         // The mistake is one flick away, so the way back is on the bar.
-        controller.delete(summary);
+        unawaited(controller.delete(summary));
         if (from != null) {
           AceSnack.undo(
             context,
             'Moved to trash.',
+            duration: window,
             onUndo: () => controller.undoDelete(summary, from),
           );
         } else {
@@ -291,19 +313,21 @@ class MessageListPanel extends StatelessWidget {
         }
       case SwipeAction.toggleRead:
         final bool wasSeen = summary.isSeen;
-        controller.toggleRead(summary);
+        unawaited(controller.toggleRead(summary));
         AceSnack.undo(
           context,
           wasSeen ? 'Marked unread.' : 'Marked read.',
+          duration: window,
           onUndo: () => controller.toggleRead(summary),
         );
       case SwipeAction.flag:
-        controller.toggleFlag(summary);
+        unawaited(controller.toggleFlag(summary));
         AceSnack.show(context, summary.isFlagged ? 'Star removed.' : 'Starred.');
       case SwipeAction.none:
         break;
     }
   }
+
 }
 
 /// Filter chips, then the sort. One scrollable row, so it never wraps into a
@@ -480,7 +504,11 @@ class MessageTile extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: Duration(milliseconds: 260 + (index.clamp(0, 8) * 28)),
+      // The rows arrive in a short cascade, later rows a beat behind the first.
+      // Zeroed under reduce motion, where the rows simply appear.
+      duration: AstryxMotion.of(
+        Duration(milliseconds: 260 + (index.clamp(0, 8) * 28)),
+      ),
       curve: AstryxMotion.emphasizedDecelerate,
       builder: (BuildContext context, double t, Widget? child) => Opacity(
         opacity: t,
@@ -648,9 +676,7 @@ class _OtpChip extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: code));
         if (!context.mounted) return;
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text('Code $code copied')),
-        );
+        AceSnack.show(context, 'Code $code copied');
       },
       semanticLabel: 'Copy code $code',
       builder: (BuildContext context, double press, bool hover) {

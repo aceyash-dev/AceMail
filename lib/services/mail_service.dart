@@ -423,6 +423,7 @@ class MailService implements MailTransport {
     required String to,
     required String body,
     String cc = '',
+    String bcc = '',
     String subject = '',
     required String password,
     List<File> attachments = const <File>[],
@@ -433,7 +434,8 @@ class MailService implements MailTransport {
     // Validate before touching the network, so a typo is reported instantly
     // rather than as a server rejection.
     final String? problem = MailAddresses.validate(to, field: 'To') ??
-        MailAddresses.validate(cc, field: 'Cc');
+        MailAddresses.validate(cc, field: 'Cc') ??
+        MailAddresses.validate(bcc, field: 'Bcc');
     if (problem != null) throw MailRejectedException(problem);
 
     final MessageBuilder builder =
@@ -446,6 +448,7 @@ class MailService implements MailTransport {
           ..subject = subject;
 
     if (cc.trim().isNotEmpty) builder.cc = MailAddresses.parse(cc);
+    if (bcc.trim().isNotEmpty) builder.bcc = MailAddresses.parse(bcc);
     if (inReplyTo != null && inReplyTo.isNotEmpty) {
       builder.addHeader('In-Reply-To', inReplyTo);
     }

@@ -64,6 +64,24 @@ enum MessageView {
   final String label;
 }
 
+/// How long the undo on a snack bar stays offered.
+///
+/// Long enough to notice a mistake and reach for it, short enough that the bar
+/// is gone before it becomes furniture. Six seconds is the default because it is
+/// the shortest that reliably survives the beat of "wait — what did that do?".
+enum UndoWindow {
+  short('4 seconds', 4),
+  normal('6 seconds', 6),
+  long('10 seconds', 10);
+
+  const UndoWindow(this.label, this.seconds);
+
+  final String label;
+  final int seconds;
+
+  Duration get duration => Duration(seconds: seconds);
+}
+
 /// The app's settings.
 ///
 /// Kept in the same store as the accounts because it is already there and works
@@ -103,6 +121,11 @@ class Preferences extends ChangeNotifier {
   static const String _keyFolderCounts = 'ace.folderCounts';
   static const String _keySeenVersion = 'ace.seenVersion';
   static const String _keyPreviewLines = 'ace.previewLines';
+  static const String _keyQuoteReplies = 'ace.quoteReplies';
+  static const String _keySignatureOnReplies = 'ace.signatureOnReplies';
+  static const String _keyConfirmArchive = 'ace.confirmArchive';
+  static const String _keyUndoWindow = 'ace.undoWindow';
+  static const String _keyBccSelf = 'ace.bccSelf';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -135,6 +158,11 @@ class Preferences extends ChangeNotifier {
     _keyFolderCounts,
     _keySeenVersion,
     _keyPreviewLines,
+    _keyQuoteReplies,
+    _keySignatureOnReplies,
+    _keyConfirmArchive,
+    _keyUndoWindow,
+    _keyBccSelf,
   ];
 
   final FlutterSecureStorage _storage;
@@ -168,6 +196,11 @@ class Preferences extends ChangeNotifier {
   bool _showFolderCounts = true;
   String? _lastSeenVersion;
   int _previewLines = 1;
+  bool _quoteReplies = true;
+  bool _signatureOnReplies = false;
+  bool _confirmArchive = false;
+  UndoWindow _undoWindow = UndoWindow.normal;
+  bool _bccSelf = false;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -271,8 +304,42 @@ class Preferences extends ChangeNotifier {
   /// How many lines of the message follow the subject in the list.
   int get previewLines => _previewLines;
 
+  /// Whether a reply starts with the original message quoted beneath it.
+  bool get quoteReplies => _quoteReplies;
+
+  /// Whether the signature is added to replies as well as to new messages.
+  bool get signatureOnReplies => _signatureOnReplies;
+
+  /// Whether archiving asks first.
+  ///
+  /// Off by default: archiving is the routine way to clear the inbox, and a
+  /// question in front of a routine action is a question people learn to dismiss
+  /// without reading — which is the worst of both worlds.
+  bool get confirmArchive => _confirmArchive;
+
+  /// How long the undo on a snack bar stays offered.
+  UndoWindow get undoWindow => _undoWindow;
+
+  /// Whether a copy of every message is blind-copied to the sending account.
+  bool get bccSelf => _bccSelf;
+
   Future<void> setPreviewLines(int value) =>
       _write(_keyPreviewLines, '$value', () => _previewLines = value);
+
+  Future<void> setQuoteReplies(bool value) =>
+      _write(_keyQuoteReplies, '$value', () => _quoteReplies = value);
+
+  Future<void> setSignatureOnReplies(bool value) => _write(
+      _keySignatureOnReplies, '$value', () => _signatureOnReplies = value);
+
+  Future<void> setConfirmArchive(bool value) =>
+      _write(_keyConfirmArchive, '$value', () => _confirmArchive = value);
+
+  Future<void> setUndoWindow(UndoWindow value) =>
+      _write(_keyUndoWindow, value.name, () => _undoWindow = value);
+
+  Future<void> setBccSelf(bool value) =>
+      _write(_keyBccSelf, '$value', () => _bccSelf = value);
 
   Future<void> setLastSeenVersion(String value) =>
       _write(_keySeenVersion, value, () => _lastSeenVersion = value);
@@ -336,6 +403,13 @@ class Preferences extends ChangeNotifier {
         _decodeBool(raw[_keyFolderCounts], _showFolderCounts);
     _previewLines =
         _decodeInt(raw[_keyPreviewLines], _previewLines).clamp(0, 3);
+    _quoteReplies = _decodeBool(raw[_keyQuoteReplies], _quoteReplies);
+    _signatureOnReplies =
+        _decodeBool(raw[_keySignatureOnReplies], _signatureOnReplies);
+    _confirmArchive = _decodeBool(raw[_keyConfirmArchive], _confirmArchive);
+    _undoWindow =
+        _decodeEnum(raw[_keyUndoWindow], UndoWindow.values, _undoWindow);
+    _bccSelf = _decodeBool(raw[_keyBccSelf], _bccSelf);
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

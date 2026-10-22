@@ -50,6 +50,7 @@ class FakeTransport implements MailTransport {
   String? lastInReplyTo;
   String? lastReferences;
   String? lastSentPath;
+  String? lastBcc;
   int? markedSeen;
 
   MailFolder get inbox => const MailFolder(
@@ -210,6 +211,7 @@ class FakeTransport implements MailTransport {
     required String to,
     required String body,
     String cc = '',
+    String bcc = '',
     String subject = '',
     required String password,
     List<File> attachments = const <File>[],
@@ -221,6 +223,7 @@ class FakeTransport implements MailTransport {
     lastInReplyTo = inReplyTo;
     lastReferences = references;
     lastSentPath = sentPath;
+    lastBcc = bcc;
   }
 
   @override

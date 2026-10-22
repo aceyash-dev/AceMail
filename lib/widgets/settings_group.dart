@@ -187,12 +187,9 @@ class SettingsSwitchRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AstryxSpace.s2),
-                // Cupertino's switch, because it is the one people already
-                // know: the shape and the travel are the same everywhere they
-                // have seen it, and it reads as a setting rather than a
-                // Material control.
                 // Material 3 Expressive's switch: a tick when it is on, a
-                // cross when it is off.
+                // cross when it is off. The mark is the point — a switch's
+                // position is a thing you read, a tick is a thing you know.
                 AceSwitch(value: value, onChanged: onChanged),
               ],
             ),

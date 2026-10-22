@@ -217,7 +217,20 @@ void main() {
       final List<String> labels =
           kProviderChoices.map((MailProvider p) => p.label).toList();
       expect(labels.toSet().length, labels.length);
-      expect(kProviderChoices.length, greaterThanOrEqualTo(8));
+    });
+
+    test('the picker offers only providers that work free with an app password',
+        () {
+      // The list is short on purpose. A provider here that cannot be reached
+      // over IMAP with a free app password is a dead end: the user types a
+      // password and only then finds out. So the set is asserted, not its
+      // length — a provider quietly re-added has to come with a reason.
+      final List<String> labels =
+          kProviderChoices.map((MailProvider p) => p.label).toList();
+      expect(
+        labels,
+        <String>['Gmail', 'Yahoo', 'iCloud', 'Zoho', 'GMX', 'Yandex'],
+      );
     });
   });
 }

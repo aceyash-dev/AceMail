@@ -56,6 +56,7 @@ abstract interface class MailTransport {
     required String to,
     required String body,
     String cc = '',
+    String bcc = '',
     String subject = '',
     required String password,
     List<File> attachments = const <File>[],

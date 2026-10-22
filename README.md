@@ -29,9 +29,14 @@ a custom theme, not a departure.
 
 ## Features
 
-- Sign in to any IMAP/SMTP provider; Gmail, Outlook, Yahoo, iCloud, Zoho,
-  Rediffmail, Fastmail and Proton Bridge are detected from the address, anything
-  else takes manual hosts.
+- Sign in to any IMAP/SMTP provider. Gmail, Yahoo, iCloud, Zoho, GMX and Yandex
+  are detected from the address; anything else takes manual hosts. The built-in
+  list is deliberately short — every entry works **free**, over IMAP/SMTP, with
+  an **app password**. Providers that now require OAuth (Outlook), a paid
+  bridge (Proton), a paid plan (Fastmail, and Rediffmail whose IMAP is
+  Pro-only), or that have dropped free IMAP for new accounts (Zoho), are not
+  offered: a provider that cannot work is a dead end the user only finds after
+  typing a password.
 - A built-in step-by-step guide — the `?` button on the sign-in screen and in
   the mailbox — covering app passwords, manual server settings, and what each
   connection error means.
@@ -190,6 +195,13 @@ Most providers need an **app password**, not your account password:
   Settings → *Forwarding and POP/IMAP*.
 - **Yahoo** — Account Security → *Generate app password*.
 - **iCloud** — Apple ID → *Sign-In and Security* → *App-Specific Passwords*.
+- **Zoho** — Security → *App Passwords*, and switch IMAP on under *Mail
+  Accounts*. (Existing free accounts only; Zoho no longer grants IMAP to new
+  free users.)
+- **GMX** — Security Options → *Manage application-specific passwords*, and
+  enable POP3/IMAP under Email → Settings.
+- **Yandex** — Yandex ID → *App passwords* → *Mail*, and enable IMAP under
+  Email clients.
 
 Your password is stored in the platform keychain and sent only to your own mail
 provider over TLS.

@@ -63,6 +63,22 @@ void main() {
       expect(prefs.themeMode, AceThemeMode.light);
     });
 
+    test('the sending and gesture settings default sensibly', () {
+      final Preferences prefs = Preferences();
+      expect(prefs.quoteReplies, isTrue);
+      expect(prefs.signatureOnReplies, isFalse);
+      expect(prefs.confirmArchive, isFalse);
+      expect(prefs.undoWindow, UndoWindow.normal);
+      expect(prefs.bccSelf, isFalse);
+    });
+
+    test('every undo window has a label and a positive duration', () {
+      for (final UndoWindow window in UndoWindow.values) {
+        expect(window.label, isNotEmpty);
+        expect(window.duration.inSeconds, greaterThan(0));
+      }
+    });
+
     test('every theme mode has a label for the settings row', () {
       for (final AceThemeMode mode in AceThemeMode.values) {
         expect(mode.label, isNotEmpty);

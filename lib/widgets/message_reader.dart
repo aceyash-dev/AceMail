@@ -453,13 +453,21 @@ class _MessageReaderState extends State<MessageReader> {
       cc = others.join(', ');
     }
 
+    // Quoting the original is the default, because a reply that carries the
+    // message it answers is one the recipient can read without hunting. Off,
+    // the reply starts empty — and the signature, if there is one, takes its
+    // usual place at the top.
+    final bool quote = context.read<Preferences>().quoteReplies;
+
     await Navigator.of(context).push(
       aceRoute(
         ComposeScreen(
           initialTo: message.fromEmail,
           initialCc: cc,
           initialSubject: subject,
-          initialBody: '\n\n--- Original message ---\n${message.textBody}',
+          initialBody: quote
+              ? '\n\n--- Original message ---\n${message.textBody}'
+              : '',
           inReplyTo: message.messageId,
           references: _referencesFor(message),
         ),
@@ -513,17 +521,23 @@ class _MessageReaderState extends State<MessageReader> {
     BuildContext context,
     MailAttachment attachment,
   ) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    // Captured before the await: the sheet may be gone by the time it returns.
+    final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
     try {
       final String? path = await saveAttachmentFile(
         attachment.fileName,
         attachment.bytes,
       );
       if (path != null) {
-        messenger.showSnackBar(SnackBar(content: Text('Saved to $path')));
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text('Saved to $path')));
       }
     } catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not save: $error')));
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('Could not save: $error')));
     }
   }
 }

@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-
-import '../theme/ace_icons.dart';
-
 /// IMAP/SMTP endpoints for common providers. Anything not listed falls back to
 /// the Advanced server settings on the sign-in screen.
 class MailServer {
@@ -18,72 +14,69 @@ class MailServer {
   final int smtpPort;
 }
 
-/// One entry in the domain picker: a name to show, and the domains it covers.
+/// One entry in the domain picker: a name to show, the domains it covers, and
+/// the provider's own logo.
 ///
-/// Several domains share a provider — hotmail and live are both Outlook — so the
-/// picker groups them rather than listing fifteen near-identical rows.
+/// Several domains share a provider — yahoo.com and yahoo.in are one mailbox
+/// host, as are gmail.com and googlemail.com — so the picker groups them rather
+/// than listing a dozen near-identical rows.
 class MailProvider {
-  const MailProvider(
-    this.label,
-    this.domains,
-    this.color,
-    this.glyph, {
-    this.logo,
-  });
+  const MailProvider(this.label, this.domains, this.logo);
 
   final String label;
 
-  /// Every domain the provider hands out, not just the best-known one. Proton
-  /// gives you three and people use all of them.
+  /// Every domain the provider hands out, not just the best-known one.
   final List<String> domains;
 
-  /// The provider's colour, for its tile in the picker.
+  /// The provider's own logo, as a bundled asset.
   ///
-  /// A monogram rather than the real brand mark: those are trademarks, and
-  /// shipping them would mean shipping licensed assets. A coloured initial says
-  /// which provider it is just as quickly and belongs to nobody.
-  final Color color;
-
-  /// The mark on the tile.
-  ///
-  /// Drawn here rather than taken from anyone: a real provider logo is a
-  /// trademark and shipping the artwork would mean shipping licensed assets. A
-  /// shape that says what kind of provider it is — an envelope, a cloud, a
-  /// shield — reads at a glance and belongs to nobody.
-  final AceIcon glyph;
-
-  /// The provider's own logo, where we could obtain one.
-  ///
-  /// These are the providers' marks, used to say which provider a row is —
-  /// which is what a picker is for. They come from Wikimedia Commons, which
-  /// hosts the official files. Where no logo could be obtained the drawn glyph
-  /// stands in, and the row is no worse for it.
-  final String? logo;
+  /// The mark belongs to the provider and is used here to say which provider a
+  /// row is — which is exactly what a picker is for. The files come from
+  /// Wikimedia Commons, which hosts the official artwork. Nothing is drawn by
+  /// us: a shape that merely resembles a brand is worse than the brand, because
+  /// it is a claim the app cannot back.
+  final String logo;
 
   MailServer? get server => kMailProviders[domains.first];
 }
 
+/// The providers the picker offers.
+///
+/// Deliberately short, and shorter than it once was. Every entry is a provider
+/// that will actually let this app in: **free**, over IMAP/SMTP, with an **app
+/// password**. That is the only kind of account a client that speaks the
+/// protocols directly can use, and offering a provider that cannot work is a
+/// dead end the user only discovers after typing a password.
+///
+/// The ones that were removed, and why, because a short list invites the
+/// question:
+///
+/// * **Outlook, Hotmail, Live** — Microsoft retired basic authentication for
+///   personal accounts in September 2024. App passwords no longer work over
+///   IMAP; the account now needs OAuth, which this app does not implement.
+/// * **Proton** — its IMAP/SMTP bridge is a paid feature, so a free Proton
+///   account has no IMAP at all.
+/// * **Fastmail** — there is no free tier, and even the paid Basic plan
+///   excludes IMAP and app passwords.
+/// * **Rediffmail** — IMAP is a paid Rediffmail Pro feature; a free account
+///   offers only POP3, which this app does not speak.
+///
+/// Zoho is kept with a caveat worth knowing: an existing free account can still
+/// switch IMAP on, but Zoho has stopped granting IMAP access to newly signed-up
+/// free users.
 const List<MailProvider> kProviderChoices = <MailProvider>[
   MailProvider('Gmail', <String>['gmail.com', 'googlemail.com'],
-      Color(0xFFEA4335),
-      AceIcons.mail, logo: 'assets/providers/gmail.svg'),
-  MailProvider('Outlook', <String>['outlook.com', 'hotmail.com', 'live.com'],
-      Color(0xFF0078D4),
-      AceIcons.mailOpen, logo: 'assets/providers/outlook.svg'),
-  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'], Color(0xFF6001D2),
-      AceIcons.mailbox, logo: 'assets/providers/yahoo.svg'),
-  MailProvider('iCloud', <String>['icloud.com', 'me.com'], Color(0xFF3693F3),
-      AceIcons.cloud, logo: 'assets/providers/icloud.svg'),
-  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in'], Color(0xFFE42527),
-      AceIcons.inbox),
-  MailProvider('Fastmail', <String>['fastmail.com'], Color(0xFF0067B9),
-      AceIcons.send),
-  MailProvider('Proton',
-      <String>['proton.me', 'protonmail.com', 'pm.me'], Color(0xFF6D4AFF),
-      AceIcons.shield),
-  MailProvider('Rediffmail', <String>['rediffmail.com'], Color(0xFFD62B2B), AceIcons.globe, logo: 'assets/providers/rediffmail.svg'),
-  MailProvider('GMX', <String>['gmx.com', 'gmx.net'], Color(0xFF1C449B), AceIcons.globe),
-  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'], Color(0xFFFC3F1D), AceIcons.globe, logo: 'assets/providers/yandex.svg'),
+      'assets/providers/gmail.svg'),
+  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'],
+      'assets/providers/yahoo.svg'),
+  MailProvider('iCloud', <String>['icloud.com', 'me.com'],
+      'assets/providers/icloud.svg'),
+  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in'],
+      'assets/providers/zoho.svg'),
+  MailProvider('GMX', <String>['gmx.com', 'gmx.net'],
+      'assets/providers/gmx.svg'),
+  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'],
+      'assets/providers/yandex.svg'),
 ];
 
 const Map<String, MailServer> kMailProviders = {
@@ -97,24 +90,6 @@ const Map<String, MailServer> kMailProviders = {
     imapHost: 'imap.gmail.com',
     imapPort: 993,
     smtpHost: 'smtp.gmail.com',
-    smtpPort: 587,
-  ),
-  'outlook.com': MailServer(
-    imapHost: 'outlook.office365.com',
-    imapPort: 993,
-    smtpHost: 'smtp.office365.com',
-    smtpPort: 587,
-  ),
-  'hotmail.com': MailServer(
-    imapHost: 'outlook.office365.com',
-    imapPort: 993,
-    smtpHost: 'smtp.office365.com',
-    smtpPort: 587,
-  ),
-  'live.com': MailServer(
-    imapHost: 'outlook.office365.com',
-    imapPort: 993,
-    smtpHost: 'smtp.office365.com',
     smtpPort: 587,
   ),
   'yahoo.com': MailServer(
@@ -153,22 +128,16 @@ const Map<String, MailServer> kMailProviders = {
     smtpHost: 'smtp.zoho.in',
     smtpPort: 587,
   ),
-  'pm.me': MailServer(
-    imapHost: 'imap.proton.me',
-    imapPort: 993,
-    smtpHost: 'smtp.proton.me',
-    smtpPort: 465,
-  ),
   'gmx.com': MailServer(
     imapHost: 'imap.gmx.com',
     imapPort: 993,
-    smtpHost: 'smtp.gmx.com',
+    smtpHost: 'mail.gmx.com',
     smtpPort: 587,
   ),
   'gmx.net': MailServer(
     imapHost: 'imap.gmx.net',
     imapPort: 993,
-    smtpHost: 'smtp.gmx.net',
+    smtpHost: 'mail.gmx.net',
     smtpPort: 587,
   ),
   'yandex.com': MailServer(
@@ -182,31 +151,6 @@ const Map<String, MailServer> kMailProviders = {
     imapPort: 993,
     smtpHost: 'smtp.yandex.ru',
     smtpPort: 465,
-  ),
-  'rediffmail.com': MailServer(
-    imapHost: 'imap.rediff.com',
-    imapPort: 993,
-    smtpHost: 'smtp.rediffmail.com',
-    smtpPort: 587,
-  ),
-  'fastmail.com': MailServer(
-    imapHost: 'imap.fastmail.com',
-    imapPort: 993,
-    smtpHost: 'smtp.fastmail.com',
-    smtpPort: 587,
-  ),
-  // Proton Mail via the desktop Bridge.
-  'protonmail.com': MailServer(
-    imapHost: '127.0.0.1',
-    imapPort: 1143,
-    smtpHost: '127.0.0.1',
-    smtpPort: 1025,
-  ),
-  'proton.me': MailServer(
-    imapHost: '127.0.0.1',
-    imapPort: 1143,
-    smtpHost: '127.0.0.1',
-    smtpPort: 1025,
   ),
 };
 

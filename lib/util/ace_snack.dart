@@ -16,11 +16,16 @@ abstract final class AceSnack {
   }
 
   /// Says a thing happened, and offers to take it back.
+  ///
+  /// [duration] is how long the offer stays open. The caller passes the user's
+  /// chosen window; the default is the same six seconds that window defaults to,
+  /// so a caller with no settings to hand still gets the right behaviour.
   static void undo(
     BuildContext context,
     String message, {
     required VoidCallback onUndo,
     String label = 'Undo',
+    Duration? duration,
   }) {
     final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
@@ -29,7 +34,7 @@ abstract final class AceSnack {
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          duration: const Duration(seconds: 6),
+          duration: duration ?? const Duration(seconds: 6),
           action: SnackBarAction(label: label, onPressed: onUndo),
         ),
       );

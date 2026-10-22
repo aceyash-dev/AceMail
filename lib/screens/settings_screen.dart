@@ -197,6 +197,37 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
             SettingsSection(
+              title: 'Sending',
+              children: <Widget>[
+                SettingsSwitchRow(
+                  icon: AceIcons.at,
+                  title: 'Blind-copy yourself',
+                  subtitle: 'Send every message with a hidden copy to the '
+                      'account it goes from, so a sent message reaches your own '
+                      'inbox and not only the Sent folder.',
+                  value: prefs.bccSelf,
+                  onChanged: prefs.setBccSelf,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.reply,
+                  title: 'Quote the original in replies',
+                  subtitle: prefs.quoteReplies
+                      ? 'A reply carries the message it answers beneath it.'
+                      : 'A reply starts empty, with no quoted original.',
+                  value: prefs.quoteReplies,
+                  onChanged: prefs.setQuoteReplies,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.signature,
+                  title: 'Signature on replies',
+                  subtitle: 'New messages always carry the signature; this '
+                      'adds it to replies too, above the quoted text.',
+                  value: prefs.signatureOnReplies,
+                  onChanged: prefs.setSignatureOnReplies,
+                ),
+              ],
+            ),
+            SettingsSection(
               title: 'Gestures',
               children: <Widget>[
                 SettingsRow(
@@ -212,6 +243,33 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'Across a message in the list',
                   value: prefs.swipeEnd.label,
                   onTap: () => _chooseSwipe(context, prefs, start: false),
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.archive,
+                  title: 'Ask before archiving',
+                  subtitle: 'A confirmation before a message leaves the inbox '
+                      'for Archive.',
+                  value: prefs.confirmArchive,
+                  onChanged: prefs.setConfirmArchive,
+                ),
+                SettingsRow(
+                  icon: AceIcons.restore,
+                  title: 'Undo window',
+                  subtitle: 'How long an undo stays on the bar after a swipe.',
+                  value: prefs.undoWindow.label,
+                  onTap: () async {
+                    final UndoWindow? chosen =
+                        await showChoiceSheet<UndoWindow>(
+                      context,
+                      title: 'Undo window',
+                      current: prefs.undoWindow,
+                      choices: <SettingsChoice<UndoWindow>>[
+                        for (final UndoWindow window in UndoWindow.values)
+                          SettingsChoice<UndoWindow>(window, window.label),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setUndoWindow(chosen);
+                  },
                 ),
               ],
             ),
@@ -269,9 +327,11 @@ class SettingsScreen extends StatelessWidget {
                   title: 'Theme',
                   value: prefs.themeMode.label,
                   onTap: () async {
-                    // OLED is a property of the dark theme, so it belongs in the sheet where
-    // the dark theme is chosen rather than on the list beside it.
-    final AceThemeMode? chosen = await showChoiceSheet<AceThemeMode>(
+                    // OLED is a property of the dark theme, so it belongs in
+                    // the sheet where the dark theme is chosen rather than on
+                    // the list beside it.
+                    final AceThemeMode? chosen =
+                        await showChoiceSheet<AceThemeMode>(
                       context,
                       title: 'Theme',
                       current: prefs.themeMode,
