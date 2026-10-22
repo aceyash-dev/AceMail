@@ -91,6 +91,8 @@ abstract final class AceIcons {
   static const AceIcon warning = HugeIcons.strokeRoundedAlert02;
   static const AceIcon loading = HugeIcons.strokeRoundedHourglass;
   static const AceIcon globe = HugeIcons.strokeRoundedGlobe;
+  static const AceIcon cloud = HugeIcons.strokeRoundedCloud;
+  static const AceIcon shield = HugeIcons.strokeRoundedShield01;
   static const AceIcon instagram = HugeIcons.strokeRoundedInstagram;
   static const AceIcon github = HugeIcons.strokeRoundedGithub;
   static const AceIcon openInNew = HugeIcons.strokeRoundedArrowUpRight01;

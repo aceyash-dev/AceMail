@@ -98,6 +98,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyLastSeen = 'ace.lastSeen';
   static const String _keyHaptics = 'ace.haptics';
   static const String _keyOled = 'ace.oled';
+  static const String _keyReduceMotion = 'ace.reduceMotion';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -125,11 +126,12 @@ class Preferences extends ChangeNotifier {
     _keyLastSeen,
     _keyHaptics,
     _keyOled,
+    _keyReduceMotion,
   ];
 
   final FlutterSecureStorage _storage;
 
-  bool _showAvatars = false;
+  bool _showAvatars = true;
   AceThemeMode _themeMode = AceThemeMode.system;
   AceTextSize _textSize = AceTextSize.medium;
   bool _confirmExit = true;
@@ -144,7 +146,7 @@ class Preferences extends ChangeNotifier {
   bool _confirmDelete = true;
   bool _detectCodes = true;
   MessageSort _messageSort = MessageSort.newest;
-  bool _loadRemoteImages = false;
+  bool _loadRemoteImages = true;
   AceAccent _accent = AceAccent.orange;
   bool _showRawHeaders = false;
   bool _useDynamicColour = false;
@@ -153,6 +155,7 @@ class Preferences extends ChangeNotifier {
   bool _notifyNewMail = false;
   bool _haptics = true;
   bool _oled = false;
+  bool _reduceMotion = false;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -238,6 +241,9 @@ class Preferences extends ChangeNotifier {
   /// at the edges of the screen.
   bool get oled => _oled;
 
+  /// Whether the app's transitions move.
+  bool get reduceMotion => _reduceMotion;
+
   /// The highest inbox uid seen for an account, so the next check knows what is
   /// new. Kept here rather than in a second storage: it is one small number per
   /// account, and a background isolate can read it the same way the app does.
@@ -291,6 +297,7 @@ class Preferences extends ChangeNotifier {
     _lastSeen = _decodeLastSeen(raw[_keyLastSeen]);
     _haptics = _decodeBool(raw[_keyHaptics], _haptics);
     _oled = _decodeBool(raw[_keyOled], _oled);
+    _reduceMotion = _decodeBool(raw[_keyReduceMotion], _reduceMotion);
 
     notifyListeners();
   }
@@ -360,6 +367,9 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setHaptics(bool value) =>
       _write(_keyHaptics, '$value', () => _haptics = value);
+
+  Future<void> setReduceMotion(bool value) =>
+      _write(_keyReduceMotion, '$value', () => _reduceMotion = value);
 
   Future<void> setOled(bool value) =>
       _write(_keyOled, '$value', () => _oled = value);

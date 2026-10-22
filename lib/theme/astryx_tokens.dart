@@ -212,6 +212,17 @@ class AceSquircleBorder extends OutlinedBorder {
 /// use an effects spring that never overshoots. Flutter does not ship these, so
 /// they live here and are applied by [AceSpringy] and the route transitions.
 abstract final class AstryxMotion {
+  /// Set from the accessibility setting. When true, movement is taken out of
+  /// the app's transitions rather than shortened: someone who has asked for
+  /// less motion has asked for less motion, not faster motion.
+  ///
+  /// The loading indicator is exempt — it is a sign of work in progress, and a
+  /// still one would look like a hung app.
+  static bool reduced = false;
+
+  /// A duration, or nothing at all when motion is off.
+  static Duration of(Duration value) => reduced ? Duration.zero : value;
+
   /// Moving something small, like a press morph.
   static const SpringDescription spatialFast =
       SpringDescription(mass: 1, stiffness: 1400, damping: 68);

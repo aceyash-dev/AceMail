@@ -536,9 +536,13 @@ class _ProviderTile extends StatelessWidget {
         color: provider.color,
         borderRadius: BorderRadius.circular(AstryxRadius.inner),
       ),
-      child: Text(
-        provider.monogram,
-        style: AstryxText.label(Colors.white).copyWith(letterSpacing: 0.5),
+      // The provider's own mark, drawn by us: an envelope, a cloud, a shield.
+      // A real logo is a trademark, and a shape that says what kind of provider
+      // it is reads at a glance without shipping anyone's artwork.
+      child: AceIconView(
+        icon: provider.glyph,
+        size: 20,
+        color: Colors.white,
       ),
     );
   }

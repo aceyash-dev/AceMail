@@ -162,6 +162,11 @@ class MessageListPanel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
         sliver: SliverList.builder(
           itemCount: items.length,
+          // Each row already brings its own RepaintBoundary, so the sliver does
+          // not need to add a second one — and a row that scrolls off does not
+          // need keeping alive, because it has no state worth keeping.
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: false,
           itemBuilder: (BuildContext context, int index) {
             final Object item = items[index];
             if (item is String) return _GroupHeading(label: item);

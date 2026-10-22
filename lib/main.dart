@@ -10,6 +10,11 @@ import 'state/mail_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // A little more room for decoded images. The default is sized for a phone
+  // showing a handful; a mail reader scrolls through many, and re-decoding the
+  // same attachment on every pass is the kind of cost that shows up as jank.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20;
+
   // Created here rather than in a provider callback so the controller can hold
   // the same instance — the reading settings live on it.
   final Preferences preferences = Preferences();

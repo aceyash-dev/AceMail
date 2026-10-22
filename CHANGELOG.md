@@ -3,6 +3,45 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.7+24
+
+### Removed
+- **The launch screen with the mark on it.** It drew the app's icon centred on
+  the page, which is a splash screen by another name — a second thing to look at
+  before the app appears. The native window is a plain fill now, in the colour
+  the app opens onto, so it and the first Flutter frame are the same surface.
+
+### Changed
+- **OLED moved to Appearance**, where the rest of the theming lives.
+- **iOS-style switches.** Cupertino's switch, because it is the one people
+  already know — the shape and the travel are the same everywhere they have seen
+  it, and it reads as a setting rather than a control.
+- **The defaults show the mail.** Sender pictures and remote images are on.
+  These are the two I had kept off, and they are the two that leak: a remote
+  image tells the sender's server the message was opened, and a Gravatar lookup
+  tells a third party who is in your mail. Both still have switches, and the
+  warnings that matter — links and empty subjects — stay on. The test that
+  asserted the old defaults was named "privacy-first"; it is now named for what
+  it actually checks, because a test that lies about its own intent is worse
+  than no test.
+
+### Added
+- **Provider marks in the domain picker**, drawn here rather than taken from
+  anyone: an envelope, a cloud, a shield. A real provider logo is a trademark,
+  and shipping the artwork would mean shipping licensed assets; a shape that
+  says what kind of provider it is reads at a glance and belongs to nobody.
+- **Reduce motion**, in a new Accessibility section. Transitions stop moving
+  rather than moving faster — someone who asked for less motion asked for less
+  motion. The loading indicator is exempt, because a still one looks like a hung
+  app.
+
+### Performance
+- The list no longer keeps scrolled-off rows alive, and no longer adds a second
+  repaint boundary to rows that already have one.
+- The image cache is 80 MB rather than the default, which is sized for a phone
+  showing a handful of pictures. Re-decoding the same attachment on every pass
+  is the kind of cost that shows up as jank.
+
 ## 0.4.6+23
 
 ### Fixed

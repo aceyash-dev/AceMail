@@ -123,15 +123,6 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setShowRawHeaders,
                 ),
                 SettingsSwitchRow(
-                  icon: AceIcons.brightness,
-                  title: 'True black (OLED)',
-                  subtitle: 'The dark theme goes to #000000. A pixel that is '
-                      'off draws no power, and on an OLED panel the difference '
-                      'is visible at the edges.',
-                  value: prefs.oled,
-                  onChanged: prefs.setOled,
-                ),
-                SettingsSwitchRow(
                   icon: AceIcons.check,
                   title: 'Vibration',
                   subtitle: 'A tick when a swipe arms, a knock when something '
@@ -227,6 +218,15 @@ class SettingsScreen extends StatelessWidget {
             SettingsSection(
               title: 'Appearance',
               children: <Widget>[
+                SettingsSwitchRow(
+                  icon: AceIcons.brightness,
+                  title: 'True black (OLED)',
+                  subtitle: 'The dark theme goes to #000000. A pixel that is '
+                      'off draws no power, and on an OLED panel the difference '
+                      'is visible at the edges.',
+                  value: prefs.oled,
+                  onChanged: prefs.setOled,
+                ),
                 SettingsRow(
                   icon: AceIcons.brightness,
                   title: 'Theme',
@@ -313,6 +313,20 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'Show a confirmation before the app closes.',
                   value: prefs.confirmExit,
                   onChanged: prefs.setConfirmExit,
+                ),
+              ],
+            ),
+            SettingsSection(
+              title: 'Accessibility',
+              children: <Widget>[
+                SettingsSwitchRow(
+                  icon: AceIcons.visibility,
+                  title: 'Reduce motion',
+                  subtitle: 'Transitions stop moving rather than moving faster. '
+                      'The loading indicator still turns, because a still one '
+                      'looks like a hung app.',
+                  value: prefs.reduceMotion,
+                  onChanged: prefs.setReduceMotion,
                 ),
               ],
             ),

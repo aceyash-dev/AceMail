@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ace_icons.dart';
+
 /// IMAP/SMTP endpoints for common providers. Anything not listed falls back to
 /// the Advanced server settings on the sign-in screen.
 class MailServer {
@@ -21,7 +23,7 @@ class MailServer {
 /// Several domains share a provider — hotmail and live are both Outlook — so the
 /// picker groups them rather than listing fifteen near-identical rows.
 class MailProvider {
-  const MailProvider(this.label, this.domains, this.color);
+  const MailProvider(this.label, this.domains, this.color, this.glyph);
 
   final String label;
 
@@ -36,27 +38,38 @@ class MailProvider {
   /// which provider it is just as quickly and belongs to nobody.
   final Color color;
 
-  /// The first two letters, for the tile.
-  String get monogram =>
-      label.substring(0, label.length >= 2 ? 2 : 1).toUpperCase();
+  /// The mark on the tile.
+  ///
+  /// Drawn here rather than taken from anyone: a real provider logo is a
+  /// trademark and shipping the artwork would mean shipping licensed assets. A
+  /// shape that says what kind of provider it is — an envelope, a cloud, a
+  /// shield — reads at a glance and belongs to nobody.
+  final AceIcon glyph;
 
   MailServer? get server => kMailProviders[domains.first];
 }
 
 const List<MailProvider> kProviderChoices = <MailProvider>[
   MailProvider('Gmail', <String>['gmail.com', 'googlemail.com'],
-      Color(0xFFEA4335)),
+      Color(0xFFEA4335),
+      AceIcons.mail),
   MailProvider('Outlook', <String>['outlook.com', 'hotmail.com', 'live.com'],
-      Color(0xFF0078D4)),
-  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'], Color(0xFF6001D2)),
-  MailProvider('iCloud', <String>['icloud.com', 'me.com'], Color(0xFF3693F3)),
-  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in'], Color(0xFFE42527)),
-  MailProvider('Fastmail', <String>['fastmail.com'], Color(0xFF0067B9)),
+      Color(0xFF0078D4),
+      AceIcons.mailOpen),
+  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'], Color(0xFF6001D2),
+      AceIcons.mailbox),
+  MailProvider('iCloud', <String>['icloud.com', 'me.com'], Color(0xFF3693F3),
+      AceIcons.cloud),
+  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in'], Color(0xFFE42527),
+      AceIcons.inbox),
+  MailProvider('Fastmail', <String>['fastmail.com'], Color(0xFF0067B9),
+      AceIcons.send),
   MailProvider('Proton',
-      <String>['proton.me', 'protonmail.com', 'pm.me'], Color(0xFF6D4AFF)),
-  MailProvider('Rediffmail', <String>['rediffmail.com'], Color(0xFFD62B2B)),
-  MailProvider('GMX', <String>['gmx.com', 'gmx.net'], Color(0xFF1C449B)),
-  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'], Color(0xFFFC3F1D)),
+      <String>['proton.me', 'protonmail.com', 'pm.me'], Color(0xFF6D4AFF),
+      AceIcons.shield),
+  MailProvider('Rediffmail', <String>['rediffmail.com'], Color(0xFFD62B2B), AceIcons.globe),
+  MailProvider('GMX', <String>['gmx.com', 'gmx.net'], Color(0xFF1C449B), AceIcons.globe),
+  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'], Color(0xFFFC3F1D), AceIcons.globe),
 ];
 
 const Map<String, MailServer> kMailProviders = {

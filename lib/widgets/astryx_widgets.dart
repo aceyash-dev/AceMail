@@ -363,7 +363,9 @@ class AceIconButton extends StatelessWidget {
           lerpDouble(AstryxRadius.full, AstryxRadius.element, t)!,
         );
         return Transform.scale(
-          scale: 1 - 0.06 * press,
+          // A press that does not move when motion is off, rather than one that
+          // moves faster.
+          scale: AstryxMotion.reduced ? 1 : 1 - 0.06 * press,
           child: Container(
             width: size,
             height: size,

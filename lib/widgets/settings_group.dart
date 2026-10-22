@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoSwitch;
 import 'package:flutter/material.dart';
 
 import '../theme/ace_icons.dart';
@@ -187,7 +188,15 @@ class SettingsSwitchRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AstryxSpace.s2),
-                Switch(value: value, onChanged: onChanged),
+                // Cupertino's switch, because it is the one people already
+                // know: the shape and the travel are the same everywhere they
+                // have seen it, and it reads as a setting rather than a
+                // Material control.
+                CupertinoSwitch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeTrackColor: c.accent,
+                ),
               ],
             ),
           ),

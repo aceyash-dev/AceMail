@@ -62,6 +62,7 @@ class AceMailApp extends StatelessWidget {
         // hole cut out of a cream page.
         // One switch for the whole app, read where the preferences already are.
         AceHaptics.enabled = prefs.haptics;
+        AstryxMotion.reduced = prefs.reduceMotion;
 
         final AstryxColors c = context.astryx;
         final bool dark = Theme.of(context).brightness == Brightness.dark;

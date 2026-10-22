@@ -6,10 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 /// best effort, and the value still applies for the session.
 void main() {
   group('Preferences', () {
-    test('defaults are the privacy-first ones', () {
+    // These two are the trade-off, and they are on because that is what was
+    // asked for: images and sender pictures are what a mail reader is expected
+    // to show. Both leak something — a remote image tells the sender's server
+    // the message was opened, and a Gravatar lookup tells a third party who is
+    // in your mail — so both have a switch, and the warnings that matter (links
+    // and empty subjects) stay on.
+    test('the defaults show the mail', () {
       final Preferences prefs = Preferences();
 
-      expect(prefs.showAvatars, isFalse, reason: 'Gravatar is opt-in');
+      expect(prefs.showAvatars, isTrue);
+      expect(prefs.loadRemoteImages, isTrue);
       expect(prefs.themeMode, AceThemeMode.system);
       expect(prefs.textSize, AceTextSize.medium);
       expect(prefs.textScale, 1.0);
@@ -22,7 +29,7 @@ void main() {
       final Preferences prefs = Preferences();
       await prefs.load();
 
-      expect(prefs.showAvatars, isFalse);
+      expect(prefs.showAvatars, isTrue);
       expect(prefs.themeMode, AceThemeMode.system);
       expect(prefs.textSize, AceTextSize.medium);
     });

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Just the background colour.
+
+     This used to draw the app's mark centred on the page, which is a splash
+     screen by another name: a second thing to look at before the app appears.
+     It is a plain fill now, in the colour the app opens onto, so the native
+     window and the first Flutter frame are the same surface. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ace_milk" />
-    <item
-        android:drawable="@drawable/ic_splash_mark"
-        android:gravity="center" />
 </layer-list>
