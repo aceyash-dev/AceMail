@@ -405,7 +405,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final bool permanent = controller.inTrash;
 
     if (permanent) {
-      final int count = controller.selectedMessages.length;
+      final int count = controller.selectedCount;
       if (!await confirmPermanentDelete(context, count: count)) return;
       if (!context.mounted) return;
     }

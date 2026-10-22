@@ -497,7 +497,7 @@ class MailService implements MailTransport {
       attachmentBytes += size;
     }
     if (attachmentBytes > MailLimits.maxOutboundAttachmentBytes) {
-      throw MailRejectedException(
+      throw const MailRejectedException(
         'Attachments are limited to '
         '${MailLimits.maxOutboundAttachmentBytes ~/ (1024 * 1024)} MB in total.',
       );

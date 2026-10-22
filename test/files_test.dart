@@ -44,7 +44,7 @@ void main() {
     });
 
     test('caps the count and says how many it left off', () async {
-      final int offered = MailLimits.maxAttachmentCount + 3;
+      const int offered = MailLimits.maxAttachmentCount + 3;
       final PickedAttachments picked = await pickAttachmentFiles(
         choose: () async =>
             <XFile>[for (int i = 0; i < offered; i++) XFile('file$i')],
