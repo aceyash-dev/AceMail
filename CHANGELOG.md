@@ -3,6 +3,31 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.5.0+27
+
+### Added
+- **Real provider logos.** Gmail, Outlook, Yahoo, iCloud, Yandex and Rediffmail
+  now show the providers' own marks, taken from Wikimedia Commons, which hosts
+  the official files. Proton, Zoho, Fastmail and GMX keep the drawn glyph —
+  their logos could not be obtained, and a wrong logo is worse than a shape that
+  is honest about being a shape.
+- **What's new.** The first time a new version runs it says what changed, read
+  from the changelog this repo already keeps rather than a second list that
+  would drift from it. A fresh install says nothing: a wall of release notes is
+  a poor introduction.
+- **Preview lines** in the settings — none, one, two or three.
+- **About** now lists the **source**, **Bluesky @ace-base.cc** and
+  **hello@ace-base.cc**.
+
+### Changed
+- **The snackbar wears the accent**, with the accent's own readable ink, so it
+  looks like it came from the app rather than from Android.
+- The README no longer tells you to create the project as `dev.acebase`.
+
+### Removed
+- The old `SplashScreen`, which had been unreferenced since the launch window
+  stopped drawing a mark.
+
 ## 0.4.9+26
 
 ### Added

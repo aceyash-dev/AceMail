@@ -218,6 +218,28 @@ class SettingsScreen extends StatelessWidget {
             SettingsSection(
               title: 'Appearance',
               children: <Widget>[
+                SettingsRow(
+                  icon: AceIcons.list,
+                  title: 'Preview lines',
+                  value: prefs.previewLines == 0
+                      ? 'None'
+                      : '${prefs.previewLines}',
+                  onTap: () async {
+                    final int? lines = await showChoiceSheet<int>(
+                      context,
+                      title: 'Preview lines',
+                      current: prefs.previewLines,
+                      choices: <SettingsChoice<int>>[
+                        for (final int n in <int>[0, 1, 2, 3])
+                          SettingsChoice<int>(
+                            n,
+                            n == 0 ? 'None' : '$n line${n == 1 ? '' : 's'}',
+                          ),
+                      ],
+                    );
+                    if (lines != null) await prefs.setPreviewLines(lines);
+                  },
+                ),
                 SettingsSwitchRow(
                   icon: AceIcons.list,
                   title: 'Group by date',

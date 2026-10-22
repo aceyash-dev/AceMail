@@ -128,7 +128,7 @@ For iOS, macOS and Windows, generate those runner projects once and copy them
 in (Linux is already in the repository):
 
 ```bash
-flutter create --org dev.acebase --project-name ace_mail \
+flutter create --org app.tab --project-name ace_mail \
   --platforms=ios,macos,windows /tmp/ace_scaffold
 
 cp -R /tmp/ace_scaffold/ios /tmp/ace_scaffold/macos \

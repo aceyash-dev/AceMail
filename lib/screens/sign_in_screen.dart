@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -528,6 +529,25 @@ class _ProviderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String? logo = provider.logo;
+
+    // The provider's own logo where we have one, on a plain tile so the mark's
+    // own colours are the only colours. Otherwise the drawn glyph on the
+    // provider's colour, which says the same thing a little more quietly.
+    if (logo != null) {
+      return Container(
+        width: 34,
+        height: 34,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AstryxRadius.inner),
+          border: Border.all(color: const Color(0x1A000000)),
+        ),
+        child: SvgPicture.asset(logo, fit: BoxFit.contain),
+      );
+    }
+
     return Container(
       width: 34,
       height: 34,
@@ -536,9 +556,6 @@ class _ProviderTile extends StatelessWidget {
         color: provider.color,
         borderRadius: BorderRadius.circular(AstryxRadius.inner),
       ),
-      // The provider's own mark, drawn by us: an envelope, a cloud, a shield.
-      // A real logo is a trademark, and a shape that says what kind of provider
-      // it is reads at a glance without shipping anyone's artwork.
       child: AceIconView(
         icon: provider.glyph,
         size: 20,

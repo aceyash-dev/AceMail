@@ -101,6 +101,8 @@ class Preferences extends ChangeNotifier {
   static const String _keyReduceMotion = 'ace.reduceMotion';
   static const String _keyGroupByDate = 'ace.groupByDate';
   static const String _keyFolderCounts = 'ace.folderCounts';
+  static const String _keySeenVersion = 'ace.seenVersion';
+  static const String _keyPreviewLines = 'ace.previewLines';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -131,6 +133,8 @@ class Preferences extends ChangeNotifier {
     _keyReduceMotion,
     _keyGroupByDate,
     _keyFolderCounts,
+    _keySeenVersion,
+    _keyPreviewLines,
   ];
 
   final FlutterSecureStorage _storage;
@@ -162,6 +166,8 @@ class Preferences extends ChangeNotifier {
   bool _reduceMotion = false;
   bool _groupByDate = true;
   bool _showFolderCounts = true;
+  String? _lastSeenVersion;
+  int _previewLines = 1;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -258,6 +264,19 @@ class Preferences extends ChangeNotifier {
   /// Whether each folder shows how much unread mail is in it.
   bool get showFolderCounts => _showFolderCounts;
 
+  /// The version whose release notes have already been shown. Null means the
+  /// app has not been through an update yet.
+  String? get lastSeenVersion => _lastSeenVersion;
+
+  /// How many lines of the message follow the subject in the list.
+  int get previewLines => _previewLines;
+
+  Future<void> setPreviewLines(int value) =>
+      _write(_keyPreviewLines, '$value', () => _previewLines = value);
+
+  Future<void> setLastSeenVersion(String value) =>
+      _write(_keySeenVersion, value, () => _lastSeenVersion = value);
+
   /// The highest inbox uid seen for an account, so the next check knows what is
   /// new. Kept here rather than in a second storage: it is one small number per
   /// account, and a background isolate can read it the same way the app does.
@@ -315,6 +334,10 @@ class Preferences extends ChangeNotifier {
     _groupByDate = _decodeBool(raw[_keyGroupByDate], _groupByDate);
     _showFolderCounts =
         _decodeBool(raw[_keyFolderCounts], _showFolderCounts);
+    _previewLines =
+        _decodeInt(raw[_keyPreviewLines], _previewLines).clamp(0, 3);
+    final String? seen = raw[_keySeenVersion];
+    _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 
     notifyListeners();
   }
@@ -440,3 +463,6 @@ class Preferences extends ChangeNotifier {
     return fallback;
   }
 }
+
+/// Best effort: a setting that will not parse falls back rather than throwing.
+int _decodeInt(String? raw, int fallback) => int.tryParse(raw ?? '') ?? fallback;

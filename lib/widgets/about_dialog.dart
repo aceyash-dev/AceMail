@@ -31,8 +31,11 @@ class _AboutSheet extends StatelessWidget {
   final BuildContext sheetContext;
 
   /// Where to find the people who made this.
-  static final Uri _github = Uri.parse('https://github.com/tab-gl');
-  static final Uri _instagram = Uri.parse('https://instagram.com/tab.gl');
+  /// The source. It is the first thing in the list because it is the thing
+  /// someone who wants to check a claim will look for.
+  static final Uri _source = Uri.parse('https://github.com/aceyash-dev/AceMail');
+  static final Uri _bluesky = Uri.parse('https://bsky.app/profile/ace-base.cc');
+  static final Uri _email = Uri.parse('mailto:hello@ace-base.cc');
   static final Uri _website = Uri.parse('https://ace-base.cc');
 
   @override
@@ -93,22 +96,28 @@ class _AboutSheet extends StatelessWidget {
             Text('Find us', style: AstryxText.label(c.textSecondary)),
             const SizedBox(height: AstryxSpace.s2),
             _Handle(
+              icon: AceIcons.github,
+              platform: 'Source',
+              handle: 'aceyash-dev/AceMail',
+              onTap: () => _open(sheetContext, _source),
+            ),
+            _Handle(
+              icon: AceIcons.globe,
+              platform: 'Bluesky',
+              handle: '@ace-base.cc',
+              onTap: () => _open(sheetContext, _bluesky),
+            ),
+            _Handle(
+              icon: AceIcons.mail,
+              platform: 'Email',
+              handle: 'hello@ace-base.cc',
+              onTap: () => _open(sheetContext, _email),
+            ),
+            _Handle(
               icon: AceIcons.globe,
               platform: 'Website',
               handle: 'ace-base.cc',
               onTap: () => _open(sheetContext, _website),
-            ),
-            _Handle(
-              icon: AceIcons.github,
-              platform: 'GitHub',
-              handle: '@tab-gl',
-              onTap: () => _open(sheetContext, _github),
-            ),
-            _Handle(
-              icon: AceIcons.instagram,
-              platform: 'Instagram',
-              handle: '@tab.gl',
-              onTap: () => _open(sheetContext, _instagram),
             ),
             const SizedBox(height: AstryxSpace.s6),
             SizedBox(

@@ -23,7 +23,13 @@ class MailServer {
 /// Several domains share a provider — hotmail and live are both Outlook — so the
 /// picker groups them rather than listing fifteen near-identical rows.
 class MailProvider {
-  const MailProvider(this.label, this.domains, this.color, this.glyph);
+  const MailProvider(
+    this.label,
+    this.domains,
+    this.color,
+    this.glyph, {
+    this.logo,
+  });
 
   final String label;
 
@@ -46,20 +52,28 @@ class MailProvider {
   /// shield — reads at a glance and belongs to nobody.
   final AceIcon glyph;
 
+  /// The provider's own logo, where we could obtain one.
+  ///
+  /// These are the providers' marks, used to say which provider a row is —
+  /// which is what a picker is for. They come from Wikimedia Commons, which
+  /// hosts the official files. Where no logo could be obtained the drawn glyph
+  /// stands in, and the row is no worse for it.
+  final String? logo;
+
   MailServer? get server => kMailProviders[domains.first];
 }
 
 const List<MailProvider> kProviderChoices = <MailProvider>[
   MailProvider('Gmail', <String>['gmail.com', 'googlemail.com'],
       Color(0xFFEA4335),
-      AceIcons.mail),
+      AceIcons.mail, logo: 'assets/providers/gmail.svg'),
   MailProvider('Outlook', <String>['outlook.com', 'hotmail.com', 'live.com'],
       Color(0xFF0078D4),
-      AceIcons.mailOpen),
+      AceIcons.mailOpen, logo: 'assets/providers/outlook.svg'),
   MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'], Color(0xFF6001D2),
-      AceIcons.mailbox),
+      AceIcons.mailbox, logo: 'assets/providers/yahoo.svg'),
   MailProvider('iCloud', <String>['icloud.com', 'me.com'], Color(0xFF3693F3),
-      AceIcons.cloud),
+      AceIcons.cloud, logo: 'assets/providers/icloud.svg'),
   MailProvider('Zoho', <String>['zoho.com', 'zohomail.in'], Color(0xFFE42527),
       AceIcons.inbox),
   MailProvider('Fastmail', <String>['fastmail.com'], Color(0xFF0067B9),
@@ -67,9 +81,9 @@ const List<MailProvider> kProviderChoices = <MailProvider>[
   MailProvider('Proton',
       <String>['proton.me', 'protonmail.com', 'pm.me'], Color(0xFF6D4AFF),
       AceIcons.shield),
-  MailProvider('Rediffmail', <String>['rediffmail.com'], Color(0xFFD62B2B), AceIcons.globe),
+  MailProvider('Rediffmail', <String>['rediffmail.com'], Color(0xFFD62B2B), AceIcons.globe, logo: 'assets/providers/rediffmail.svg'),
   MailProvider('GMX', <String>['gmx.com', 'gmx.net'], Color(0xFF1C449B), AceIcons.globe),
-  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'], Color(0xFFFC3F1D), AceIcons.globe),
+  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'], Color(0xFFFC3F1D), AceIcons.globe, logo: 'assets/providers/yandex.svg'),
 ];
 
 const Map<String, MailServer> kMailProviders = {

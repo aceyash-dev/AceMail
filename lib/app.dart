@@ -3,16 +3,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'data/app_info.dart';
 import 'data/preferences.dart';
 import 'screens/mailbox_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
 import 'theme/astryx_tokens.dart';
+import 'widgets/whats_new.dart';
 import 'util/haptics.dart';
 
 class AceMailApp extends StatelessWidget {
   const AceMailApp({super.key});
+
+  /// Shows the release notes when the version has changed, then records that it
+  /// has been seen.
+  void _maybeAnnounceUpdate(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!context.mounted) return;
+      await WhatsNewSheet.showIfUpdated(context);
+      if (!context.mounted) return;
+      await context.read<Preferences>().setLastSeenVersion(AppInfo.version);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +99,10 @@ class AceMailApp extends StatelessWidget {
           ),
         );
       },
-      home: _home(controller),
+      home: _AnnounceOnFirstFrame(
+        onReady: _maybeAnnounceUpdate,
+        child: _home(controller),
+      ),
         );
         return app;
       },
@@ -107,4 +123,31 @@ extension on AceMailApp {
     }
     return const MailboxScreen();
   }
+}
+
+/// Runs [onReady] once, after the first frame has been laid out.
+///
+/// The release notes are a sheet, and a sheet needs a Navigator — which does
+/// not exist until there is a tree to hang it from.
+class _AnnounceOnFirstFrame extends StatefulWidget {
+  const _AnnounceOnFirstFrame({required this.onReady, required this.child});
+
+  final void Function(BuildContext context) onReady;
+  final Widget child;
+
+  @override
+  State<_AnnounceOnFirstFrame> createState() => _AnnounceOnFirstFrameState();
+}
+
+class _AnnounceOnFirstFrameState extends State<_AnnounceOnFirstFrame> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onReady(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

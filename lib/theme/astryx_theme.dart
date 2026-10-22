@@ -389,9 +389,12 @@ ThemeData buildAstryxTheme(
       ),
     ),
     snackBarTheme: SnackBarThemeData(
+      // The accent, so a message from the app looks like it came from the app
+      // rather than from Android. The ink on it is the accent's own readable
+      // ink, so the text is legible whatever accent is chosen.
       behavior: SnackBarBehavior.floating,
-      backgroundColor: c.inverseSurface,
-      contentTextStyle: AstryxText.body(c.onInverseSurface),
+      backgroundColor: c.accent,
+      contentTextStyle: AstryxText.body(c.onAccent),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AstryxRadius.element),
       ),
