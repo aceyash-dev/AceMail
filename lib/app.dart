@@ -5,11 +5,11 @@ import 'package:provider/provider.dart';
 
 import 'data/preferences.dart';
 import 'screens/mailbox_screen.dart';
-import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
 import 'theme/astryx_tokens.dart';
+import 'util/haptics.dart';
 
 class AceMailApp extends StatelessWidget {
   const AceMailApp({super.key});
@@ -44,6 +44,7 @@ class AceMailApp extends StatelessWidget {
         Brightness.dark,
         accent: prefs.accent,
         dynamicSeed: seed,
+        oled: prefs.oled,
       ),
       themeMode: switch (prefs.themeMode) {
         AceThemeMode.system => ThemeMode.system,
@@ -59,6 +60,9 @@ class AceMailApp extends StatelessWidget {
         // The system bars follow the theme. Without this the navigation bar is
         // whatever Android last felt like — which is black, and looks like a
         // hole cut out of a cream page.
+        // One switch for the whole app, read where the preferences already are.
+        AceHaptics.enabled = prefs.haptics;
+
         final AstryxColors c = context.astryx;
         final bool dark = Theme.of(context).brightness == Brightness.dark;
         final Brightness icons =
@@ -90,17 +94,15 @@ class AceMailApp extends StatelessWidget {
 }
 
 extension on AceMailApp {
-  /// The splash covers the first connection only. A *failed* connection must
-  /// not trap anyone behind it, so the mailbox takes over as soon as there is
-  /// an error to show.
+  /// Straight to the work.
+  ///
+  /// There was a separate splash for the first connection. It was a second
+  /// loading screen for something the mailbox already shows — the list has a
+  /// skeleton while it loads, and the app bar says which folder is coming. Two
+  /// of them meant waiting twice.
   Widget _home(MailController controller) {
     if (!controller.isSignedIn && !controller.exploring) {
       return const SignInScreen();
-    }
-    // Nothing connected: the mailbox is empty, and says so, with a way in.
-    if (!controller.isSignedIn) return const MailboxScreen();
-    if (!controller.isReady && controller.sessionError == null) {
-      return const SplashScreen();
     }
     return const MailboxScreen();
   }

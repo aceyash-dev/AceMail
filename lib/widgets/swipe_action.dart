@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../util/haptics.dart';
 import 'package:flutter/physics.dart';
 
 import '../models/swipe_action.dart';
@@ -100,6 +104,10 @@ class _AceSwipeTileState extends State<AceSwipeTile>
   bool get _startLive => widget.start != SwipeAction.none;
   bool get _endLive => widget.end != SwipeAction.none;
 
+  /// Set when the gesture has been felt once, so a slow drag over the line
+  /// ticks once rather than on every frame.
+  bool _felt = false;
+
   void _onUpdate(DragUpdateDetails details) {
     double next = _slide.value + details.delta.dx;
     // A direction with no action assigned does not move at all.
@@ -109,10 +117,19 @@ class _AceSwipeTileState extends State<AceSwipeTile>
   }
 
   void _onEnd(DragEndDetails details) {
+    _felt = false;
     final double value = _slide.value;
     final SwipeAction action = value > 0 ? widget.start : widget.end;
 
     if (action != SwipeAction.none && value.abs() >= _width * 0.26) {
+      // Felt as the line is crossed, so the swipe says it is armed before it
+      // is released. Once per gesture, not per frame.
+      if (!_felt) {
+        _felt = true;
+        unawaited(
+          action == SwipeAction.trash ? AceHaptics.warn() : AceHaptics.select(),
+        );
+      }
       widget.onAction(action);
     }
     // Whatever happened, the row returns to rest on a spring.

@@ -198,6 +198,21 @@ void main() {
       }
     });
 
+    test('every domain in the picker has servers behind it', () {
+      // A provider in the list whose domains are not in the table is a choice
+      // that cannot be made: picking it fills in nothing and the sign-in fails
+      // with no explanation.
+      for (final MailProvider provider in kProviderChoices) {
+        for (final String domain in provider.domains) {
+          expect(
+            kMailProviders[domain],
+            isNotNull,
+            reason: '$domain is offered but has no IMAP/SMTP settings',
+          );
+        }
+      }
+    });
+
     test('the picker lists each provider once', () {
       final List<String> labels =
           kProviderChoices.map((MailProvider p) => p.label).toList();

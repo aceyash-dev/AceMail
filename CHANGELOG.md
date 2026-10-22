@@ -3,6 +3,39 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.4.6+23
+
+### Fixed
+- **The reader collapsed to a column at the right edge.** My table change put a
+  horizontal scroll view inside a widget span, and a span is laid out with
+  unbounded width — so it asked for infinite width and the whole message fell
+  apart. No scroller now, and `IntrinsicColumnWidth(flex: 1)` so a table sizes
+  to its content, shares out the leftover, and shrinks rather than overflowing.
+  That regression was mine, from 0.4.5, and the screenshot caught it.
+- **The sidebar button did nothing.** It called `Scaffold.of(context)` with the
+  app bar's context, which sits *above* the Scaffold, so it found nothing. A
+  `GlobalKey<ScaffoldState>` now, and the drawer opens.
+
+### Added
+- **True black for OLED panels.** The dark theme goes to #000000, with the
+  raised surfaces at #070707 through #1A1A1A. A pixel that is off draws no
+  power, and on an OLED panel the difference is visible at the edges.
+- **Mild haptics.** A tick when a swipe crosses its line — once per gesture, not
+  once per frame — and a heavier knock for the destructive ones. Off switch
+  included, because a mail client is used dozens of times a day and anything
+  louder becomes noise.
+- **Provider tiles in the domain picker**, and **every address a provider hands
+  out**. Proton gives you proton.me, protonmail.com and pm.me; picking one
+  silently would sign you in as an address you do not use, and you would only
+  find out when a reply went to the wrong place. GMX and Yandex joined the list
+  — and a test now fails if a provider is offered without IMAP/SMTP settings
+  behind it, which is how I caught that I had added two without them.
+
+### Removed
+- **The splash screen.** It was a second loading screen for something the
+  mailbox already shows: the list has a skeleton while it loads and the app bar
+  says which folder is coming. Two of them meant waiting twice.
+
 ## 0.4.5+22
 
 ### Fixed

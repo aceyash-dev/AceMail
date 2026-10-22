@@ -76,10 +76,15 @@ class SettingsRow extends StatelessWidget {
     this.value,
     this.onTap,
     this.trailing,
+    this.leading,
   });
 
   final AceIcon icon;
   final String title;
+
+  /// Shown in place of the icon, when a row needs something an icon cannot say
+  /// — a provider's own colour, for instance.
+  final Widget? leading;
   final String? subtitle;
 
   /// Shown before the chevron, the way "Theme: Light" reads.
@@ -99,7 +104,8 @@ class SettingsRow extends StatelessWidget {
         horizontal: AstryxSpace.s3,
         vertical: AstryxSpace.s3,
       ),
-      leading: AceIconView(icon: icon, size: 20, color: c.iconSecondary),
+      leading: leading ??
+          AceIconView(icon: icon, size: 20, color: c.iconSecondary),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[

@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// IMAP/SMTP endpoints for common providers. Anything not listed falls back to
 /// the Advanced server settings on the sign-in screen.
 class MailServer {
@@ -19,23 +21,42 @@ class MailServer {
 /// Several domains share a provider — hotmail and live are both Outlook — so the
 /// picker groups them rather than listing fifteen near-identical rows.
 class MailProvider {
-  const MailProvider(this.label, this.domains);
+  const MailProvider(this.label, this.domains, this.color);
 
   final String label;
+
+  /// Every domain the provider hands out, not just the best-known one. Proton
+  /// gives you three and people use all of them.
   final List<String> domains;
+
+  /// The provider's colour, for its tile in the picker.
+  ///
+  /// A monogram rather than the real brand mark: those are trademarks, and
+  /// shipping them would mean shipping licensed assets. A coloured initial says
+  /// which provider it is just as quickly and belongs to nobody.
+  final Color color;
+
+  /// The first two letters, for the tile.
+  String get monogram =>
+      label.substring(0, label.length >= 2 ? 2 : 1).toUpperCase();
 
   MailServer? get server => kMailProviders[domains.first];
 }
 
 const List<MailProvider> kProviderChoices = <MailProvider>[
-  MailProvider('Gmail', <String>['gmail.com', 'googlemail.com']),
-  MailProvider('Outlook', <String>['outlook.com', 'hotmail.com', 'live.com']),
-  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in']),
-  MailProvider('iCloud', <String>['icloud.com', 'me.com']),
-  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in']),
-  MailProvider('Fastmail', <String>['fastmail.com']),
-  MailProvider('Proton', <String>['protonmail.com', 'proton.me']),
-  MailProvider('Rediffmail', <String>['rediffmail.com']),
+  MailProvider('Gmail', <String>['gmail.com', 'googlemail.com'],
+      Color(0xFFEA4335)),
+  MailProvider('Outlook', <String>['outlook.com', 'hotmail.com', 'live.com'],
+      Color(0xFF0078D4)),
+  MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'], Color(0xFF6001D2)),
+  MailProvider('iCloud', <String>['icloud.com', 'me.com'], Color(0xFF3693F3)),
+  MailProvider('Zoho', <String>['zoho.com', 'zohomail.in'], Color(0xFFE42527)),
+  MailProvider('Fastmail', <String>['fastmail.com'], Color(0xFF0067B9)),
+  MailProvider('Proton',
+      <String>['proton.me', 'protonmail.com', 'pm.me'], Color(0xFF6D4AFF)),
+  MailProvider('Rediffmail', <String>['rediffmail.com'], Color(0xFFD62B2B)),
+  MailProvider('GMX', <String>['gmx.com', 'gmx.net'], Color(0xFF1C449B)),
+  MailProvider('Yandex', <String>['yandex.com', 'yandex.ru'], Color(0xFFFC3F1D)),
 ];
 
 const Map<String, MailServer> kMailProviders = {
@@ -104,6 +125,36 @@ const Map<String, MailServer> kMailProviders = {
     imapPort: 993,
     smtpHost: 'smtp.zoho.in',
     smtpPort: 587,
+  ),
+  'pm.me': MailServer(
+    imapHost: 'imap.proton.me',
+    imapPort: 993,
+    smtpHost: 'smtp.proton.me',
+    smtpPort: 465,
+  ),
+  'gmx.com': MailServer(
+    imapHost: 'imap.gmx.com',
+    imapPort: 993,
+    smtpHost: 'smtp.gmx.com',
+    smtpPort: 587,
+  ),
+  'gmx.net': MailServer(
+    imapHost: 'imap.gmx.net',
+    imapPort: 993,
+    smtpHost: 'smtp.gmx.net',
+    smtpPort: 587,
+  ),
+  'yandex.com': MailServer(
+    imapHost: 'imap.yandex.com',
+    imapPort: 993,
+    smtpHost: 'smtp.yandex.com',
+    smtpPort: 465,
+  ),
+  'yandex.ru': MailServer(
+    imapHost: 'imap.yandex.ru',
+    imapPort: 993,
+    smtpHost: 'smtp.yandex.ru',
+    smtpPort: 465,
   ),
   'rediffmail.com': MailServer(
     imapHost: 'imap.rediff.com',

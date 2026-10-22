@@ -438,16 +438,19 @@ class _DomainField extends StatelessWidget {
             for (final MailProvider provider in kProviderChoices)
               SettingsRow(
                 icon: AceIcons.at,
+                leading: _ProviderTile(provider: provider),
                 title: provider.label,
-                subtitle: provider.domains.first,
-                trailing: provider.domains.first == form.domain
-                    ? AceIconView(icon: 
-                        AceIcons.check,
+                // Every domain the provider hands out, not just the first:
+                // Proton gives you three and people use all of them.
+                subtitle: provider.domains.join('  ·  '),
+                trailing: provider.domains.contains(form.domain)
+                    ? AceIconView(
+                        icon: AceIcons.check,
                         size: 20,
                         color: sheetContext.astryx.accent,
                       )
                     : null,
-                onTap: () => Navigator.of(sheetContext).pop(provider.domains.first),
+                onTap: () => chooseProvider(sheetContext, provider),
               ),
             const Divider(height: 1),
             SettingsRow(
@@ -511,4 +514,90 @@ class _StepDots extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The provider's tile: its colour and its initials.
+///
+/// A monogram rather than the real brand mark — those are trademarks, and
+/// shipping them would mean shipping licensed assets. A coloured initial says
+/// which provider it is just as quickly.
+class _ProviderTile extends StatelessWidget {
+  const _ProviderTile({required this.provider});
+
+  final MailProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: provider.color,
+        borderRadius: BorderRadius.circular(AstryxRadius.inner),
+      ),
+      child: Text(
+        provider.monogram,
+        style: AstryxText.label(Colors.white).copyWith(letterSpacing: 0.5),
+      ),
+    );
+  }
+}
+
+/// The provider's tile: its colour and its initials.
+///
+/// A monogram rather than the real brand mark — those are trademarks, and
+/// shipping them would mean shipping licensed assets. A coloured initial says
+/// which provider it is just as quickly, and belongs to nobody.
+
+/// Picking a provider, and then an address if it hands out more than one.
+///
+/// Proton gives you proton.me, protonmail.com and pm.me, and people use all
+/// three. Silently taking the first would sign someone in as an address they do
+/// not use, and they would only find out when a reply went to the wrong place.
+Future<void> chooseProvider(
+  BuildContext sheetContext,
+  MailProvider provider,
+) async {
+  if (provider.domains.length == 1) {
+    Navigator.of(sheetContext).pop(provider.domains.first);
+    return;
+  }
+
+  final String? domain = await showModalBottomSheet<String>(
+    context: sheetContext,
+    showDragHandle: true,
+    builder: (BuildContext inner) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AstryxSpace.s5,
+              0,
+              AstryxSpace.s5,
+              AstryxSpace.s3,
+            ),
+            child: Text(
+              'Which ${provider.label} address?',
+              style: AstryxText.heading3(inner.astryx.textPrimary),
+            ),
+          ),
+          for (final String domain in provider.domains)
+            SettingsRow(
+              icon: AceIcons.at,
+              leading: _ProviderTile(provider: provider),
+              title: domain,
+              onTap: () => Navigator.of(inner).pop(domain),
+            ),
+          const SizedBox(height: AstryxSpace.s3),
+        ],
+      ),
+    ),
+  );
+
+  if (domain == null) return;
+  if (!sheetContext.mounted) return;
+  Navigator.of(sheetContext).pop(domain);
 }

@@ -96,6 +96,8 @@ class Preferences extends ChangeNotifier {
   static const String _keyWarnExternalLinks = 'ace.warnExternalLinks';
   static const String _keyNotifyNewMail = 'ace.notifyNewMail';
   static const String _keyLastSeen = 'ace.lastSeen';
+  static const String _keyHaptics = 'ace.haptics';
+  static const String _keyOled = 'ace.oled';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -121,6 +123,8 @@ class Preferences extends ChangeNotifier {
     _keyWarnExternalLinks,
     _keyNotifyNewMail,
     _keyLastSeen,
+    _keyHaptics,
+    _keyOled,
   ];
 
   final FlutterSecureStorage _storage;
@@ -147,6 +151,8 @@ class Preferences extends ChangeNotifier {
   bool _warnEmptySubject = true;
   bool _warnExternalLinks = true;
   bool _notifyNewMail = false;
+  bool _haptics = true;
+  bool _oled = false;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -224,6 +230,14 @@ class Preferences extends ChangeNotifier {
   /// platform for permission at that moment rather than at launch.
   bool get notifyNewMail => _notifyNewMail;
 
+  /// Whether taps are felt.
+  bool get haptics => _haptics;
+
+  /// True black, for an OLED panel. A pixel that is off draws no power, and on
+  /// a dark background the difference between #0E0E0E and #000000 is visible
+  /// at the edges of the screen.
+  bool get oled => _oled;
+
   /// The highest inbox uid seen for an account, so the next check knows what is
   /// new. Kept here rather than in a second storage: it is one small number per
   /// account, and a background isolate can read it the same way the app does.
@@ -275,6 +289,8 @@ class Preferences extends ChangeNotifier {
         _decodeBool(raw[_keyWarnExternalLinks], _warnExternalLinks);
     _notifyNewMail = _decodeBool(raw[_keyNotifyNewMail], _notifyNewMail);
     _lastSeen = _decodeLastSeen(raw[_keyLastSeen]);
+    _haptics = _decodeBool(raw[_keyHaptics], _haptics);
+    _oled = _decodeBool(raw[_keyOled], _oled);
 
     notifyListeners();
   }
@@ -341,6 +357,12 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setWarnExternalLinks(bool value) =>
       _write(_keyWarnExternalLinks, '$value', () => _warnExternalLinks = value);
+
+  Future<void> setHaptics(bool value) =>
+      _write(_keyHaptics, '$value', () => _haptics = value);
+
+  Future<void> setOled(bool value) =>
+      _write(_keyOled, '$value', () => _oled = value);
 
   Future<void> setNotifyNewMail(bool value) =>
       _write(_keyNotifyNewMail, '$value', () => _notifyNewMail = value);

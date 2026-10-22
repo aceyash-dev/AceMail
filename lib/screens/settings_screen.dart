@@ -123,6 +123,23 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setShowRawHeaders,
                 ),
                 SettingsSwitchRow(
+                  icon: AceIcons.brightness,
+                  title: 'True black (OLED)',
+                  subtitle: 'The dark theme goes to #000000. A pixel that is '
+                      'off draws no power, and on an OLED panel the difference '
+                      'is visible at the edges.',
+                  value: prefs.oled,
+                  onChanged: prefs.setOled,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.check,
+                  title: 'Vibration',
+                  subtitle: 'A tick when a swipe arms, a knock when something '
+                      'is about to be thrown away.',
+                  value: prefs.haptics,
+                  onChanged: prefs.setHaptics,
+                ),
+                SettingsSwitchRow(
                   icon: AceIcons.mailUnread,
                   title: 'Notify me about new mail',
                   subtitle: 'Checked in the background about every fifteen '

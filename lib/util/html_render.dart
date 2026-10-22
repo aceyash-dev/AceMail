@@ -398,16 +398,20 @@ class _Builder {
       tableRows.add(TableRow(children: children));
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Table(
-        defaultColumnWidth: const IntrinsicColumnWidth(),
-        border: TableBorder.symmetric(
-          inside: BorderSide(color: borderColor),
-        ),
-        defaultVerticalAlignment: TableCellVerticalAlignment.top,
-        children: tableRows,
+    // No horizontal scroller. A widget span is laid out with unbounded width,
+    // so a scroll view inside one asks for infinite width and the whole message
+    // collapses to a column at the right edge — which is exactly what it did.
+    //
+    // `IntrinsicColumnWidth(flex: 1)` is the right default here: each column
+    // sizes to its content, the leftover is shared out, and it shrinks rather
+    // than overflowing when the content is wider than the page.
+    return Table(
+      defaultColumnWidth: const IntrinsicColumnWidth(flex: 1),
+      border: TableBorder.symmetric(
+        inside: BorderSide(color: borderColor),
       ),
+      defaultVerticalAlignment: TableCellVerticalAlignment.top,
+      children: tableRows,
     );
   }
 
@@ -442,7 +446,9 @@ class _Builder {
     _breaks = 0;
     spans.add(
       WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
+        // A table sits on the baseline of its own first line rather than being
+        // centred against the text around it.
+        alignment: PlaceholderAlignment.top,
         child: widget,
       ),
     );

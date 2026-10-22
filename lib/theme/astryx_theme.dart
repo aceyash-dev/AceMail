@@ -85,6 +85,8 @@ ColorScheme buildAstryxScheme(
   /// tinted surfaces, the readable inks — applies to it exactly as it does to
   /// a colour picked from the list.
   Color? dynamicSeed,
+  /// True black for an OLED panel. Only meaningful in the dark theme.
+  bool oled = false,
 }) {
   final bool dark = brightness == Brightness.dark;
 
@@ -168,11 +170,13 @@ ColorScheme buildAstryxScheme(
     // Every surface is the accent-tinted Milk or Ink, so changing the accent
     // changes the page and not just the buttons. These were pinned constants,
     // which is exactly why the theme never felt global.
-    surface: tinted(dark ? ink : milk, tint),
+    surface: oled ? const Color(0xFF000000) : tinted(dark ? ink : milk, tint),
     surfaceContainerLowest: tinted(dark ? inkDeep : white, tint),
-    surfaceContainerLow: tinted(dark ? inkRaised : milk, tint),
+    surfaceContainerLow:
+        oled ? const Color(0xFF070707) : tinted(dark ? inkRaised : milk, tint),
     surfaceContainer: tinted(dark ? inkRaised : milkDim, tint),
-    surfaceContainerHigh: tinted(dark ? inkHigh : milkDim, tintStrong),
+    surfaceContainerHigh:
+        oled ? const Color(0xFF141414) : tinted(dark ? inkHigh : milkDim, tintStrong),
     surfaceContainerHighest: tinted(dark ? inkHighest : milkDeep, tintStrong),
 
     // The ink comes from the seed's own family, so a blue accent does not put
@@ -216,9 +220,14 @@ ThemeData buildAstryxTheme(
   Brightness brightness, {
   AceAccent accent = AceAccent.orange,
   Color? dynamicSeed,
+  bool oled = false,
 }) {
-  final ColorScheme scheme =
-      buildAstryxScheme(brightness, accent: accent, dynamicSeed: dynamicSeed);
+  final ColorScheme scheme = buildAstryxScheme(
+    brightness,
+    accent: accent,
+    dynamicSeed: dynamicSeed,
+    oled: oled,
+  );
   final AstryxColors c = AstryxColors.fromScheme(scheme);
 
   final TextTheme text = TextTheme(

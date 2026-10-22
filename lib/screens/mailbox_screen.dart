@@ -35,6 +35,10 @@ class MailboxScreen extends StatefulWidget {
 }
 
 class _MailboxScreenState extends State<MailboxScreen> {
+  /// Held so the drawer can be opened from the app bar, whose context sits
+  /// above the Scaffold — `Scaffold.of` there finds nothing, which is why the
+  /// button did nothing at all.
+  final GlobalKey<ScaffoldState> _scaffold = GlobalKey<ScaffoldState>();
   MailController? _controller;
   String? _lastError;
 
@@ -150,6 +154,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
               context.read<MailController>().refreshMessages(),
         },
         child: Scaffold(
+        key: _scaffold,
         backgroundColor: c.backgroundBody,
         appBar: controller.selecting
             ? AppBar(
@@ -205,7 +210,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
               : AceIconButton(
                   icon: AceIcons.sidebar,
                   tooltip: 'Folders',
-                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  onPressed: () => _scaffold.currentState?.openDrawer(),
                 ),
           // The folder you are in, not the app's name. The name is on the
           // launcher and the splash; here the space is better spent telling you
