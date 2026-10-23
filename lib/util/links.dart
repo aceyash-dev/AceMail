@@ -32,9 +32,14 @@ class LinkSpan {
 /// The bare address is not optional in a mail client: "write to hi@example.com"
 /// is how people give you an address, and a mail app that draws it as plain
 /// text has failed at the one thing it is for.
+/// Brackets are *allowed* in the body and trimmed afterwards, rather than
+/// excluded here: a Wikipedia URL ends in `(disambiguation)` and cutting at the
+/// `(` is how you turn a working link into a broken one. The trimming below
+/// knows the difference between a bracket that belongs to the address and one
+/// that belongs to the sentence; a character class cannot.
 final RegExp _urlPattern = RegExp(
-  r'(?:https?://|www\.)[^\s<>()\[\]{}"“”‘’]+'
-  r'|mailto:[^\s<>()\[\]{}"“”‘’]+'
+  r'(?:https?://|www\.)[^\s<>\[\]{}"“”‘’]+'
+  r'|mailto:[^\s<>\[\]{}"“”‘’]+'
   r'|[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+',
   caseSensitive: false,
 );
