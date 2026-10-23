@@ -234,7 +234,7 @@ abstract final class GoogleDesktopAuth {
     // A browser that reports an error can finish the answer before anyone is
     // waiting on it. Marking the future handled keeps that from being reported
     // as an uncaught error; the wait below still receives the outcome.
-    answer.future.ignore();
+    unawaited(answer.future.then<void>((_) {}, onError: (Object _) {}));
 
     final StreamSubscription<HttpRequest> subscription = server.listen(
       (HttpRequest request) => _answerBrowser(request, state, answer),
