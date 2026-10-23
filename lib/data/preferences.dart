@@ -128,6 +128,12 @@ class Preferences extends ChangeNotifier {
   static const String _keyCacheMessages = 'ace.cacheMessages';
   static const String _keyAppLock = 'ace.appLock';
   static const String _keyPrivatePreviews = 'ace.privatePreviews';
+  static const String _keyChymeEnabled = 'ace.chymeEnabled';
+  static const String _keyChymeEndpoint = 'ace.chymeEndpoint';
+  static const String _keyChymeModel = 'ace.chymeModel';
+  static const String _keyChymeKey = 'ace.chymeKey';
+  static const String _keyChymeReadsMail = 'ace.chymeReadsMail';
+  static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -167,6 +173,12 @@ class Preferences extends ChangeNotifier {
     _keyCacheMessages,
     _keyAppLock,
     _keyPrivatePreviews,
+    _keyChymeEnabled,
+    _keyChymeEndpoint,
+    _keyChymeModel,
+    _keyChymeKey,
+    _keyChymeReadsMail,
+    _keyWarnMissingAttachment,
   ];
 
   final FlutterSecureStorage _storage;
@@ -221,6 +233,16 @@ class Preferences extends ChangeNotifier {
   // screen with no way past it.
   bool _appLock = false;
   bool _privatePreviews = true;
+  // Chyme ships off, and this is the one setting that does. It cannot do
+  // anything at all until somebody gives it an endpoint — a switch that is on
+  // and does nothing is exactly what the rest of these defaults exist to
+  // avoid.
+  bool _chymeEnabled = false;
+  String _chymeEndpoint = '';
+  String _chymeModel = '';
+  String _chymeKey = '';
+  bool _chymeReadsMail = true;
+  bool _warnMissingAttachment = true;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -352,6 +374,29 @@ class Preferences extends ChangeNotifier {
   /// Whether opening the app asks for a fingerprint or a face first.
   bool get appLock => _appLock;
 
+  /// Whether Chyme is available at all.
+  bool get chymeEnabled => _chymeEnabled;
+
+  /// The API base, as the person typed it. Normalised on use rather than on
+  /// save, so what they typed is what they see when they come back.
+  String get chymeEndpoint => _chymeEndpoint;
+
+  /// The model to ask. Empty until one is chosen from what the endpoint lists.
+  String get chymeModel => _chymeModel;
+
+  /// The key for the endpoint. Kept in the keychain, like the app passwords:
+  /// it is a credential, and it is stored where credentials go.
+  String get chymeKey => _chymeKey;
+
+  /// Whether Chyme may see the message you have open, and the list you are
+  /// looking at. Off means it answers without looking at any mail.
+  bool get chymeReadsMail => _chymeReadsMail;
+
+  /// Whether sending a message that talks about an attachment, with nothing
+  /// attached, asks first. The mistake it catches is a real one and a common
+  /// one: "I've attached the form" and no form.
+  bool get warnMissingAttachment => _warnMissingAttachment;
+
   /// Whether a notification names the sender and the subject.
   ///
   /// On by default: a notification on a lock screen is read by whoever is
@@ -381,6 +426,27 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setPrivatePreviews(bool value) =>
       _write(_keyPrivatePreviews, '$value', () => _privatePreviews = value);
+
+  Future<void> setChymeEnabled(bool value) =>
+      _write(_keyChymeEnabled, '$value', () => _chymeEnabled = value);
+
+  Future<void> setChymeEndpoint(String value) =>
+      _write(_keyChymeEndpoint, value, () => _chymeEndpoint = value);
+
+  Future<void> setChymeModel(String value) =>
+      _write(_keyChymeModel, value, () => _chymeModel = value);
+
+  Future<void> setChymeKey(String value) =>
+      _write(_keyChymeKey, value, () => _chymeKey = value);
+
+  Future<void> setChymeReadsMail(bool value) =>
+      _write(_keyChymeReadsMail, '$value', () => _chymeReadsMail = value);
+
+  Future<void> setWarnMissingAttachment(bool value) => _write(
+        _keyWarnMissingAttachment,
+        '$value',
+        () => _warnMissingAttachment = value,
+      );
 
   Future<void> setLastSeenVersion(String value) =>
       _write(_keySeenVersion, value, () => _lastSeenVersion = value);
@@ -453,6 +519,15 @@ class Preferences extends ChangeNotifier {
     _appLock = _decodeBool(raw[_keyAppLock], _appLock);
     _privatePreviews =
         _decodeBool(raw[_keyPrivatePreviews], _privatePreviews);
+    _chymeEnabled = _decodeBool(raw[_keyChymeEnabled], _chymeEnabled);
+    _chymeEndpoint = raw[_keyChymeEndpoint] ?? _chymeEndpoint;
+    _chymeModel = raw[_keyChymeModel] ?? _chymeModel;
+    _chymeKey = raw[_keyChymeKey] ?? _chymeKey;
+    _chymeReadsMail = _decodeBool(raw[_keyChymeReadsMail], _chymeReadsMail);
+    _warnMissingAttachment = _decodeBool(
+      raw[_keyWarnMissingAttachment],
+      _warnMissingAttachment,
+    );
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

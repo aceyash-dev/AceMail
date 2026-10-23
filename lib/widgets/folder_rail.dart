@@ -249,7 +249,10 @@ class _FolderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final Color foreground = selected ? c.textAccent : c.textSecondary;
+    // Selected fills with the accent and inverts what sits on it. The hugeicons
+    // set is stroke-only, so there is no filled glyph to swap in — a shape that
+    // fills is how this app says "this one is current".
+    final Color foreground = selected ? c.onAccent : c.textSecondary;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
@@ -271,7 +274,7 @@ class _FolderTile extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: selected
-                    ? c.accentMuted
+                    ? c.accent
                     : (hover ? c.surfaceHighest : Colors.transparent),
                 borderRadius: BorderRadius.circular(
                   AstryxRadius.element -
@@ -290,7 +293,7 @@ class _FolderTile extends StatelessWidget {
                     child: AceIconView(
                       icon: AceIcons.forFolder(folder.label),
                       size: 18,
-                      color: selected ? c.accent : c.iconSecondary,
+                      color: selected ? c.onAccent : c.iconSecondary,
                     ),
                   ),
                   const SizedBox(width: AstryxSpace.s3),
@@ -304,18 +307,23 @@ class _FolderTile extends StatelessWidget {
                     ),
                   ),
                   if (showCounts && folder.unseen > 0)
-                    Container(
+                    AnimatedContainer(
+                      duration: AstryxMotion.fast,
                       padding: const EdgeInsets.symmetric(
                         horizontal: AstryxSpace.s2,
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: c.accent,
+                        // Inverted on the selected tile, or the badge would be
+                        // an accent pill on an accent background.
+                        color: selected ? c.onAccent : c.accent,
                         borderRadius: BorderRadius.circular(AstryxRadius.full),
                       ),
                       child: Text(
                         '${folder.unseen}',
-                        style: AstryxText.caption(c.onAccent),
+                        style: AstryxText.caption(
+                          selected ? c.accent : c.onAccent,
+                        ),
                       ),
                     ),
                 ],

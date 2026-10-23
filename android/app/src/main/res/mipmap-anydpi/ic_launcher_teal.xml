@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ace Mail wearing teal, for launchers older than Android 8 — no adaptive
+     icons there, so this is one flat vector. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z" android:fillColor="#00897B" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.385"
+        android:scaleY="1.385">
+        <path
+            android:pathData="M34,37 L74,37 Q80,37 80,43 L80,65 Q80,71 74,71 L34,71 Q28,71 28,65 L28,43 Q28,37 34,37 Z M28,37 L54,58 L80,37 Z M33,37 L54,53 L75,37 Z"
+            android:fillColor="@color/ace_milk"
+            android:fillType="evenOdd" />
+    </group>
+</vector>

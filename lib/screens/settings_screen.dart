@@ -6,6 +6,8 @@ import '../data/app_info.dart';
 import '../data/local_store.dart';
 import '../data/preferences.dart';
 import '../services/app_lock.dart';
+import '../services/chyme.dart';
+import '../services/launcher_icon.dart';
 import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
@@ -136,22 +138,6 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setHaptics,
                 ),
                 SettingsSwitchRow(
-                  icon: AceIcons.mailUnread,
-                  title: 'Notify me about new mail',
-                  subtitle: 'Checked in the background about every fifteen '
-                      'minutes — Android\u2019s floor for work like this. '
-                      'Nothing is sent anywhere: the check talks to your '
-                      'provider and tells you.',
-                  value: prefs.notifyNewMail,
-                  onChanged: (bool value) async {
-                    final bool on =
-                        await NotificationSetup.apply(enabled: value);
-                    // The switch shows what happened, not what was asked for:
-                    // a refused permission must not look like it worked.
-                    await prefs.setNotifyNewMail(on);
-                  },
-                ),
-                SettingsSwitchRow(
                   icon: AceIcons.openInNew,
                   title: 'Ask before opening links',
                   subtitle: 'A link\u2019s text is the sender\u2019s, and need '
@@ -203,7 +189,37 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
             SettingsSection(
-              title: 'Sending',
+              title: 'Notifications',
+              children: <Widget>[
+                SettingsSwitchRow(
+                  icon: AceIcons.mailUnread,
+                  title: 'Notify me about new mail',
+                  subtitle: 'Checked in the background about every fifteen '
+                      'minutes — Android\u2019s floor for work like this. '
+                      'Nothing is sent anywhere: the check talks to your '
+                      'provider and tells you.',
+                  value: prefs.notifyNewMail,
+                  onChanged: (bool value) async {
+                    final bool on =
+                        await NotificationSetup.apply(enabled: value);
+                    // The switch shows what happened, not what was asked for:
+                    // a refused permission must not look like it worked.
+                    await prefs.setNotifyNewMail(on);
+                  },
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.visibilityOff,
+                  title: 'Private notification previews',
+                  subtitle: 'A notification says that mail has arrived, not who '
+                      'sent it or what it says. A lock screen is read by '
+                      'whoever is in the room.',
+                  value: prefs.privatePreviews,
+                  onChanged: prefs.setPrivatePreviews,
+                ),
+              ],
+            ),
+            SettingsSection(
+              title: 'Writing',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.at,
@@ -257,6 +273,14 @@ class SettingsScreen extends StatelessWidget {
                       'for Archive.',
                   value: prefs.confirmArchive,
                   onChanged: prefs.setConfirmArchive,
+                ),
+                SettingsSwitchRow(
+                  icon: AceIcons.attachment,
+                  title: 'Warn when an attachment is promised',
+                  subtitle: 'Asks before sending a message that says it has '
+                      'something attached, when nothing is.',
+                  value: prefs.warnMissingAttachment,
+                  onChanged: prefs.setWarnMissingAttachment,
                 ),
                 SettingsRow(
                   icon: AceIcons.restore,
@@ -413,15 +437,6 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (bool value) => _setCaching(context, prefs, value),
                 ),
                 SettingsSwitchRow(
-                  icon: AceIcons.visibilityOff,
-                  title: 'Private notification previews',
-                  subtitle: 'A notification says that mail has arrived, not who '
-                      'sent it or what it says. A lock screen is read by '
-                      'whoever is in the room.',
-                  value: prefs.privatePreviews,
-                  onChanged: prefs.setPrivatePreviews,
-                ),
-                SettingsSwitchRow(
                   icon: AceIcons.lock,
                   title: 'Require unlock',
                   subtitle: prefs.appLock
@@ -434,6 +449,70 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: (bool value) => _setAppLock(context, prefs, value),
                 ),
                 const _CacheRow(),
+              ],
+            ),
+            SettingsSection(
+              title: 'Chyme',
+              children: <Widget>[
+                SettingsSwitchRow(
+                  icon: AceIcons.chyme,
+                  title: 'Chyme',
+                  subtitle: 'An experimental assistant that can read what is on '
+                      'screen, summarise a message, find one, and draft a reply. '
+                      'It needs an endpoint before it can do anything.',
+                  value: prefs.chymeEnabled,
+                  onChanged: prefs.setChymeEnabled,
+                ),
+                if (prefs.chymeEnabled) ...<Widget>[
+                  SettingsRow(
+                    icon: AceIcons.cloud,
+                    title: 'Endpoint',
+                    subtitle: 'The API base, like https://api.openai.com/v1. Any '
+                        'endpoint that speaks the OpenAI chat API works — '
+                        'including one on your own machine.',
+                    value: prefs.chymeEndpoint.isEmpty
+                        ? 'Not set'
+                        : prefs.chymeEndpoint,
+                    onTap: () => _editChymeText(
+                      context,
+                      prefs,
+                      title: 'Endpoint',
+                      hint: 'https://api.openai.com/v1',
+                      current: prefs.chymeEndpoint,
+                      save: prefs.setChymeEndpoint,
+                    ),
+                  ),
+                  SettingsRow(
+                    icon: AceIcons.password,
+                    title: 'API key',
+                    subtitle: 'Kept in the keychain, like an app password.',
+                    value: prefs.chymeKey.isEmpty ? 'Not set' : '••••••',
+                    onTap: () => _editChymeText(
+                      context,
+                      prefs,
+                      title: 'API key',
+                      hint: 'sk-…',
+                      current: prefs.chymeKey,
+                      obscure: true,
+                      save: prefs.setChymeKey,
+                    ),
+                  ),
+                  SettingsRow(
+                    icon: AceIcons.chyme,
+                    title: 'Model',
+                    value: prefs.chymeModel.isEmpty ? 'None chosen' : prefs.chymeModel,
+                    onTap: () => _chooseChymeModel(context, prefs),
+                  ),
+                  SettingsSwitchRow(
+                    icon: AceIcons.mail,
+                    title: 'Let Chyme read your mail',
+                    subtitle: 'What is on screen: the folder, the messages in '
+                        'it, and the one you have open. Off means it answers '
+                        'without looking at any mail.',
+                    value: prefs.chymeReadsMail,
+                    onChanged: prefs.setChymeReadsMail,
+                  ),
+                ],
               ],
             ),
             SettingsSection(
@@ -493,6 +572,84 @@ class SettingsScreen extends StatelessWidget {
   /// Ten accents, as a grid of swatches — a colour is easier to pick by eye
   /// than by name.
   /// Turning the cache off should not leave behind what was already kept.
+  /// One text field, in a dialog, for the Chyme settings that are a string.
+  Future<void> _editChymeText(
+    BuildContext context,
+    Preferences prefs, {
+    required String title,
+    required String hint,
+    required String current,
+    required Future<void> Function(String) save,
+    bool obscure = false,
+  }) async {
+    final TextEditingController controller =
+        TextEditingController(text: current);
+    final String? value = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: obscure,
+          keyboardType:
+              obscure ? TextInputType.text : TextInputType.url,
+          decoration: InputDecoration(hintText: hint),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null) await save(value.trim());
+  }
+
+  /// Fetches what the endpoint offers and lets one be picked.
+  ///
+  /// The fetch is the point: a model name typed from memory is a model name
+  /// that does not exist, and the error that follows blames the key.
+  Future<void> _chooseChymeModel(
+    BuildContext context,
+    Preferences prefs,
+  ) async {
+    if (prefs.chymeEndpoint.trim().isEmpty) {
+      AceSnack.show(context, 'Set the endpoint first.');
+      return;
+    }
+
+    List<String> models;
+    try {
+      models = await Chyme.models(
+        endpoint: prefs.chymeEndpoint,
+        apiKey: prefs.chymeKey,
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      AceSnack.show(context, '$error');
+      return;
+    }
+    if (!context.mounted) return;
+
+    final String? chosen = await showChoiceSheet<String>(
+      context,
+      title: 'Model',
+      current: prefs.chymeModel,
+      choices: <SettingsChoice<String>>[
+        for (final String model in models)
+          SettingsChoice<String>(model, model),
+      ],
+    );
+    if (chosen != null) await prefs.setChymeModel(chosen);
+  }
+
   Future<void> _setCaching(
     BuildContext context,
     Preferences prefs,
@@ -594,7 +751,12 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
-    if (chosen != null) await prefs.setAccent(chosen);
+    if (chosen == null) return;
+    await prefs.setAccent(chosen);
+    // The launcher icon wears the accent, so it is repainted with it. Best
+    // effort: a launcher that will not co-operate leaves the old icon, and
+    // nothing else notices.
+    await LauncherIcon.apply(chosen);
   }
 
   Future<void> _chooseSwipe(

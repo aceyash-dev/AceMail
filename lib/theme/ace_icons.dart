@@ -97,6 +97,10 @@ abstract final class AceIcons {
   static const AceIcon shield = HugeIcons.strokeRoundedShield01;
   static const AceIcon lock = HugeIcons.strokeRoundedLock;
   static const AceIcon fingerprint = HugeIcons.strokeRoundedFingerprintScan;
+  /// Chyme, the assistant.
+  static const AceIcon chyme = HugeIcons.strokeRoundedAiBrain01;
+  /// Writing with Chyme.
+  static const AceIcon chymeWrite = HugeIcons.strokeRoundedAiContentGenerator01;
   static const AceIcon instagram = HugeIcons.strokeRoundedInstagram;
   static const AceIcon github = HugeIcons.strokeRoundedGithub;
   static const AceIcon openInNew = HugeIcons.strokeRoundedArrowUpRight01;

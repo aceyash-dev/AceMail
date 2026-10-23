@@ -65,8 +65,6 @@ class MessageListPanel extends StatelessWidget {
             builder: _refreshIndicator,
           ),
           const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
-          SliverToBoxAdapter(child: _ChipRow(controller: controller)),
-          const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
           ..._slivers(context, controller),
         ],
         ),
@@ -344,101 +342,104 @@ class MessageListPanel extends StatelessWidget {
 
 /// Filter chips, then the sort. One scrollable row, so it never wraps into a
 /// block of controls that pushes the mail off the screen.
-class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.controller});
+/// Sort and filter, in one sheet.
+///
+/// The chips used to sit above the list, always on screen, spending a row of
+/// the list's height on a choice most people make once. They are behind a
+/// button now — and the button says when something other than the default is in
+/// force, which the chips did not.
+Future<void> showSortSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (BuildContext sheetContext) {
+      final AstryxColors c = sheetContext.astryx;
+      final MailController controller = sheetContext.watch<MailController>();
+      final Preferences prefs = sheetContext.watch<Preferences>();
 
-  final MailController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-
-    return SizedBox(
-      height: 38,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
-        children: <Widget>[
-          for (final MessageFilter filter in MessageFilter.values) ...<Widget>[
-            AceChip(
-              label: filter.label,
-              selected: controller.filter == filter,
-              onTap: () => context.read<MailController>().setFilter(filter),
-            ),
-            const SizedBox(width: AstryxSpace.s2),
-          ],
-          Container(
-            width: 1,
-            height: 20,
-            margin: const EdgeInsets.symmetric(
-              horizontal: AstryxSpace.s2,
-              vertical: AstryxSpace.s2,
-            ),
-            color: c.border,
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: AstryxSpace.s5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AstryxSpace.s5,
+                  0,
+                  AstryxSpace.s5,
+                  AstryxSpace.s4,
+                ),
+                child: Text(
+                  'Sort & filter',
+                  style: AstryxText.heading3(c.textPrimary),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
+                child: Text('Show', style: AstryxText.label(c.textSecondary)),
+              ),
+              const SizedBox(height: AstryxSpace.s2),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
+                child: Row(
+                  children: <Widget>[
+                    for (final MessageFilter filter
+                        in MessageFilter.values) ...<Widget>[
+                      AceChip(
+                        label: filter.label,
+                        selected: controller.filter == filter,
+                        onTap: () => sheetContext
+                            .read<MailController>()
+                            .setFilter(filter),
+                      ),
+                      const SizedBox(width: AstryxSpace.s2),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: AstryxSpace.s4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
+                child: Text('Order', style: AstryxText.label(c.textSecondary)),
+              ),
+              const SizedBox(height: AstryxSpace.s1),
+              for (final MessageSort sort in MessageSort.values)
+                SettingsRow(
+                  icon: AceIcons.sort,
+                  title: sort.label,
+                  trailing: prefs.messageSort == sort
+                      ? AceIconView(
+                          icon: AceIcons.check,
+                          size: 20,
+                          color: c.accent,
+                        )
+                      : null,
+                  onTap: () =>
+                      sheetContext.read<Preferences>().setMessageSort(sort),
+                ),
+              if (controller.filter != MessageFilter.all ||
+                  prefs.messageSort != MessageSort.newest)
+                SettingsRow(
+                  icon: AceIcons.filterOff,
+                  title: 'Back to the default',
+                  subtitle: 'Newest first, everything shown.',
+                  onTap: () {
+                    sheetContext
+                        .read<MailController>()
+                        .setFilter(MessageFilter.all);
+                    sheetContext
+                        .read<Preferences>()
+                        .setMessageSort(MessageSort.newest);
+                  },
+                ),
+            ],
           ),
-          AceChip(
-            label: controller.sort.label,
-            icon: AceIcons.sort,
-            onTap: () => _chooseSort(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _chooseSort(BuildContext context) async {
-    final Preferences prefs = context.read<Preferences>();
-    final MessageSort? chosen = await showModalBottomSheet<MessageSort>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AstryxSpace.s5,
-                AstryxSpace.s2,
-                AstryxSpace.s5,
-                AstryxSpace.s3,
-              ),
-              child: Text(
-                'Sort by',
-                style: AstryxText.heading3(sheetContext.astryx.textPrimary),
-              ),
-            ),
-            for (final MessageSort sort in MessageSort.values)
-              SettingsRow(
-                icon: _sortIcon(sort),
-                title: sort.label,
-                trailing: sort == prefs.messageSort
-                    ? AceIconView(icon: 
-                        AceIcons.check,
-                        size: 20,
-                        color: sheetContext.astryx.accent,
-                      )
-                    : null,
-                onTap: () {
-                  prefs.setMessageSort(sort);
-                  Navigator.of(sheetContext).pop();
-                },
-              ),
-            const SizedBox(height: AstryxSpace.s3),
-          ],
         ),
-      ),
-    );
-    if (chosen != null) await prefs.setMessageSort(chosen);
-  }
-
-  static AceIcon _sortIcon(MessageSort sort) => switch (sort) {
-        MessageSort.newest => AceIcons.sortNewest,
-        MessageSort.oldest => AceIcons.sortOldest,
-        MessageSort.sender => AceIcons.person,
-        MessageSort.subject => AceIcons.sortSubject,
-        MessageSort.unread => AceIcons.mailUnread,
-      };
+      );
+    },
+  );
 }
 
 class _Centred extends StatelessWidget {
@@ -643,10 +644,30 @@ class MessageTile extends StatelessWidget {
                                     ),
                                     if (summary.isFlagged) ...<Widget>[
                                       const SizedBox(width: AstryxSpace.s1_5),
-                                      AceIconView(
-                                        icon: AceIcons.star,
-                                        size: 14,
-                                        color: c.tertiary,
+                                      // A one-shot pop as the row is built with
+                                      // a star on it — which is the moment a
+                                      // message was just flagged, or a folder
+                                      // of flagged mail opened.
+                                      TweenAnimationBuilder<double>(
+                                        tween: Tween<double>(begin: 0.4, end: 1),
+                                        duration: AstryxMotion.of(
+                                          const Duration(milliseconds: 220),
+                                        ),
+                                        curve: AstryxMotion.emphasizedDecelerate,
+                                        builder: (
+                                          BuildContext context,
+                                          double t,
+                                          Widget? child,
+                                        ) =>
+                                            Transform.scale(
+                                          scale: t,
+                                          child: child,
+                                        ),
+                                        child: AceIconView(
+                                          icon: AceIcons.star,
+                                          size: 14,
+                                          color: c.tertiary,
+                                        ),
                                       ),
                                     ],
                                     const SizedBox(width: AstryxSpace.s2),

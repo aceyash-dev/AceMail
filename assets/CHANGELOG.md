@@ -2,10 +2,114 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
+## 0.5.1
 
-## 0.5.0+32
+### Added
+- **Chyme, an experimental assistant.** Point it at any endpoint that speaks
+  the OpenAI chat API — a hosted one, or a model on your own machine — and it
+  lists what it has; pick one and it can summarise the message you have open,
+  draft a reply, and find mail. It is the one thing here that is **off by
+  default**, because it cannot do anything at all until somebody gives it an
+  endpoint, and a switch that is on and does nothing is exactly what the rest of
+  these defaults exist to avoid. The key goes in the keychain like an app
+  password, and a setting decides whether it may read what is on screen at all.
+  There is no Chyme service: the app posts to your endpoint, with your key, and
+  nothing about it passes through anything of ours — there is nothing of ours.
+  It writes into the composer rather than sending anything, and when it finds
+  mail it offers the search rather than running it.
+- **A warning when an attachment is promised.** "I've attached the form", and no
+  form. It asks once, and only for the words people actually write when they mean
+  it.
+
+- **A welcome step.** The first screen says what the app is, what it will do
+  with your mail and what it will not, in three lines — then the form. Adding a
+  second account skips it.
+- **Terms of use and a privacy policy, as a sheet.** One sheet, two tabs, from
+  the welcome screen and from Settings. Short sections and plain sentences, and
+  every statement in it is a statement about what the code does: where the
+  password goes, what is kept on the device and how it is sealed, and — named,
+  one by one — the five things that ever leave it.
+
+- **The local cache is encrypted.** Drafts, cached message bodies and the
+  metadata that goes with them are sealed with **AES-256-GCM** before they touch
+  the disk, with the key in the platform keychain. A fresh 12-byte nonce per
+  record, drawn from the platform CSPRNG and stored beside the ciphertext; the
+  record carries its format version and its key version, so keys can be rotated
+  without making anything already written unreadable. Records are bound to where
+  they belong with authenticated associated data — a body to its folder and uid
+  — so one message's body cannot be served as another's, and a record that has
+  been altered fails to open instead of opening as something else. The store is
+  bounded, and "Clear cached content" deletes the keys as well as the files.
+- **Drafts survive leaving the screen.** What you were writing is autosaved
+  while you type and offered back the next time you start a new message. A reply
+  never picks one up: it already has a body, and filling it from an unrelated
+  draft is how you send the wrong thing to the wrong person.
+- **Read messages open without the network.** A message you have read comes back
+  from the encrypted cache first. Anything with an attachment is deliberately
+  not cached, so a cache hit always has everything the message arrived with.
+- **Optional app lock.** A fingerprint or a face before the app opens — and
+  again whenever it is left, because a lock that only runs at launch is not much
+  of a lock. The switch checks the device can answer before it lets itself be
+  turned on, and the device passcode is an accepted fallback so a scratched
+  sensor cannot lock you out of your own mail.
+- **Private notification previews, on by default.** A notification says mail has
+  arrived, not who sent it or what it says. A lock screen is read by whoever is
+  in the room. Notification visibility is private either way.
+
+### Fixed
+- **The dead second activity is gone.** `dev/acebase/ace_mail` was a leftover
+  from the template: the namespace is `app.tab.mail`, so it could never have run.
+
+- **The app lock cannot lock you out.** It used to engage on a device that
+  cannot authenticate at all, which is a screen with no way past it. An
+  impossible lock is no longer a lock.
+
+- **A refused move no longer leaves a duplicate.** The deletion-safety check ran
+  *after* the copy, so a move the server could not complete had already put a
+  copy in the target folder — and the user was told nothing had happened. The
+  check is now the first step, and a test pins the order without needing a mail
+  server.
+- **Servers without UIDPLUS are refused, not guessed at.** The old rule asked
+  whether any *other* message was flagged `\Deleted` and allowed the
+  mailbox-wide `EXPUNGE` when none was. Another client can flag a message
+  between that check and the expunge, so it was a race, not a guarantee. Now the
+  answer depends only on UIDPLUS — the one thing that makes removing a single
+  message safe — and the refusal says why. On such a server, deleting or
+  archiving a message reports that it cannot be done and changes nothing.
+- **The attachment count is the message's, not the dialog's.** Ten files three
+  times was allowed, because each picker only ever counted its own ten. The cap
+  is now measured against what the message already carries, re-checked against
+  the same total just before attaching, guarded against a second picker opening
+  over the first, and enforced once more in the sending service.
 
 ### Changed
+- **The compose button wears the accent**, and shortens to a circle once the
+  list has been scrolled — the label is there to teach the button, and by the
+  time you have scrolled you have learned it.
+- **The search bar is always there, and taller.** It used to be a 40px pill
+  behind a search icon in the app bar's title slot; searching a folder is
+  something people do constantly.
+- **The filter chips moved behind a Sort button.** They used to spend a row of
+  the list on a choice most people make once. The button lights up when
+  something other than the default order or filter is in force, which the chips
+  could never say.
+- **The launcher icon wears the accent.** A launcher icon is fixed at install
+  time, so the app ships fifteen of them — one per accent, as activity aliases —
+  and points the launcher at the one matching the setting. The new alias is
+  enabled before the old ones are disabled, and the default is enabled in the
+  manifest, so a failed switch can leave two icons for a moment but can never
+  leave none. The monochrome layer is wired up too, so Android 13's themed icons
+  tint it with the system accent.
+- **Selected things fill.** The hugeicons free set is stroke-only, so there is no
+  filled glyph to swap in — the selected folder in the rail, and a lit app-bar
+  toggle, fill with the accent and invert what sits on them, and the change
+  animates. The star on a flagged message pops as its row is built, and the
+  reader's view toggle shows its fill moving.
+- **Settings are grouped and named.** Account, Reading, Notifications, Writing,
+  Appearance, Privacy, Chyme, Accessibility, Support. Notifications were a few
+  rows in the middle of Reading; the composer's settings are under Writing, which
+  is what they are about.
+
 - **The HTML renderer is a maintained one.** Message bodies are rendered by
   `flutter_widget_from_html_core` — the renderer the Flutter ecosystem settled
   on — rather than by the hand-written one that used to live in
@@ -49,81 +153,6 @@ after the `+` is the Android version code.
   colour artwork. On Android 13+ with themed icons on, the launcher tints the
   icon with the system accent like every other icon.
 
-### Added
-- **A welcome step.** The first screen says what the app is, what it will do
-  with your mail and what it will not, in three lines — then the form. Adding a
-  second account skips it.
-- **Terms of use and a privacy policy, as a sheet.** One sheet, two tabs, from
-  the welcome screen and from Settings. Short sections and plain sentences, and
-  every statement in it is a statement about what the code does: where the
-  password goes, what is kept on the device and how it is sealed, and — named,
-  one by one — the five things that ever leave it.
-
-### Fixed
-- **The app lock cannot lock you out.** It used to engage on a device that
-  cannot authenticate at all, which is a screen with no way past it. An
-  impossible lock is no longer a lock.
-
-### Faster
-- The message list passes its density down instead of every row watching the
-  preferences for itself, so a settings change rebuilds the list once rather
-  than once per row.
-- Rows carry uid keys and the list can now *find* the element for a message it
-  has already built, instead of building every row below a change again.
-- A folder's one-time-code pass copies the cached page once, at the end,
-  instead of once per code it finds.
-
-Version 0.5.0+32.
-
-## 0.5.0+31
-
-### Added
-- **The local cache is encrypted.** Drafts, cached message bodies and the
-  metadata that goes with them are sealed with **AES-256-GCM** before they touch
-  the disk, with the key in the platform keychain. A fresh 12-byte nonce per
-  record, drawn from the platform CSPRNG and stored beside the ciphertext; the
-  record carries its format version and its key version, so keys can be rotated
-  without making anything already written unreadable. Records are bound to where
-  they belong with authenticated associated data — a body to its folder and uid
-  — so one message's body cannot be served as another's, and a record that has
-  been altered fails to open instead of opening as something else. The store is
-  bounded, and "Clear cached content" deletes the keys as well as the files.
-- **Drafts survive leaving the screen.** What you were writing is autosaved
-  while you type and offered back the next time you start a new message. A reply
-  never picks one up: it already has a body, and filling it from an unrelated
-  draft is how you send the wrong thing to the wrong person.
-- **Read messages open without the network.** A message you have read comes back
-  from the encrypted cache first. Anything with an attachment is deliberately
-  not cached, so a cache hit always has everything the message arrived with.
-- **Optional app lock.** A fingerprint or a face before the app opens — and
-  again whenever it is left, because a lock that only runs at launch is not much
-  of a lock. The switch checks the device can answer before it lets itself be
-  turned on, and the device passcode is an accepted fallback so a scratched
-  sensor cannot lock you out of your own mail.
-- **Private notification previews, on by default.** A notification says mail has
-  arrived, not who sent it or what it says. A lock screen is read by whoever is
-  in the room. Notification visibility is private either way.
-
-### Fixed
-- **A refused move no longer leaves a duplicate.** The deletion-safety check ran
-  *after* the copy, so a move the server could not complete had already put a
-  copy in the target folder — and the user was told nothing had happened. The
-  check is now the first step, and a test pins the order without needing a mail
-  server.
-- **Servers without UIDPLUS are refused, not guessed at.** The old rule asked
-  whether any *other* message was flagged `\Deleted` and allowed the
-  mailbox-wide `EXPUNGE` when none was. Another client can flag a message
-  between that check and the expunge, so it was a race, not a guarantee. Now the
-  answer depends only on UIDPLUS — the one thing that makes removing a single
-  message safe — and the refusal says why. On such a server, deleting or
-  archiving a message reports that it cannot be done and changes nothing.
-- **The attachment count is the message's, not the dialog's.** Ten files three
-  times was allowed, because each picker only ever counted its own ten. The cap
-  is now measured against what the message already carries, re-checked against
-  the same total just before attaching, guarded against a second picker opening
-  over the first, and enforced once more in the sending service.
-
-### Changed
 - **Message cards.** Unread is a strip down the edge rather than a dot in the
   corner — visible at a glance without spending a line of text — and the star
   sits with the date instead of in front of the subject, so the subject keeps
@@ -136,7 +165,16 @@ Version 0.5.0+32.
   prints the whole `LOGIN` command — stays off in every build, and a test fails
   the build if a certificate-validation escape hatch ever appears.
 
-Version 0.5.0+31.
+### Faster
+- The message list passes its density down instead of every row watching the
+  preferences for itself, so a settings change rebuilds the list once rather
+  than once per row.
+- Rows carry uid keys and the list can now *find* the element for a message it
+  has already built, instead of building every row below a change again.
+- A folder's one-time-code pass copies the cached page once, at the end,
+  instead of once per code it finds.
+
+Version 0.5.1.
 
 ## 0.5.0+30
 

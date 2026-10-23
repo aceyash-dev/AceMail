@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
@@ -12,6 +13,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../widgets/astryx_widgets.dart';
+import '../widgets/chyme_sheet.dart';
 import '../widgets/confirm_exit.dart';
 import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
@@ -45,6 +47,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
   final TextEditingController _search = TextEditingController();
   Timer? _searchDebounce;
   bool _searching = false;
+
+  /// Whether the compose button is showing its label.
+  ///
+  /// It shortens once the list has been scrolled: the label is there to teach
+  /// the button, and by the time you have scrolled you have learned it. It comes
+  /// back at the top, so it is never a button you have to remember.
+  bool _fabExtended = true;
 
   /// The folder the current search belongs to, so a folder change can end it.
   String? _searchFolder;
@@ -97,11 +106,17 @@ class _MailboxScreenState extends State<MailboxScreen> {
     }
   }
 
-  void _openSearch() {
-    setState(() {
-      _searching = true;
-      _searchFolder = context.read<MailController>().selectedFolder?.path;
-    });
+  /// Shortens the compose button as the list moves, and lengthens it again at
+  /// the top.
+  ///
+  /// Only the message list: the reader has a scroll view of its own, and a
+  /// button that changes shape because a *message* scrolled would be a button
+  /// reacting to something you cannot see.
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    final bool extended = notification.metrics.pixels < 40;
+    if (extended != _fabExtended) setState(() => _fabExtended = extended);
+    return false;
   }
 
   void _exitSearch({bool clearQuery = true}) {
@@ -112,6 +127,14 @@ class _MailboxScreenState extends State<MailboxScreen> {
   }
 
   void _onSearchChanged(String value) {
+    // The field is always on screen now, so "searching" means "there is a
+    // query", not "a search screen is open".
+    final bool searching = value.trim().isNotEmpty;
+    if (searching && !_searching) {
+      _searchFolder = context.read<MailController>().selectedFolder?.path;
+    }
+    if (searching != _searching) setState(() => _searching = searching);
+
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 450), () {
       if (!mounted) return;
@@ -212,7 +235,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
           leading: _searching
               ? AceIconButton(
                   icon: AceIcons.chevronLeft,
-                  tooltip: 'Close search',
+                  tooltip: 'Clear the search',
                   onPressed: _exitSearch,
                 )
               : AceIconButton(
@@ -223,11 +246,26 @@ class _MailboxScreenState extends State<MailboxScreen> {
           // The folder you are in, not the app's name. The name is on the
           // launcher and the splash; here the space is better spent telling you
           // where you are.
-          title: _searching
-              ? _searchField(c)
-              : Text(
-                  controller.selectedFolder?.label ?? 'Mail',
-                  style: AstryxText.heading3(c.textPrimary),
+          title: Text(
+            controller.selectedFolder?.label ?? 'Mail',
+            style: AstryxText.heading3(c.textPrimary),
+          ),
+          // The search bar is not behind an icon any more, and it is taller
+          // than it was: searching a folder is a thing people do constantly,
+          // and a 40px pill you have to open first made it a small expedition.
+          bottom: reading && !wide
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(64),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AstryxSpace.s4,
+                      0,
+                      AstryxSpace.s4,
+                      AstryxSpace.s3,
+                    ),
+                    child: _searchBar(c),
+                  ),
                 ),
           actions: <Widget>[
             // Emptying the trash lives where the trash does, and nowhere else:
@@ -239,12 +277,27 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 tooltip: 'Empty trash',
                 onPressed: () => _confirmEmptyTrash(context),
               ),
-            if (!_searching && !(reading && !wide))
+            // Only when it has been set up: a button that opens a sheet telling
+            // you it is not configured is a button that wastes a tap.
+            if (prefs.chymeEnabled && !(reading && !wide))
               AceIconButton(
-                icon: AceIcons.search,
-                tooltip: 'Search',
-                onPressed: _openSearch,
+                icon: AceIcons.chyme,
+                tooltip: 'Chyme',
+                onPressed: () => ChymeSheet.show(context),
               ),
+            // One button for the choices that used to take a row of the list:
+            // the filters and the order. It wears the accent when something
+            // other than the default is in force, which is what the chips were
+            // never able to say.
+            AceIconButton(
+              icon: AceIcons.sort,
+              tooltip: 'Sort and filter',
+              tint: controller.filter != MessageFilter.all ||
+                      prefs.messageSort != MessageSort.newest
+                  ? c.accent
+                  : null,
+              onPressed: () => showSortSheet(context),
+            ),
             const SizedBox(width: AstryxSpace.s2),
           ],
         ),
@@ -264,9 +317,12 @@ class _MailboxScreenState extends State<MailboxScreen> {
             : AceFab(
                 label: 'Compose',
                 icon: AceIcons.edit,
+                extended: _fabExtended,
                 onPressed: () => _compose(context),
               ),
-        body: wide
+        body: NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: wide
             ? Row(
                 children: <Widget>[
                   const FolderRail(),
@@ -302,28 +358,40 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       )
                     : const MessageListPanel(key: ValueKey<String>('list')),
               ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _searchField(AstryxColors c) {
-    // A pill, matching every other control in the expressive layer.
+  /// The search bar, always on screen.
+  ///
+  /// It used to be a 40px pill that appeared only after tapping a search icon,
+  /// in the app bar's title slot. Searching a folder is something people do
+  /// constantly, so the bar is simply there, and it is taller: a target you can
+  /// hit without looking.
+  Widget _searchBar(AstryxColors c) {
     return Container(
-      height: AstryxSize.elementLg,
-      padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s4),
+      height: AstryxSize.elementXl,
+      padding: const EdgeInsets.only(
+        left: AstryxSpace.s4,
+        right: AstryxSpace.s2,
+      ),
       decoration: BoxDecoration(
         color: c.backgroundMuted,
         borderRadius: BorderRadius.circular(AstryxRadius.full),
+        border: Border.all(color: c.border),
       ),
       child: Row(
         children: <Widget>[
-          AceIconView(icon: AceIcons.search, size: 18, color: c.iconSecondary),
-          const SizedBox(width: AstryxSpace.s2),
+          AceIconView(icon: AceIcons.search, size: 20, color: c.iconSecondary),
+          const SizedBox(width: AstryxSpace.s3),
           Expanded(
             child: TextField(
               controller: _search,
-              autofocus: true,
+              // Not autofocused: the bar is on screen from the moment a folder
+              // opens, and a keyboard that appears by itself is a keyboard you
+              // have to dismiss before you can read anything.
               onChanged: _onSearchChanged,
               onSubmitted: (String value) {
                 _searchDebounce?.cancel();
@@ -347,6 +415,18 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 hintStyle: AstryxText.body(c.textSecondary),
               ),
             ),
+          ),
+          // Only when there is something to clear, so the bar never offers a
+          // button that does nothing.
+          AnimatedSize(
+            duration: AstryxMotion.of(AstryxMotion.fast),
+            child: _search.text.isEmpty
+                ? const SizedBox(width: AstryxSpace.s2)
+                : AceIconButton(
+                    icon: AceIcons.close,
+                    tooltip: 'Clear the search',
+                    onPressed: _exitSearch,
+                  ),
           ),
         ],
       ),

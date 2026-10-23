@@ -339,9 +339,13 @@ class AceIconButton extends StatelessWidget {
     final AstryxColors c = context.astryx;
 
     final (Color background, Color foreground) = switch (variant) {
+      // Selected fills with the accent itself and inverts the icon, rather than
+      // tinting it: the hugeicons free set is stroke-only, so there is no filled
+      // glyph to swap in, and a shape that fills is what says "this one is on"
+      // in a set that has no other way to say it.
       AceIconButtonVariant.standard => (
-          selected ? c.accentMuted : Colors.transparent,
-          selected ? c.onAccentMuted : c.iconSecondary,
+          selected ? c.accent : Colors.transparent,
+          selected ? c.onAccent : c.iconSecondary,
         ),
       AceIconButtonVariant.filled => (
           selected ? c.accent : c.surfaceHighest,
@@ -366,7 +370,11 @@ class AceIconButton extends StatelessWidget {
           // A press that does not move when motion is off, rather than one that
           // moves faster.
           scale: AstryxMotion.reduced ? 1 : 1 - 0.06 * press,
-          child: Container(
+          child: AnimatedContainer(
+            // The fill arrives rather than appearing: at this size a hard cut
+            // reads as a repaint, and the eye loses the button it just pressed.
+            duration: AstryxMotion.of(AstryxMotion.fast),
+            curve: AstryxMotion.emphasized,
             width: size,
             height: size,
             decoration: BoxDecoration(
@@ -375,7 +383,19 @@ class AceIconButton extends StatelessWidget {
                   : background,
               borderRadius: shape,
             ),
-            child: AceIconView(icon: icon, size: size * 0.5, color: foreground),
+            // Tweened with the container, so the icon and the shape behind it
+            // arrive together.
+            child: TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: foreground),
+              duration: AstryxMotion.of(AstryxMotion.fast),
+              curve: AstryxMotion.emphasized,
+              builder: (BuildContext context, Color? colour, Widget? child) =>
+                  AceIconView(
+                icon: icon,
+                size: size * 0.5,
+                color: colour ?? foreground,
+              ),
+            ),
           ),
         );
       },
@@ -401,6 +421,10 @@ class AceFab extends StatelessWidget {
   final String label;
   final AceIcon icon;
   final VoidCallback? onPressed;
+
+  /// Whether the label is showing. It shortens to a circle once the list has
+  /// been scrolled — the label is there to teach the button, and by the time
+  /// you have scrolled you have learned it.
   final bool extended;
 
   @override
@@ -417,26 +441,44 @@ class AceFab extends StatelessWidget {
         );
         return Transform.scale(
           scale: 1 - 0.04 * press,
-          child: Container(
+          child: AnimatedContainer(
+            duration: AstryxMotion.of(AstryxMotion.medium),
+            curve: AstryxMotion.emphasized,
             height: AstryxSize.elementXl,
             padding: EdgeInsets.symmetric(
               horizontal: extended ? AstryxSpace.s5 : AstryxSpace.s4,
             ),
             decoration: BoxDecoration(
-              color: c.accentMuted,
+              // The accent itself, not a tint of it. This is the one button the
+              // app is asking you to press, and a muted version of the accent
+              // reads as a button that is not available.
+              color: c.accent,
               borderRadius: shape,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                AceIconView(icon: icon, size: 22, color: c.onAccentMuted),
-                if (extended) ...<Widget>[
-                  const SizedBox(width: AstryxSpace.s3),
-                  Text(
-                    label,
-                    style: AstryxText.bodyStrong(c.onAccentMuted),
-                  ),
-                ],
+                AceIconView(icon: icon, size: 22, color: c.onAccent),
+                // The label slides away rather than vanishing: a width change
+                // with nothing in between reads as a glitch, and the eye
+                // follows the word out.
+                AnimatedSize(
+                  duration: AstryxMotion.of(AstryxMotion.medium),
+                  curve: AstryxMotion.emphasized,
+                  alignment: Alignment.centerLeft,
+                  child: extended
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const SizedBox(width: AstryxSpace.s3),
+                            Text(
+                              label,
+                              style: AstryxText.bodyStrong(c.onAccent),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ],
             ),
           ),

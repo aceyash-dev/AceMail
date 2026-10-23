@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../data/limits.dart';
 import '../data/local_store.dart';
 import '../data/preferences.dart';
+import '../services/chyme.dart';
 import '../services/mail_service.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
@@ -326,6 +327,109 @@ class _ComposeScreenState extends State<ComposeScreen> {
   /// does not ask again.
   bool _warnedAboutSubject = false;
 
+  /// The same, for the attachment question.
+  bool _warnedAboutAttachment = false;
+
+  /// One yes/no question, in the shape every confirmation in this app uses.
+  Future<bool> _ask({
+    required String title,
+    required String body,
+    required String cancel,
+    required String confirm,
+  }) async {
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(confirm),
+          ),
+        ],
+      ),
+    );
+    return go ?? false;
+  }
+
+  /// Asks Chyme to write the message, and puts what it writes in the body.
+  ///
+  /// It writes into the body rather than sending anything: the reply is a
+  /// draft, and a draft is something a person still reads before it leaves.
+  Future<void> _writeWithChyme() async {
+    final Preferences prefs = context.read<Preferences>();
+    final TextEditingController prompt = TextEditingController(
+      text: _subject.text.trim().isEmpty ? '' : 'About: ${_subject.text.trim()}',
+    );
+
+    final String? asked = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Write with Chyme'),
+        content: TextField(
+          controller: prompt,
+          autofocus: true,
+          maxLines: 4,
+          minLines: 2,
+          decoration: const InputDecoration(
+            hintText: 'What should it say?',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(prompt.text),
+            child: const Text('Write'),
+          ),
+        ],
+      ),
+    );
+    prompt.dispose();
+    if (asked == null || asked.trim().isEmpty || !mounted) return;
+
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      final String written = await Chyme.ask(
+        endpoint: prefs.chymeEndpoint,
+        apiKey: prefs.chymeKey,
+        model: prefs.chymeModel,
+        turns: <ChymeTurn>[
+          ChymeTurn('system', Chyme.systemPrompt),
+          ChymeTurn(
+            'user',
+            'Write the body of an email. ${asked.trim()}'
+            '${_to.text.trim().isEmpty ? '' : ' It is going to ${_to.text.trim()}.'}',
+          ),
+        ],
+      );
+      if (!mounted) return;
+      setState(() {
+        _body.text = _body.text.trim().isEmpty
+            ? written
+            : '${_body.text.trim()}\n\n$written';
+        _sending = false;
+      });
+      AceSnack.show(context, 'Chyme wrote a draft — read it before sending.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$error';
+        _sending = false;
+      });
+    }
+  }
+
   /// The address the message actually leaves from.
   ///
   /// It is what a blind copy to self needs to name, and it is the same address
@@ -337,6 +441,21 @@ class _ComposeScreenState extends State<ComposeScreen> {
   String? get _chosenFrom => _from;
 
   Future<void> _send() async {
+    // The most common mistake in email: "I've attached the form", and no form.
+    if (context.read<Preferences>().warnMissingAttachment &&
+        _attachments.isEmpty &&
+        mentionsAttachment(_body.text) &&
+        !_warnedAboutAttachment) {
+      _warnedAboutAttachment = true;
+      final bool go = await _ask(
+        title: 'Attach something first?',
+        body: 'The message mentions an attachment and nothing is attached.',
+        cancel: 'Add a file',
+        confirm: 'Send anyway',
+      );
+      if (!go || !mounted) return;
+    }
+
     // A message with no subject is the one people regret, so it asks once.
     if (context.read<Preferences>().warnEmptySubject &&
         _subject.text.trim().isEmpty &&
@@ -540,10 +659,23 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     : AceErrorBox(message: _error!),
               ),
               const SizedBox(height: AstryxSpace.s3),
-              AceButton(
-                label: 'Attach files',
-                icon: AceIcons.attachment,
-                onPressed: _sending ? null : _attach,
+              Row(
+                children: <Widget>[
+                  AceButton(
+                    label: 'Attach files',
+                    icon: AceIcons.attachment,
+                    onPressed: _sending ? null : _attach,
+                  ),
+                  if (context.watch<Preferences>().chymeEnabled) ...<Widget>[
+                    const SizedBox(width: AstryxSpace.s3),
+                    AceButton(
+                      label: 'Write with Chyme',
+                      icon: AceIcons.chymeWrite,
+                      variant: AceButtonVariant.tonal,
+                      onPressed: _sending ? null : _writeWithChyme,
+                    ),
+                  ],
+                ],
               ),
                   ],
                 ),

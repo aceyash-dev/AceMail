@@ -408,8 +408,10 @@ ThemeData buildAstryxTheme(
       iconColor: c.iconSecondary,
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: c.accentMuted,
-      foregroundColor: c.onAccentMuted,
+      // The accent, matching AceFab — the compose button is the one action the
+      // app is asking for, and a tint of the accent reads as disabled.
+      backgroundColor: c.accent,
+      foregroundColor: c.onAccent,
       elevation: 0,
       focusElevation: 0,
       hoverElevation: 0,

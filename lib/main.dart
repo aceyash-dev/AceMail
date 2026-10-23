@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +8,7 @@ import 'util/redact.dart';
 import 'data/app_info.dart';
 import 'data/local_store.dart';
 import 'data/preferences.dart';
+import 'services/launcher_icon.dart';
 import 'services/notification_setup.dart';
 import 'state/mail_controller.dart';
 
@@ -42,6 +45,11 @@ Future<void> main() async {
     controller.restore(),
     AppInfo.load(),
   ]);
+
+  // The launcher icon wears the accent. Applied on every start rather than only
+  // when the setting changes, because the alias that carries it can be reset by
+  // an install over the top of an old build.
+  unawaited(LauncherIcon.apply(preferences.accent));
 
   // Registered before the first frame, so a scheduled check that fires while
   // the app is closed has somewhere to land. Nothing is scheduled unless the

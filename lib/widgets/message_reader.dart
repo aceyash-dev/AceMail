@@ -377,6 +377,9 @@ class _MessageReaderState extends State<MessageReader> {
     required VoidCallback onTap,
   }) {
     return Material(
+      // Animated, so switching between the two views shows the fill moving
+      // rather than the two labels trading places.
+      animationDuration: AstryxMotion.of(AstryxMotion.fast),
       color: active ? c.accent : c.backgroundSurface,
       borderRadius: BorderRadius.circular(AstryxRadius.full),
       child: InkWell(
