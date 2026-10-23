@@ -81,6 +81,15 @@ class AccountStore {
         continue;
       }
 
+      // A Google account has no password to read, and a missing one is the
+      // expected state rather than a broken record. It is why this cannot be
+      // inferred from the keychain: "no password stored" means two opposite
+      // things depending on how the account signs in.
+      if (account.isGoogle) {
+        accounts.add((account: account, password: ''));
+        continue;
+      }
+
       final String? password;
       try {
         password = await _storage.read(key: _passwordKey(account.email));
@@ -125,8 +134,11 @@ class AccountStore {
       }
 
       // Passwords first: a manifest that names an account whose password was
-      // never written is the incomplete state we are trying to avoid.
+      // never written is the incomplete state we are trying to avoid. A Google
+      // account is skipped rather than written with an empty string — a key
+      // holding nothing is a record that says a secret exists and is blank.
       for (final StoredAccount a in accounts) {
+        if (a.account.isGoogle) continue;
         await _storage.write(
           key: _passwordKey(a.account.email),
           value: a.password,

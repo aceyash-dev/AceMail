@@ -73,6 +73,44 @@ class SignInFormModel {
     return '$user@$host';
   }
 
+  /// Whether the address is a Google one, and so signs in through Google rather
+  /// than with a password.
+  bool get isGoogle => _providerFor(email)?.usesGoogle ?? false;
+
+  /// The provider for an address, or null when the domain is not a known one.
+  static MailProvider? _providerFor(String address) {
+    final int at = address.indexOf('@');
+    if (at == -1) return null;
+    final String host = address.substring(at + 1).toLowerCase();
+    for (final MailProvider provider in kProviderChoices) {
+      if (provider.domains.contains(host)) return provider;
+    }
+    return null;
+  }
+
+  /// The account for an address Google authorised.
+  ///
+  /// Built from the address Google returned rather than the one that was typed,
+  /// because the two can differ — somebody types an address, then picks another
+  /// account on Google's own screen — and the account that authorised is the
+  /// one that will work. Null when Google returned an address whose servers
+  /// this app does not know.
+  AceAccount? googleAccount(String address) {
+    final MailProvider? provider = _providerFor(address);
+    final MailServer? server = provider == null
+        ? null
+        : kMailProviders[provider.domains.first];
+    if (server == null) return null;
+    return AceAccount(
+      email: address,
+      imapHost: server.imapHost,
+      imapPort: server.imapPort,
+      smtpHost: server.smtpHost,
+      smtpPort: server.smtpPort,
+      auth: MailAuth.google,
+    );
+  }
+
   /// The domains the picker offers, plus a marker for the custom entry.
   static List<String> get domains =>
       <String>[for (final MailProvider p in kProviderChoices) ...p.domains];
@@ -147,7 +185,9 @@ class SignInFormModel {
     if (MailAddresses.validate(address, field: 'Email') != null) {
       return const SignInOutcome(error: 'Enter a valid email address.');
     }
-    if (password.text.isEmpty) {
+    // A Google account has no password to ask for: it signs in on Google's own
+    // screen, and the button that does it is not this form.
+    if (!isGoogle && password.text.isEmpty) {
       return const SignInOutcome(error: 'Enter your password.');
     }
     if (imapHost.text.trim().isEmpty || smtpHost.text.trim().isEmpty) {
@@ -164,6 +204,7 @@ class SignInFormModel {
         imapPort: int.tryParse(imapPort.text.trim()) ?? 993,
         smtpHost: smtpHost.text.trim(),
         smtpPort: int.tryParse(smtpPort.text.trim()) ?? 587,
+        auth: isGoogle ? MailAuth.google : MailAuth.password,
       ),
     );
   }

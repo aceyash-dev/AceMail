@@ -14,6 +14,7 @@ import '../models/mail_folder.dart';
 import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../util/otp.dart';
+import '../services/google_auth.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
 
@@ -66,7 +67,30 @@ class MailSession extends ChangeNotifier {
       MailService(
         account,
         reconnectAllowed: () => _preferences?.autoReconnect ?? true,
+        // Only a Google account has a token to fetch. A password account's
+        // secret is remembered by the service, because there is no way to
+        // replace it.
+        tokenProvider: account.isGoogle ? GoogleAuth.token : null,
       );
+
+  /// The secret for a handshake: a password, or a fresh Google token.
+  ///
+  /// Fetched at the moment it is needed rather than kept, because a token lives
+  /// about an hour and a mailbox that reconnects in the afternoon needs one
+  /// that is valid now. Throws with [GoogleAuthException.needsSignIn] when
+  /// Google wants the user back, which the screen turns into an offer to sign
+  /// in rather than an error.
+  Future<String> _secret() async {
+    if (!account.isGoogle) return password;
+    final String? token = await GoogleAuth.token();
+    if (token == null) {
+      throw const GoogleAuthException(
+        'Sign in to Google again to reach this mailbox.',
+        needsSignIn: true,
+      );
+    }
+    return token;
+  }
 
   bool connecting = false;
   String? errorMessage;
@@ -219,7 +243,7 @@ class MailSession extends ChangeNotifier {
     _notify();
 
     try {
-      final List<MailFolder> loaded = await _transport.connect(password);
+      final List<MailFolder> loaded = await _transport.connect(await _secret());
 
       // The session may have been abandoned while we were connecting; do not
       // leave a live connection behind for a screen that no longer exists.
@@ -791,7 +815,7 @@ class MailSession extends ChangeNotifier {
       cc: cc,
       bcc: bcc,
       subject: subject,
-      password: password,
+      password: await _secret(),
       attachments: attachments,
       inReplyTo: inReplyTo,
       references: references,

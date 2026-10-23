@@ -5,6 +5,25 @@ after the `+` is the Android version code.
 ## 0.5.1
 
 ### Added
+- **Gmail signs in with Google.** Gmail stopped accepting app passwords for IMAP
+  and SMTP in 2022, which made it the one provider this app could not offer at
+  all. It can now: the sign-in screen shows *Continue with Google* instead of a
+  password field, and the mailbox is reached with an OAuth access token over
+  SASL XOAUTH2.
+  The nicest part is what is *not* stored — no password and no refresh token, so
+  there is no credential on the device to leak. The token lives about an hour and
+  a new one is fetched whenever a connection needs it, including on a reconnect,
+  which is why nothing is remembered. The account record says how it signs in, so
+  the keychain is not asked for a password that was never there.
+  Setting it up needs four things in the Google Cloud project — an Android client
+  for the package and signing certificate, a web client as `serverClientId`, the
+  Gmail API enabled, and the mail scope on the consent screen with test users
+  while unverified. The README has all four, with the SHA-1s, because every
+  mistake here looks like the same generic sign-in failure and the plugin's own
+  message does not say which one it is. The app names the one it is:
+  `clientConfigurationError` is the client registration, `providerConfigurationError`
+  is the project.
+
 - **Chyme, an experimental assistant.** Point it at any endpoint that speaks
   the OpenAI chat API — a hosted one, or a model on your own machine — and it
   lists what it has; pick one and it can summarise the message you have open,
@@ -94,6 +113,11 @@ after the `+` is the Android version code.
   over the first, and enforced once more in the sending service.
 
 ### Changed
+- **The sign-in screen knows what it is asking for.** A Gmail address gets
+  *Continue with Google* instead of a password field and no server panel, and the
+  step heading and the footer note say why rather than talking about app
+  passwords that Gmail will not accept.
+
 - **The app bar's folder name is gone, and the search bar is in its place.** The
   name is not lost: the greeting above the list says which folder you are in and
   what is waiting in it, which is where a person looks anyway. The room it gave
@@ -198,6 +222,16 @@ after the `+` is the Android version code.
   per-order sort icons were being ignored too; the sort sheet uses them now.
 
 ### Faster
+- **The message list's key lookup is a map, not a scan.** `findChildIndexCallback`
+  exists to stop a rebuild re-creating rows, and it was called once per key per
+  update while scanning the whole list each time — quadratic, on the path that
+  exists to make scrolling cheap. A folder of a few hundred messages paid it on
+  every rebuild.
+- **The brand-logo caches evict the oldest entry rather than everything.**
+  Clearing the lot at the limit meant the next few hundred rows each did their
+  own DNS and HTTPS lookup again, so the cache became a stampede exactly when it
+  was needed most.
+
 - **Builds.** Gradle ran its tasks one at a time with no build cache — the
   Flutter template's defaults — and CI did not cache Gradle's dependencies, so
   every run re-resolved the Android Gradle plugin. Tasks now run in parallel,

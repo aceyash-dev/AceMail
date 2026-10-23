@@ -1,0 +1,191 @@
+import 'package:google_sign_in/google_sign_in.dart';
+
+/// Google sign-in could not be completed.
+class GoogleAuthException implements Exception {
+  const GoogleAuthException(this.message, {this.needsSignIn = false});
+
+  final String message;
+
+  /// True when the answer is "sign in again" rather than "something is broken"
+  /// — a revoked grant, or an account that was never authorised for this scope.
+  final bool needsSignIn;
+
+  @override
+  String toString() => message;
+}
+
+/// A Google account and a token for it.
+typedef GoogleCredential = ({String email, String token});
+
+/// Signing in with Google.
+///
+/// Gmail still speaks IMAP and SMTP, but it stopped accepting app passwords in
+/// 2022. The protocols are authenticated with an OAuth access token instead, by
+/// SASL XOAUTH2 — which is the whole reason this exists: without it, Gmail is a
+/// provider this app cannot offer at all.
+///
+/// What the app gets out of it, beyond the token:
+///
+/// * **Nothing is stored.** There is no password and no refresh token on the
+///   device. The token lives about an hour, and a new one is fetched when a
+///   connection needs it. An account whose credentials cannot leak because
+///   there are none is the strongest version of the promise the keychain was
+///   making.
+/// * **The consent is Google's screen, not ours.** The app never sees the
+///   password, and the grant can be revoked from the account page.
+///
+/// The scope is the full-access one because that is what XOAUTH2 needs: Google
+/// offers no narrower grant that lets a client read *and* send mail over IMAP
+/// and SMTP. It is a restricted scope, so the consent screen has to list it and
+/// the account has to be a test user until the app is verified.
+abstract final class GoogleAuth {
+  /// The OAuth client this build is registered under.
+  ///
+  /// It is the **web** client ID, which is what Android's Credential Manager
+  /// wants as `serverClientId` when the app is not configured through a
+  /// `google-services.json`. The Android client that matches this app is
+  /// registered against the package name and the signing certificate instead —
+  /// see the README.
+  static const String clientId =
+      '919591212641-i8ugliojp1j16esai9jh3f5e5foiucoj.apps.googleusercontent.com';
+
+  /// IMAP and SMTP, read and send.
+  static const List<String> scopes = <String>['https://mail.google.com/'];
+
+  static bool _ready = false;
+
+  /// Prepares the plugin. Once, before anything else touches it.
+  static Future<void> _prepare() async {
+    if (_ready) return;
+    await GoogleSignIn.instance.initialize(serverClientId: clientId);
+    _ready = true;
+  }
+
+  /// The account already signed in to this device, without showing anything.
+  ///
+  /// Null is the ordinary answer, not a failure: it means nobody has signed in
+  /// yet, or the last grant was withdrawn.
+  static Future<String?> knownEmail() async {
+    await _prepare();
+    final GoogleSignInAccount? account = await _lightweight();
+    return account?.email;
+  }
+
+  /// Asks the user to choose an account and consent, and returns a token.
+  static Future<GoogleCredential> signIn() async {
+    await _prepare();
+    try {
+      final GoogleSignInAccount account =
+          await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+      final String token = await _tokenFor(account, allowPrompt: true);
+      return (email: account.email, token: token);
+    } on GoogleSignInException catch (error) {
+      throw GoogleAuthException(describe(error));
+    }
+  }
+
+  /// A fresh token for the account already signed in.
+  ///
+  /// The token expires in about an hour, so this is called when a connection is
+  /// opened rather than when the account was added — which is also why nothing
+  /// is stored: the token is fetched, used, and dropped.
+  ///
+  /// Returns null when there is no signed-in account. Throws with
+  /// [GoogleAuthException.needsSignIn] when there is one but the grant no
+  /// longer covers the scope, so the screen can offer the sign-in again rather
+  /// than an error nobody can act on.
+  static Future<String?> token() async {
+    await _prepare();
+    final GoogleSignInAccount? account = await _lightweight();
+    if (account == null) return null;
+    return _tokenFor(account, allowPrompt: false);
+  }
+
+  /// Signs out, so the next connection asks for an account again.
+  static Future<void> forget() async {
+    await _prepare();
+    try {
+      await GoogleSignIn.instance.signOut();
+    } on GoogleSignInException {
+      // Already signed out, which is the state being asked for.
+    }
+  }
+
+  /// The lightweight attempt, flattened.
+  ///
+  /// The plugin returns a *nullable future* here: null means the platform has
+  /// no way to answer without UI and will report through a stream instead.
+  /// Android always returns one, so a null is treated as "nobody signed in"
+  /// rather than as a reason to wait for an event that is never coming.
+  static Future<GoogleSignInAccount?> _lightweight() async {
+    final Future<GoogleSignInAccount?>? attempt =
+        GoogleSignIn.instance.attemptLightweightAuthentication();
+    if (attempt == null) return null;
+    try {
+      return await attempt;
+    } on GoogleSignInException {
+      return null;
+    }
+  }
+
+  /// A token for [account], from the cache if possible.
+  ///
+  /// [allowPrompt] is false on the reconnect path: a token that needs the user
+  /// to look at a screen cannot be fetched from inside a connection, so that
+  /// case is reported as needing a sign-in rather than silently opening a
+  /// dialog nobody is looking at.
+  static Future<String> _tokenFor(
+    GoogleSignInAccount account, {
+    required bool allowPrompt,
+  }) async {
+    final GoogleSignInAuthorizationClient client = account.authorizationClient;
+    try {
+      final GoogleSignInClientAuthorization? held =
+          await client.authorizationForScopes(scopes);
+      if (held != null) return held.accessToken;
+
+      if (!allowPrompt) {
+        throw const GoogleAuthException(
+          'Google needs you to sign in again.',
+          needsSignIn: true,
+        );
+      }
+
+      final GoogleSignInClientAuthorization granted =
+          await client.authorizeScopes(scopes);
+      return granted.accessToken;
+    } on GoogleSignInException catch (error) {
+      throw GoogleAuthException(describe(error));
+    }
+  }
+
+  /// What to say about a failure.
+  ///
+  /// Pure, and separate from the call, so the wording can be tested without a
+  /// Google account. The codes that mean "you cancelled" say so; the one that
+  /// means the project is misconfigured says what to check, because that is the
+  /// failure a developer will actually hit and the plugin's own message does
+  /// not point at the cause.
+  static String describe(GoogleSignInException error) {
+    switch (error.code) {
+      case GoogleSignInExceptionCode.canceled:
+        return 'Sign-in was cancelled.';
+      case GoogleSignInExceptionCode.interrupted:
+        return 'Sign-in was interrupted. Try again.';
+      case GoogleSignInExceptionCode.uiUnavailable:
+        return 'Google sign-in needs a screen, and there is not one available.';
+      case GoogleSignInExceptionCode.clientConfigurationError:
+        return 'This build is not registered with Google. The package name and '
+            'the signing certificate have to be registered for this app in the '
+            'Google Cloud project, and the client ID has to be a web one.';
+      case GoogleSignInExceptionCode.providerConfigurationError:
+        return 'Google refused the request: the project is missing something. '
+            'Check that the Gmail API is enabled and that the consent screen '
+            'lists the mail scope.';
+      case GoogleSignInExceptionCode.userMismatch:
+        return 'That account is not the one this mailbox belongs to.';
+      case GoogleSignInExceptionCode.unknownError:
+        return 'Google sign-in failed. ${error.description ?? ''}'.trim();
+    }
+  }
+}

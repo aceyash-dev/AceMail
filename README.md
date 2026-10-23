@@ -30,21 +30,24 @@ a custom theme, not a departure.
 ## Features
 
 - Sign in to any IMAP/SMTP provider. Gmail, Yahoo, iCloud, Zoho, GMX and Yandex
-  are detected from the address; anything else takes manual hosts. The built-in
-  list is deliberately short — every entry works **free**, over IMAP/SMTP, with
-  an **app password**. Providers that now require OAuth (Outlook), a paid
-  bridge (Proton), a paid plan (Fastmail, and Rediffmail whose IMAP is
-  Pro-only), or that have dropped free IMAP for new accounts (Zoho), are not
-  offered: a provider that cannot work is a dead end the user only finds after
-  typing a password.
+  are detected from the address; anything else takes manual hosts. **Gmail signs
+  in with Google** — no password, and nothing stored; the rest use an **app
+  password**. The built-in list is deliberately short — every entry works
+  **free**, over IMAP/SMTP. Providers that need OAuth this app does not
+  implement (Outlook), a paid bridge (Proton), a paid plan (Fastmail, and
+  Rediffmail whose IMAP is Pro-only), or that have dropped free IMAP for new
+  accounts (Zoho), are not offered: a provider that cannot work is a dead end
+  the user only finds after typing a password.
 - A built-in step-by-step guide — the `?` button on the sign-in screen and in
   the mailbox — covering app passwords, manual server settings, and what each
   connection error means.
 - Several accounts signed in at once, switchable from the header at the top of
   the folder rail.
-- The top bar shows **the folder you are in**, with search beside it. Settings,
-  About and help sit at the foot of the rail; the app's name is on the launcher
-  and the splash, where it belongs.
+- The top bar is the **search bar** — with voice search beside it, and Sort &
+  filter and Chyme next to that. The folder you are in, and what is waiting in
+  it, is the greeting above the list, which is where a person looks anyway.
+  Settings, About and help sit at the foot of the rail; the app's name is on the
+  launcher and the splash, where it belongs.
 - **Pull down to refresh** — the indicator is the shape morph, scrubbed by the
   drag, so a pull walks it through the families. Ctrl/Cmd+R does the same from a
   keyboard. There is no refresh button in the top bar. The list uses bouncing
@@ -188,11 +191,61 @@ already excludes `*.jks`, `*.keystore` and `key.properties`.
 
 ## Signing in
 
-Most providers need an **app password**, not your account password:
+**Gmail signs in with Google.** Gmail stopped accepting app passwords for IMAP
+and SMTP in 2022, so the sign-in screen offers *Continue with Google* instead of
+a password field, and the mailbox is reached with an OAuth access token (SASL
+XOAUTH2). Nothing is stored as a result: no password, no refresh token. The
+token lives about an hour and a new one is fetched when a connection needs it.
 
-- **Gmail** — enable 2-Step Verification, create one at
-  <https://myaccount.google.com/apppasswords>, and switch IMAP on in Gmail →
-  Settings → *Forwarding and POP/IMAP*.
+Setting that up needs four things in the Google Cloud project. This is the part
+that has to be right, because every failure here looks like a generic sign-in
+error:
+
+1. **An Android OAuth client**, registered against the package name and the
+   signing certificate:
+
+   | Field | Value |
+   | --- | --- |
+   | Package name | `app.tab.mail` |
+   | Release SHA-1 | `92:0B:5F:51:DC:85:E2:D8:2F:97:21:F5:3A:D6:5C:1A:E4:5E:0D:4C` |
+   | Debug SHA-1 | from `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` |
+
+   One client can carry several SHA-1s. Register the debug one too, or local
+   builds will sign in and release builds will not — the plugin's README lists
+   that as the most common cause of a confusing failure.
+
+2. **A web OAuth client**, in the same project. Its ID is what Android's
+   Credential Manager wants as `serverClientId`, and it is the one in
+   `GoogleAuth.clientId`:
+
+   ```
+   919591212641-i8ugliojp1j16esai9jh3f5e5foiucoj.apps.googleusercontent.com
+   ```
+
+   If that ID turns out to be an *Android* client rather than a web one, create
+   a web client and replace the constant — the value has to be a web client ID.
+
+3. **The Gmail API enabled** for the project, at
+   <https://console.cloud.google.com/apis/library/gmail.googleapis.com>.
+
+4. **The consent screen** listing the scope, which is the full-access one:
+
+   ```
+   https://mail.google.com/
+   ```
+
+   There is no narrower grant that lets a client read *and* send over IMAP and
+   SMTP, so this is a restricted scope. While the app is unverified, the project
+   has to be in *Testing* and every account that signs in has to be added as a
+   **test user** — otherwise Google refuses with `access_denied` no matter how
+   correct the rest is.
+
+`clientConfigurationError` means 1 or 2; `providerConfigurationError` means 3
+or 4. The app says which, in those words.
+
+Everything else needs an **app password**, not your account password:
+
+- **Yahoo** — Account Security → *Generate app password*.
 - **Yahoo** — Account Security → *Generate app password*.
 - **iCloud** — Apple ID → *Sign-In and Security* → *App-Specific Passwords*.
 - **Zoho** — Security → *App Passwords*, and switch IMAP on under *Mail

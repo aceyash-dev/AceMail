@@ -78,7 +78,10 @@ class _MailAvatarState extends State<MailAvatar> {
     String? url = _bimi[address];
     if (!_bimi.containsKey(address)) {
       url = await BimiResolver.logoFor(address);
-      if (_bimi.length > 300) _bimi.clear();
+      // Same as the resolver's own cache: the oldest goes, not all of them.
+      while (_bimi.length > 300) {
+        _bimi.remove(_bimi.keys.first);
+      }
       _bimi[address] = url;
     }
 

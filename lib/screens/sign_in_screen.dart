@@ -7,6 +7,7 @@ import '../data/mail_providers.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/sign_in_form.dart';
+import '../services/google_auth.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
@@ -105,6 +106,39 @@ class _SignInScreenState extends State<SignInScreen> {
     if (ok) {
       TextInput.finishAutofillContext();
       if (widget.isAdding) Navigator.of(context).pop();
+    }
+  }
+
+  /// Signs in through Google, and adds whichever account it returns.
+  ///
+  /// The account that gets added is Google's answer, not the address typed on
+  /// the first step: the two can differ, and the mailbox that authorised is the
+  /// one that will work. The token comes back with it, so the first connection
+  /// does not wait for a second round trip.
+  Future<void> _continueWithGoogle() async {
+    final MailController controller = context.read<MailController>();
+    setState(() => _validationError = null);
+    try {
+      final GoogleCredential credential = await GoogleAuth.signIn();
+      final AceAccount? account = _form.googleAccount(credential.email);
+      if (account == null) {
+        if (mounted) {
+          setState(() => _validationError =
+              'That is not a mailbox address Ace Mail knows the servers for.');
+        }
+        return;
+      }
+
+      final bool ok = await controller.signIn(account, credential.token);
+      if (!mounted) return;
+      if (ok) {
+        if (widget.isAdding) Navigator.of(context).pop();
+      } else {
+        setState(() => _validationError =
+            controller.errorMessage ?? 'Could not reach that mailbox.');
+      }
+    } on GoogleAuthException catch (error) {
+      if (mounted) setState(() => _validationError = error.message);
     }
   }
 
@@ -210,38 +244,73 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          AcePasswordField(
-                                            label: 'Password / app password',
-                                            controller: _form.password,
-                                            obscure: _form.obscure,
-                                            autofillHints: const <String>[
-                                              AutofillHints.password,
-                                            ],
-                                            onToggleObscure: () => setState(
-                                              () => _form.obscure =
-                                                  !_form.obscure,
+                                          // A Google address has no password to
+                                          // type and no servers to fill in: the
+                                          // account is chosen on Google's own
+                                          // screen, and the token it returns is
+                                          // the credential. Everything the
+                                          // password path needs is replaced by
+                                          // one button.
+                                          if (_form.isGoogle) ...<Widget>[
+                                            Text(
+                                              'Ace Mail opens Google\u2019s own '
+                                              'sign-in. It never sees your '
+                                              'password, and there is nothing '
+                                              'to store afterwards — the '
+                                              'mailbox is reached with a token '
+                                              'that expires.',
+                                              style: AstryxText.supporting(
+                                                  c.textSecondary),
                                             ),
-                                          ),
-                                          const SizedBox(height: AstryxSpace.s3),
-                                          AdvancedServerPanel(
-                                            form: _form,
-                                            onToggle: () => setState(
-                                              () => _form.advanced =
-                                                  !_form.advanced,
+                                            const SizedBox(
+                                                height: AstryxSpace.s5),
+                                            AceButton(
+                                              label: 'Continue with Google',
+                                              icon: AceIcons.mailOpen,
+                                              variant: AceButtonVariant.primary,
+                                              size: AceButtonSize.large,
+                                              loading: connecting,
+                                              expand: true,
+                                              onPressed: connecting
+                                                  ? null
+                                                  : _continueWithGoogle,
                                             ),
-                                          ),
-                                          const SizedBox(height: AstryxSpace.s5),
-                                          AceButton(
-                                            label: connecting
-                                                ? 'Connecting…'
-                                                : 'Connect',
-                                            variant: AceButtonVariant.primary,
-                                            size: AceButtonSize.large,
-                                            loading: connecting,
-                                            expand: true,
-                                            onPressed:
-                                                connecting ? null : _submit,
-                                          ),
+                                          ] else ...<Widget>[
+                                            AcePasswordField(
+                                              label: 'Password / app password',
+                                              controller: _form.password,
+                                              obscure: _form.obscure,
+                                              autofillHints: const <String>[
+                                                AutofillHints.password,
+                                              ],
+                                              onToggleObscure: () => setState(
+                                                () => _form.obscure =
+                                                    !_form.obscure,
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                                height: AstryxSpace.s3),
+                                            AdvancedServerPanel(
+                                              form: _form,
+                                              onToggle: () => setState(
+                                                () => _form.advanced =
+                                                    !_form.advanced,
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                                height: AstryxSpace.s5),
+                                            AceButton(
+                                              label: connecting
+                                                  ? 'Connecting…'
+                                                  : 'Connect',
+                                              variant: AceButtonVariant.primary,
+                                              size: AceButtonSize.large,
+                                              loading: connecting,
+                                              expand: true,
+                                              onPressed:
+                                                  connecting ? null : _submit,
+                                            ),
+                                          ],
                                         ],
                                       )
                                     : _step == 1
@@ -327,10 +396,15 @@ class _SignInScreenState extends State<SignInScreen> {
                                     ),
                             ),
                             Text(
-                              'These providers want an app password here, not '
-                              'your normal login — "How to sign in" shows where '
-                              'to make one. Your password stays in this device\'s '
-                              'keychain and goes only to your provider.',
+                              _form.isGoogle
+                                  ? 'Gmail signs in through Google rather than '
+                                      'with a password, so there is nothing to '
+                                      'create, remember or store.'
+                                  : 'These providers want an app password here, '
+                                      'not your normal login — "How to sign in" '
+                                      'shows where to make one. Your password '
+                                      'stays in this device\'s keychain and goes '
+                                      'only to your provider.',
                               style: AstryxText.supporting(c.textSecondary),
                             ),
                           ],
@@ -650,7 +724,9 @@ class _StepDots extends StatelessWidget {
         ],
         const Spacer(),
         Text(
-          step == 0 ? 'Your address' : 'Your password',
+          step == 0
+              ? 'Your address'
+              : (_form.isGoogle ? 'Sign in with Google' : 'Your password'),
           style: AstryxText.label(c.textSecondary),
         ),
       ],

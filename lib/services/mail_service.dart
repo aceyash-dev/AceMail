@@ -34,13 +34,23 @@ export 'mail_errors.dart' show
 /// wrong folder. A dropped connection is retried once, after a backoff, rather
 /// than surfacing as a failure the user has to fix by hand.
 class MailService implements MailTransport {
-  MailService(this.account, {bool Function()? reconnectAllowed})
-      : _reconnectAllowed = reconnectAllowed ?? (() => true);
+  MailService(
+    this.account, {
+    bool Function()? reconnectAllowed,
+    this.tokenProvider,
+  }) : _reconnectAllowed = reconnectAllowed ?? (() => true);
 
   final AceAccount account;
 
   /// Read live, so turning automatic reconnection off applies immediately.
   final bool Function() _reconnectAllowed;
+
+  /// A fresh Google access token, for an account that signs in with Google.
+  ///
+  /// Called at every connect rather than once, because a token lives about an
+  /// hour: one fetched when the account was added would be expired by the time
+  /// anybody reconnected, and the failure would look like a wrong password.
+  final Future<String?> Function()? tokenProvider;
 
   final RequestQueue _queue = RequestQueue();
   final math.Random _random = math.Random();
@@ -48,7 +58,8 @@ class MailService implements MailTransport {
   ImapClient? _imap;
 
   /// Kept in memory only, so a reconnect does not need the user to sign in
-  /// again. Never written anywhere.
+  /// again. Never written anywhere. Unused by a Google account, whose token is
+  /// fetched fresh instead of remembered.
   String? _password;
 
   /// Consecutive failed attempts, for the backoff schedule.
@@ -85,7 +96,13 @@ class MailService implements MailTransport {
         account.imapPort,
         isSecure: true,
       );
-      await client.login(account.email, password);
+      if (account.isGoogle) {
+        // XOAUTH2: the token is the credential. Gmail has not accepted a
+        // password over IMAP since 2022.
+        await client.authenticateWithOAuth2(account.email, password);
+      } else {
+        await client.login(account.email, password);
+      }
       final List<MailFolder> folders = await _listFoldersOn(client);
       _imap = client;
       _password = password;
@@ -102,7 +119,12 @@ class MailService implements MailTransport {
 
   /// Reconnects inside a queue slot, so nothing else can run mid-handshake.
   Future<void> _reconnectRaw() async {
-    final String? password = _password;
+    // A Google token has expired by now — it lasts about an hour, and the whole
+    // point of the provider is that it can be replaced without asking anyone.
+    // A password is remembered, because there is no way to replace it.
+    final String? password = account.isGoogle
+        ? await tokenProvider?.call()
+        : _password;
     if (password == null) return;
 
     final ImapClient? stale = _imap;
@@ -547,7 +569,11 @@ class MailService implements MailTransport {
         await smtp.ehlo();
       }
 
-      if (smtp.serverInfo.supportsAuth(AuthMechanism.plain)) {
+      if (account.isGoogle) {
+        // The token arrives as the "password" here: enough_mail documents
+        // XOAUTH2 as taking the token in that argument.
+        await smtp.authenticate(account.email, password, AuthMechanism.xoauth2);
+      } else if (smtp.serverInfo.supportsAuth(AuthMechanism.plain)) {
         await smtp.authenticate(account.email, password, AuthMechanism.plain);
       } else if (smtp.serverInfo.supportsAuth(AuthMechanism.login)) {
         await smtp.authenticate(account.email, password, AuthMechanism.login);

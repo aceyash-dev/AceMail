@@ -1,3 +1,5 @@
+import '../models/ace_account.dart';
+
 /// IMAP/SMTP endpoints for common providers. Anything not listed falls back to
 /// the Advanced server settings on the sign-in screen.
 class MailServer {
@@ -21,9 +23,21 @@ class MailServer {
 /// host, as are gmail.com and googlemail.com — so the picker groups them rather
 /// than listing a dozen near-identical rows.
 class MailProvider {
-  const MailProvider(this.label, this.domains, this.logo);
+  const MailProvider(
+    this.label,
+    this.domains,
+    this.logo, {
+    this.auth = MailAuth.password,
+  });
 
   final String label;
+
+  /// How this provider signs in. Google is the exception, because Gmail no
+  /// longer accepts an app password at all.
+  final MailAuth auth;
+
+  /// Whether signing in goes through Google's own screen.
+  bool get usesGoogle => auth == MailAuth.google;
 
   /// Every domain the provider hands out, not just the best-known one.
   final List<String> domains;
@@ -43,17 +57,21 @@ class MailProvider {
 /// The providers the picker offers.
 ///
 /// Deliberately short, and shorter than it once was. Every entry is a provider
-/// that will actually let this app in: **free**, over IMAP/SMTP, with an **app
-/// password**. That is the only kind of account a client that speaks the
-/// protocols directly can use, and offering a provider that cannot work is a
-/// dead end the user only discovers after typing a password.
+/// that will actually let this app in: **free**, over IMAP/SMTP, and either
+/// with an **app password** or — for Gmail — through **Google's own sign-in**.
+/// Offering a provider that cannot work is a dead end the user only discovers
+/// after typing a password, which is why the list is this short and why Gmail
+/// asks for a Google account rather than a password.
 ///
 /// The ones that were removed, and why, because a short list invites the
 /// question:
 ///
 /// * **Outlook, Hotmail, Live** — Microsoft retired basic authentication for
 ///   personal accounts in September 2024. App passwords no longer work over
-///   IMAP; the account now needs OAuth, which this app does not implement.
+///   IMAP, and the account needs OAuth. Microsoft's OAuth is not wired up here
+///   the way Google's is: it needs its own client registration, and the flow
+///   would have to be written and tested against an account before the provider
+///   could honestly be offered.
 /// * **Proton** — its IMAP/SMTP bridge is a paid feature, so a free Proton
 ///   account has no IMAP at all.
 /// * **Fastmail** — there is no free tier, and even the paid Basic plan
@@ -65,8 +83,13 @@ class MailProvider {
 /// switch IMAP on, but Zoho has stopped granting IMAP access to newly signed-up
 /// free users.
 const List<MailProvider> kProviderChoices = <MailProvider>[
+  // Google is the one provider here that is not an app password, and the reason
+  // is not preference: Gmail stopped accepting app passwords for IMAP and SMTP
+  // in 2022. It is also the best sign-in of the lot, because there is no
+  // password to issue, store or leak.
   MailProvider('Gmail', <String>['gmail.com', 'googlemail.com'],
-      'assets/providers/gmail.svg'),
+      'assets/providers/gmail.svg',
+      auth: MailAuth.google),
   MailProvider('Yahoo', <String>['yahoo.com', 'yahoo.in'],
       'assets/providers/yahoo.svg'),
   MailProvider('iCloud', <String>['icloud.com', 'me.com'],

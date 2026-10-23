@@ -173,6 +173,16 @@ class MessageListPanel extends StatelessWidget {
       items.addAll(rows);
     }
 
+    // uid -> position, built once per build. The callback below is called for
+    // every key in the list on every update, and it used to scan the whole list
+    // each time — quadratic, on the very path that exists to make scrolling
+    // cheap. A folder of a few hundred messages paid it on every rebuild.
+    final Map<int, int> positionOfUid = <int, int>{};
+    for (int i = 0; i < items.length; i++) {
+      final Object item = items[i];
+      if (item is MessageSummary) positionOfUid[item.uid] = i;
+    }
+
     return <Widget>[
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
@@ -183,11 +193,7 @@ class MessageListPanel extends StatelessWidget {
           // this, anything that shifts the list re-creates every row below it.
           findChildIndexCallback: (Key key) {
             if (key is! ValueKey<int>) return null;
-            final int uid = key.value;
-            final int index = items.indexWhere(
-              (Object item) => item is MessageSummary && item.uid == uid,
-            );
-            return index == -1 ? null : index;
+            return positionOfUid[key.value];
           },
           // Each row already brings its own RepaintBoundary, so the sliver does
           // not need to add a second one — and a row that scrolls off does not
