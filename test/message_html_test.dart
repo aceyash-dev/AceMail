@@ -1,6 +1,5 @@
 import 'package:ace_mail/data/limits.dart';
 import 'package:ace_mail/theme/astryx_theme.dart';
-import 'package:ace_mail/theme/astryx_tokens.dart';
 import 'package:ace_mail/widgets/message_html.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
