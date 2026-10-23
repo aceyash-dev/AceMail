@@ -540,7 +540,6 @@ class _ComposeScreenState extends State<ComposeScreen> {
       Contacts.recordSent(<String>[
         ..._to.text.split(','),
         ..._cc.text.split(','),
-        ..._bcc.text.split(','),
       ], when: DateTime.now());
       Navigator.of(context).pop();
     } catch (error) {
