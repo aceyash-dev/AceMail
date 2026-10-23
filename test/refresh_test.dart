@@ -44,7 +44,11 @@ void main() {
     // Loading a page teaches the contact book some addresses, and its write is
     // debounced — a timer left pending fails a widget test. Flushing it is
     // exactly what the app does when it is backgrounded.
-    await Contacts.flush();
+    //
+    // `runAsync` because the flush writes a file. A widget test runs in a
+    // fake-async zone, where real I/O never completes: awaiting it there does
+    // not fail the test, it hangs the whole run. Which is what it did.
+    await tester.runAsync(Contacts.flush);
     return controller;
   }
 
