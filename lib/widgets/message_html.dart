@@ -23,8 +23,8 @@ import 'ace_icon_view.dart';
 /// phone — would render more of the web's CSS, and would also put a browser
 /// engine, its own scrolling, its own text selection and its own layout pass in
 /// the middle of a list that is supposed to feel like the rest of the app. This
-/// renders in the app's own frame budget, in the app's own type, and is parsed
-/// off the frame for anything long.
+/// renders in the app's own frame budget, in the app's own type, and hands
+/// anything long to an isolate to parse.
 ///
 /// What is still this app's decision, and not the renderer's:
 ///
@@ -86,9 +86,12 @@ class AceHtml extends StatelessWidget {
     return HtmlWidget(
       source,
       textStyle: baseStyle,
-      // Parsed and laid out off the frame, so a newsletter with a hundred
-      // tables cannot drop frames while it is becoming widgets.
-      buildAsync: true,
+      // Deliberately *not* set. The renderer's own rule is the right one: parse
+      // on the frame for anything short, and hand anything past ten thousand
+      // characters to an isolate. Forcing it on would spawn an isolate for a
+      // one-line reply — a millisecond and a fresh heap for nothing, on the
+      // path where speed is most visible.
+      //
       // The built tree is kept between rebuilds, so scrolling back up a long
       // message does not rebuild it.
       enableCaching: true,

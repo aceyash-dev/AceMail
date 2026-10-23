@@ -63,7 +63,7 @@ void main() {
       await tester.pumpWidget(host('<p>Hello <b>there</b></p>'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Hello'), findsOneWidget);
+      expect(find.textContaining('Hello', findRichText: true), findsOneWidget);
     });
 
     testWidgets('does not fetch a remote image', (WidgetTester tester) async {
@@ -78,7 +78,7 @@ void main() {
         reason: 'fetching it would tell the sender the message was opened',
       );
       expect(
-        find.text('Acme'),
+        find.text('Acme', findRichText: true),
         findsOneWidget,
         reason: 'the description the sender wrote is shown instead',
       );
@@ -88,8 +88,8 @@ void main() {
       await tester.pumpWidget(host('<p>hi</p><script>alert("x")</script>'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('alert'), findsNothing);
-      expect(find.textContaining('hi'), findsOneWidget);
+      expect(find.textContaining('alert', findRichText: true), findsNothing);
+      expect(find.textContaining('hi', findRichText: true), findsOneWidget);
     });
 
     testWidgets('a style block is not rendered as text', (WidgetTester tester) async {
@@ -98,8 +98,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('color:red'), findsNothing);
-      expect(find.textContaining('body'), findsOneWidget);
+      expect(find.textContaining('color:red', findRichText: true), findsNothing);
+      expect(find.textContaining('body', findRichText: true), findsOneWidget);
     });
 
     testWidgets('an oversized body does not hang the frame',
