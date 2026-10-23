@@ -55,7 +55,7 @@ abstract final class GoogleAuth {
   /// IMAP and SMTP, read and send.
   static const List<String> scopes = <String>['https://mail.google.com/'];
 
-  static bool _ready = false;
+  static Future<void>? _prepareFuture;
 
   /// Linux and Windows have no `google_sign_in` implementation, so there the
   /// sign-in happens in the browser instead. Same answers, different road.
@@ -64,10 +64,17 @@ abstract final class GoogleAuth {
       defaultTargetPlatform == TargetPlatform.windows;
 
   /// Prepares the plugin. Once, before anything else touches it.
-  static Future<void> _prepare() async {
-    if (_ready) return;
-    await GoogleSignIn.instance.initialize(serverClientId: clientId);
-    _ready = true;
+  static Future<void> _prepare() => _prepareFuture ??= _initialize();
+
+  static Future<void> _initialize() async {
+    try {
+      await GoogleSignIn.instance.initialize(serverClientId: clientId);
+    } catch (_) {
+      // A failed initialization is not a successful one. Clear the cached
+      // future so a transient platform failure does not poison every retry.
+      _prepareFuture = null;
+      rethrow;
+    }
   }
 
   /// The account already signed in to this device, without showing anything.
@@ -96,8 +103,8 @@ abstract final class GoogleAuth {
   /// Asks the user to choose an account and consent, and returns a token.
   static Future<GoogleCredential> signIn() async {
     if (_desktop) return GoogleDesktopAuth.signIn();
-    await _prepare();
     try {
+      await _prepare();
       final GoogleSignInAccount account =
           await GoogleSignIn.instance.authenticate(scopeHint: scopes);
       final String token = await _tokenFor(account, allowPrompt: true);

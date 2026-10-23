@@ -12,6 +12,7 @@ import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/redact.dart';
 import '../util/routes.dart';
 import '../widgets/ace_form_field.dart';
 import '../widgets/legal_sheet.dart';
@@ -31,11 +32,19 @@ import '../widgets/ace_icon_view.dart';
 /// Validation problems and connection errors both land there, so a rejected
 /// password does not look different depending on which layer rejected it.
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key, this.isAdding = false});
+  const SignInScreen({
+    super.key,
+    this.isAdding = false,
+    this.googleSignIn,
+  });
 
   /// True when this is a second (or third) account being added on top of an
   /// existing session, in which case the screen can be dismissed.
   final bool isAdding;
+
+  /// Injectable so the sign-in flow can be tested without opening a real
+  /// Google account chooser. Production screens use [GoogleAuth.signIn].
+  final Future<GoogleCredential> Function()? googleSignIn;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -46,6 +55,10 @@ class _SignInScreenState extends State<SignInScreen> {
 
   /// The most recent validation failure. Cleared on the next attempt.
   String? _validationError;
+
+  /// Google auth begins before the mail connection, so the controller's
+  /// connecting flag alone cannot prevent repeated taps during OAuth.
+  bool _googleSigningIn = false;
 
   @override
   void initState() {
@@ -117,9 +130,16 @@ class _SignInScreenState extends State<SignInScreen> {
   /// does not wait for a second round trip.
   Future<void> _continueWithGoogle() async {
     final MailController controller = context.read<MailController>();
-    setState(() => _validationError = null);
+    if (_googleSigningIn || controller.connecting) return;
+
+    setState(() {
+      _googleSigningIn = true;
+      _validationError = null;
+    });
+
     try {
-      final GoogleCredential credential = await GoogleAuth.signIn();
+      final GoogleCredential credential =
+          await (widget.googleSignIn ?? GoogleAuth.signIn)();
       final AceAccount? account = _form.googleAccount(credential.email);
       if (account == null) {
         if (mounted) {
@@ -139,6 +159,17 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } on GoogleAuthException catch (error) {
       if (mounted) setState(() => _validationError = error.message);
+    } catch (error) {
+      // Platform-channel and unexpected failures should produce an actionable
+      // inline error, not an uncaught Flutter exception. Keep logs credential-safe.
+      debugPrint('Ace Mail: Google sign-in failed (${Redact.safe(error)})');
+      if (mounted) {
+        setState(() => _validationError =
+            'Google sign-in could not be completed. Check your connection and '
+            'Google sign-in configuration, then try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _googleSigningIn = false);
     }
   }
 
@@ -168,6 +199,7 @@ class _SignInScreenState extends State<SignInScreen> {
     final AstryxColors c = context.astryx;
     final MailController controller = context.watch<MailController>();
     final bool connecting = controller.connecting;
+    final bool googleBusy = _googleSigningIn || connecting;
     final String? error = _validationError ?? controller.errorMessage;
 
     return PopScope(
@@ -273,9 +305,9 @@ class _SignInScreenState extends State<SignInScreen> {
                                               icon: AceIcons.mailOpen,
                                               variant: AceButtonVariant.primary,
                                               size: AceButtonSize.large,
-                                              loading: connecting,
+                                              loading: googleBusy,
                                               expand: true,
-                                              onPressed: connecting
+                                              onPressed: googleBusy
                                                   ? null
                                                   : _continueWithGoogle,
                                             ),
@@ -323,36 +355,6 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          // Google first on this step too. Add-account skips the
-                                          // welcome panel, so without this it had no Google way in.
-                                          _GoogleButton(
-                                            busy: connecting,
-                                            onPressed: connecting
-                                                ? null
-                                                : _continueWithGoogle,
-                                          ),
-                                          const SizedBox(height: AstryxSpace.s4),
-                                          Row(
-                                            children: <Widget>[
-                                              Expanded(
-                                                child: Divider(
-                                                    color: c.border, height: 1),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: AstryxSpace.s3),
-                                                child: Text(
-                                                  'or',
-                                                  style: AstryxText.body(c.textSecondary),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: Divider(
-                                                    color: c.border, height: 1),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: AstryxSpace.s4),
                                           Row(
                                             children: <Widget>[
                                               Expanded(
@@ -486,8 +488,10 @@ class _SignInScreenState extends State<SignInScreen> {
         // what comes back is a token that expires. It is also where most
         // people's mail is, so it is the shortest path from here to a mailbox.
         _GoogleButton(
-          busy: controller.connecting,
-          onPressed: controller.connecting ? null : _continueWithGoogle,
+          busy: _googleSigningIn || controller.connecting,
+          onPressed: _googleSigningIn || controller.connecting
+              ? null
+              : _continueWithGoogle,
         ),
         const SizedBox(height: AstryxSpace.s3),
         AceButton(
