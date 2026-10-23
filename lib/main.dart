@@ -9,6 +9,7 @@ import 'data/app_info.dart';
 import 'data/local_store.dart';
 import 'data/preferences.dart';
 import 'services/launcher_icon.dart';
+import 'services/local_avatars.dart';
 import 'services/notification_setup.dart';
 import 'state/mail_controller.dart';
 
@@ -24,6 +25,10 @@ Future<void> main() async {
   // read. Best effort — a device that will not hand over a directory must not
   // stop the app starting. Without it nothing is cached, which is a working
   // mail client, just a slower one.
+  // The pictures people chose for their own addresses. Beside the store
+  // because it needs the same directory, and best effort for the same reason.
+  await LocalAvatars.init();
+
   LocalStore? localStore;
   try {
     localStore = await LocalStore.open();

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../services/local_avatars.dart';
 import '../services/bimi.dart';
 import '../util/initials.dart';
 import 'astryx_widgets.dart';
@@ -59,6 +61,23 @@ class _MailAvatarState extends State<MailAvatar> {
   bool _looked = false;
 
   @override
+  void initState() {
+    super.initState();
+    // A picture set in Settings has to appear on rows that were already built.
+    LocalAvatars.revision.addListener(_onPictureChanged);
+  }
+
+  @override
+  void dispose() {
+    LocalAvatars.revision.removeListener(_onPictureChanged);
+    super.dispose();
+  }
+
+  void _onPictureChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Deliberately *not* gated on the pictures setting. BIMI is a DNS record
@@ -99,6 +118,28 @@ class _MailAvatarState extends State<MailAvatar> {
     );
 
     if (address.isEmpty || !address.contains('@')) return fallback;
+
+    // A picture somebody chose for this address, before anything looked up.
+    // Local wins deliberately: a choice is an answer, a lookup is a guess, and
+    // somebody who uploads a photo and then sees an identicon anyway would be
+    // right to call it a bug. Not gated on the third-party setting — nothing
+    // leaves the device to draw it.
+    final String? local = LocalAvatars.pathFor(address);
+    if (local != null) {
+      return _clipped(
+        Image.file(
+          File(local),
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.cover,
+          cacheWidth:
+              (widget.size * MediaQuery.devicePixelRatioOf(context)).round(),
+          errorBuilder: (BuildContext context, Object error,
+                  StackTrace? stackTrace) =>
+              fallback,
+        ),
+      );
+    }
 
     // The sender's own published logo, shown whenever there is one.
     final String? logo = _logoUrl;

@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 
 import '../data/accents.dart';
@@ -9,6 +13,7 @@ import '../models/glass_mode.dart';
 import '../services/app_lock.dart';
 import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
+import '../services/local_avatars.dart';
 import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
@@ -54,6 +59,20 @@ class SettingsScreen extends StatelessWidget {
                   title: 'Manage accounts',
                   subtitle: 'Add, switch or remove accounts',
                   onTap: () => showAccountSheet(context),
+                ),
+                SettingsRow(
+                  icon: AceIcons.image,
+                  title: 'Your picture',
+                  // Named for where it comes from, because that is the question
+                  // this row exists to answer: the app cannot set it at your
+                  // provider, so it has to say where it *can* be set.
+                  subtitle: 'No mail provider lets an app change your picture. '
+                      'Gravatar is the one that shows everywhere — pick one '
+                      'here and it is yours on this device only.',
+                  value: LocalAvatars.has(controller.account?.email ?? '')
+                      ? 'Changed here'
+                      : 'From Gravatar',
+                  onTap: () => _choosePicture(context, controller),
                 ),
                 SettingsSwitchRow(
                   icon: AceIcons.reconnect,
@@ -1019,4 +1038,76 @@ String _chymeKeyHint(ChymeTemplate template) {
   }
   return 'From ${url.replaceFirst(RegExp(r'^https?://'), '')} — kept in the '
       'keychain, like an app password.';
+}
+
+/// Pick, remove, or go and change it for everybody.
+///
+/// The third option is the honest one. Mail has no protocol for setting an
+/// avatar, so a picture chosen here is local; Gravatar is the only standard the
+/// other clients read, and it is a different service with its own account. A
+/// row that offered only "change" would be promising something the app cannot
+/// do.
+Future<void> _choosePicture(BuildContext context, MailController controller) async {
+  final String email = controller.account?.email ?? '';
+  if (email.isEmpty) return;
+
+  final bool has = LocalAvatars.has(email);
+  final String? action = await showChoiceSheet<String>(
+    context,
+    title: 'Your picture',
+    current: '',
+    choices: <SettingsChoice<String>>[
+      const SettingsChoice<String>(
+        'pick',
+        'Choose a picture',
+        description: 'Shown on this device, wherever your address appears.',
+      ),
+      if (has)
+        const SettingsChoice<String>(
+          'clear',
+          'Remove it',
+          description: 'Goes back to whatever can be looked up.',
+        ),
+      const SettingsChoice<String>(
+        'gravatar',
+        'Change it everywhere',
+        description: 'Opens gravatar.com — the picture other mail apps read.',
+      ),
+    ],
+  );
+  if (action == null || !context.mounted) return;
+
+  switch (action) {
+    case 'pick':
+      final XFile? picked = await openFile(
+        acceptedTypeGroups: const <XTypeGroup>[
+          XTypeGroup(
+            label: 'Images',
+            extensions: <String>['png', 'jpg', 'jpeg', 'webp', 'gif'],
+          ),
+        ],
+      );
+      if (picked == null || !context.mounted) return;
+      try {
+        await LocalAvatars.set(email, File(picked.path));
+        if (!context.mounted) return;
+        AceSnack.show(context, 'Picture set.');
+      } on LocalAvatarException catch (error) {
+        if (!context.mounted) return;
+        AceSnack.show(context, error.message);
+      }
+    case 'clear':
+      await LocalAvatars.clear(email);
+      if (!context.mounted) return;
+      AceSnack.show(context, 'Picture removed.');
+    case 'gravatar':
+      final Uri uri = Uri.parse(
+        'https://gravatar.com/emails/',
+      );
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        // Nothing installed that can open a browser.
+      }
+  }
 }
