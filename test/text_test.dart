@@ -51,9 +51,10 @@ void main() {
       // ends up with a broken glyph at the end of the preview.
       const String waving = 'hi 👋 there';
       // The emoji starts at index 3 and occupies 3 and 4.
+      // 'hi ' is three units, the emoji is two, then a space.
       expect(truncateSafely(waving, 4), 'hi ');
       expect(truncateSafely(waving, 5), 'hi 👋');
-      expect(truncateSafely(waving, 6), 'hi 👋');
+      expect(truncateSafely(waving, 6), 'hi 👋 ');
     });
 
     test('a string of nothing but a pair survives being cut at one', () {

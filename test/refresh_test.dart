@@ -1,4 +1,5 @@
 import 'package:ace_mail/data/preferences.dart';
+import 'package:ace_mail/services/contacts.dart';
 import 'package:ace_mail/state/mail_controller.dart';
 import 'package:ace_mail/theme/astryx_theme.dart';
 import 'package:ace_mail/widgets/message_list_panel.dart';
@@ -39,6 +40,11 @@ void main() {
     for (int i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 40));
     }
+
+    // Loading a page teaches the contact book some addresses, and its write is
+    // debounced — a timer left pending fails a widget test. Flushing it is
+    // exactly what the app does when it is backgrounded.
+    await Contacts.flush();
     return controller;
   }
 
