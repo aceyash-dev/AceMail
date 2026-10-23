@@ -10,6 +10,7 @@ class MailFolder {
     required this.path,
     required this.role,
     required this.unseen,
+    this.uidValidity,
   });
 
   final String name;
@@ -17,11 +18,20 @@ class MailFolder {
   final FolderRole role;
   final int unseen;
 
+  /// The server's UIDVALIDITY for this mailbox, when it told us.
+  ///
+  /// UIDs are only meaningful within one generation of a mailbox: if the server
+  /// renumbers it — a restore, a migration, a rebuild — the same number is a
+  /// different message. Null means the server did not say, which is treated as
+  /// "cannot tell" rather than as a change.
+  final int? uidValidity;
+
   factory MailFolder.fromMailbox(Mailbox mailbox) => MailFolder(
         name: mailbox.name,
         path: mailbox.path,
         role: _roleOf(mailbox),
         unseen: mailbox.messagesUnseen,
+        uidValidity: mailbox.uidValidity,
       );
 
   static FolderRole _roleOf(Mailbox mailbox) {
@@ -62,4 +72,20 @@ class MailFolder {
 
   @override
   int get hashCode => path.hashCode;
+}
+
+/// Whether a cached page and a mailbox are from the same generation.
+///
+/// UIDs are only meaningful within one generation: if the server renumbers a
+/// mailbox, the same number is a different message, and a cached row's uid now
+/// points somewhere else entirely.
+///
+/// Deliberately **fail-open**. A page is dropped only when both sides say
+/// something and they disagree. A server that does not report UIDVALIDITY is
+/// not evidence of a change, and treating "cannot tell" as "changed" would
+/// throw away a good cache on every folder open — losing the thing the cache
+/// exists for, to guard against something that has not happened.
+bool sameMailboxGeneration(int? cachedUnder, int? current) {
+  if (cachedUnder == null || current == null) return true;
+  return cachedUnder == current;
 }

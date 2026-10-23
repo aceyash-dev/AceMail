@@ -18,6 +18,7 @@ import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
 import '../widgets/ace_glass.dart';
+import '../widgets/diagnostics_sheet.dart';
 import '../widgets/chyme_mark.dart';
 import '../widgets/legal_sheet.dart';
 import '../widgets/account_sheet.dart';
@@ -587,6 +588,12 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'What is kept on this device, and what leaves it',
                   onTap: () =>
                       LegalSheet.show(context, startAt: LegalDocument.privacy),
+                ),
+                SettingsRow(
+                  icon: AceIcons.info,
+                  title: 'Diagnostics',
+                  subtitle: 'What the app is doing, and what it is keeping',
+                  onTap: () => DiagnosticsSheet.show(context),
                 ),
                 SettingsRow(
                   icon: AceIcons.info,

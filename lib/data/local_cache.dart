@@ -22,6 +22,7 @@ class LocalCache {
     required Directory directory,
     required AceVault vault,
     this.maxEntries = 500,
+    this.maxBytes = 48 * 1024 * 1024,
   })  : _directory = directory,
         _vault = vault;
 
@@ -30,6 +31,12 @@ class LocalCache {
 
   /// How many records to keep before the oldest are dropped.
   final int maxEntries;
+
+  /// The other bound. [maxEntries] alone is not a bound on anything a person
+  /// would recognise: 500 cached bodies is 500 kilobytes of small mail or
+  /// **one gigabyte** of large mail, and the difference is not something the
+  /// count can see. Whichever limit is reached first trims.
+  final int maxBytes;
 
   /// How many records are on disk, counted lazily and kept up to date. Null
   /// until the first write, so opening the app does not list the directory.
@@ -62,7 +69,7 @@ class LocalCache {
     await file.writeAsBytes(sealed, flush: true);
 
     _known = (_known ?? count()) + 1;
-    if (_known! > maxEntries) await _trim();
+    if (_known! > maxEntries || bytes() > maxBytes) await _trim();
   }
 
   /// The record, or null when there is none — including when there is one that
@@ -110,19 +117,38 @@ class LocalCache {
     return total;
   }
 
-  /// Drops the oldest records once there are more than [maxEntries].
+  /// Drops the oldest records until both bounds are satisfied.
+  ///
+  /// Oldest first, so what goes is what has not been read in longest — which is
+  /// the right guess for a mail cache, where the thing you want again is
+  /// usually the thing you looked at recently.
   Future<void> _trim() async {
     final List<File> files = _files();
-    if (files.length <= maxEntries) return;
+    if (files.isEmpty) return;
 
     final List<File> byAge = files
       ..sort(
         (File a, File b) => a.statSync().modified.compareTo(b.statSync().modified),
       );
-    for (final File file in byAge.take(files.length - maxEntries)) {
+
+    // Work out how many have to go for both bounds at once, rather than
+    // trimming to the count and then finding the bytes still over.
+    int total = 0;
+    for (final File file in byAge) {
+      total += file.lengthSync();
+    }
+
+    int keep = byAge.length;
+    if (keep > maxEntries) keep = maxEntries;
+    while (keep > 0 && total > maxBytes) {
+      total -= byAge[byAge.length - keep].lengthSync();
+      keep -= 1;
+    }
+
+    for (final File file in byAge.take(byAge.length - keep)) {
       await file.delete();
     }
-    _known = maxEntries;
+    _known = keep;
   }
 
   List<File> _files() {

@@ -22,6 +22,7 @@ class LocalStore {
   static const String _draftKey = 'current';
 
   final LocalCache _cache;
+
   final AceVault _vault;
 
   /// Opens the store under the app's own directory.

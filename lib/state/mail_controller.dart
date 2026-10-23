@@ -53,6 +53,17 @@ class MailController extends ChangeNotifier {
   /// one encrypted store.
   final LocalStore? _localStore;
 
+  /// How many cached records there are. Cheap: a directory listing.
+  int get cacheEntries => _localStore?.entries ?? 0;
+
+  /// How many bytes they take. Not cheap — it stats every file — so it is read
+  /// when a screen asks, never during a build.
+  int get cacheBytes => _localStore?.bytes ?? 0;
+
+  /// Empties the local cache, keeping the keys. Nothing here is the only copy
+  /// of anything: bodies and drafts are all still on the server.
+  Future<void> clearCache() async => _localStore?.clear();
+
   final List<MailSession> _sessions = <MailSession>[];
   int _activeIndex = 0;
 

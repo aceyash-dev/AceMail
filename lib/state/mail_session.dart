@@ -134,6 +134,15 @@ class MailSession extends ChangeNotifier {
   final Map<String, List<MessageSummary>> _pageCache =
       <String, List<MessageSummary>>{};
 
+  /// The UIDVALIDITY each cached page was written under.
+  ///
+  /// UIDs are only meaningful within one generation of a mailbox. If the server
+  /// renumbers it, a cached row's uid now points at a *different* message — and
+  /// opening that row would show somebody the wrong mail, which is worse than
+  /// showing them a spinner for a moment. So a page from a generation that is
+  /// no longer current is not shown at all.
+  final Map<String, int?> _cacheValidity = <String, int?>{};
+
   /// Codes found in bodies, keyed by folder path and then uid, so a refresh
   /// does not refetch the same message.
   ///
@@ -372,10 +381,16 @@ class MailSession extends ChangeNotifier {
       // the fetch below replaces it. This is the difference between a folder
       // that opens and a folder that loads.
       final List<MessageSummary>? cached = _pageCache[folder.path];
-      if (cached != null && cached.isNotEmpty) {
+      final int? cachedUnder = _cacheValidity[folder.path];
+      final bool sameGeneration =
+          sameMailboxGeneration(cachedUnder, folder.uidValidity);
+      if (cached != null && cached.isNotEmpty && sameGeneration) {
         messages = List<MessageSummary>.of(cached);
         refreshing = true;
       } else {
+        // A cache from a generation that has gone, or one nobody can vouch for.
+        _pageCache.remove(folder.path);
+        _cacheValidity.remove(folder.path);
         messages = <MessageSummary>[];
         _uids = <int>[];
         loadingMessages = true;
@@ -395,8 +410,12 @@ class MailSession extends ChangeNotifier {
       // The address book grows as mail loads: the people who actually write to
       // you, rather than a list somebody has to build by hand.
       Contacts.observe(page);
-      if (_pageCache.length > 24) _pageCache.clear();
+      if (_pageCache.length > 24) {
+        _pageCache.clear();
+        _cacheValidity.clear();
+      }
       _pageCache[folder.path] = List<MessageSummary>.of(page);
+      _cacheValidity[folder.path] = folder.uidValidity;
       unawaited(_detectCodes());
     } catch (error) {
       if (token != _folderToken) return;

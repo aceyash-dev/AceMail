@@ -13,6 +13,7 @@ import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../util/addresses.dart';
 import '../util/removal.dart';
+import '../util/search_query.dart';
 import 'backoff.dart';
 import 'mail_errors.dart';
 import 'mail_transport.dart';
@@ -249,9 +250,18 @@ class MailService implements MailTransport {
             );
             final MessageSequence? matches = result.matchingSequence;
             if (matches == null || matches.isEmpty) return <MessageSummary>[];
-            return _fetchSummariesRaw(
+            final List<MessageSummary> found = await _fetchSummariesRaw(
               matches.toList().reversed.take(80).toList(),
             );
+
+            // `has:attachment` has no IMAP key, so it narrows the page here.
+            // The cost is that it filters what the server sent rather than the
+            // whole mailbox, which is the honest limit of not downloading
+            // everything to answer one question.
+            final SearchQuery parsed = SearchQuery.parse(query);
+            return parsed.narrowsLocally
+                ? found.where(parsed.matches).toList()
+                : found;
           },
           fallback: 'The search failed.',
         ),
@@ -264,15 +274,8 @@ class MailService implements MailTransport {
   /// backslashes, so the characters that could break out of the quoted string
   /// are dropped first. Its OR term also refuses to nest, which is why this
   /// covers sender and subject rather than adding a third branch.
-  static String? searchCriteriaFor(String query) {
-    final String safe =
-        query.replaceAll(RegExp(r'[\\\x00-\x1f\x7f]'), ' ').trim();
-    if (safe.isEmpty) return null;
-    return SearchQueryBuilder.from(
-      safe,
-      SearchQueryType.fromOrSubject,
-    ).toString();
-  }
+  static String? searchCriteriaFor(String query) =>
+      SearchQuery.parse(query).criteria();
 
   /// Whether this server can remove one message without risking others.
   ///
@@ -541,9 +544,21 @@ class MailService implements MailTransport {
     }
 
     for (final File file in attachments) {
-      // Guess from the name instead of shipping everything as
-      // application/octet-stream, so recipients get sensible previews.
-      await builder.addFile(file, MediaType.guessFromFileName(file.path));
+      try {
+        // Guess from the name instead of shipping everything as
+        // application/octet-stream, so recipients get sensible previews.
+        await builder.addFile(file, MediaType.guessFromFileName(file.path));
+      } catch (_) {
+        // The size check above read the file, and this reads it again. A file
+        // can be moved, deleted or locked in between — a cloud-synced folder
+        // evicting it is enough — and the raw exception from that is a
+        // FileSystemException with a path in it, which is not a sentence to put
+        // in front of somebody. Same words as the size check, because it is the
+        // same problem.
+        throw const MailRejectedException(
+          'An attachment could not be read, so nothing was sent.',
+        );
+      }
     }
 
     final MimeMessage message = builder.buildMimeMessage();

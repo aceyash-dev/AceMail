@@ -21,6 +21,7 @@ import '../theme/astryx_tokens.dart';
 import '../services/google_auth.dart';
 import '../util/dates.dart';
 import '../util/greeting.dart';
+import '../util/search_query.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 import 'confirm_exit.dart';
@@ -287,7 +288,11 @@ class MessageListPanel extends StatelessWidget {
 
   String _emptyMessage(MailController controller) {
     if (controller.searchQuery != null) {
-      return 'Nothing matched “${controller.searchQuery}”.';
+      // The operators are worth naming exactly where somebody has just found
+      // nothing: a search that returns an empty page is the moment you wonder
+      // whether you could have been more specific.
+      return 'Nothing matched “${controller.searchQuery}”. Try an operator — '
+          '${SearchQuery.operatorHints.join(', ')}';
     }
     if (controller.filter != MessageFilter.all) {
       return switch (controller.filter) {
