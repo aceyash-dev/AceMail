@@ -240,7 +240,14 @@ class Preferences extends ChangeNotifier {
   // anything at all until somebody gives it an endpoint — a switch that is on
   // and does nothing is exactly what the rest of these defaults exist to
   // avoid.
-  bool _chymeEnabled = false;
+  /// On by default.
+  ///
+  /// It used to ship off, on the reasoning that it cannot do anything without
+  /// an endpoint. That is true, and it is also why nobody found it: a feature
+  /// that is off and mentions an endpoint you do not have is a feature you
+  /// never turn on. It is on, the settings offer a provider, and the sheet says
+  /// plainly when there is not one yet.
+  bool _chymeEnabled = true;
   String _chymeEndpoint = '';
   String _chymeModel = '';
   String _chymeKey = '';

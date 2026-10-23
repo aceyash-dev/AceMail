@@ -283,14 +283,15 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          // A Google address has no password to
-                                          // type and no servers to fill in: the
-                                          // account is chosen on Google's own
-                                          // screen, and the token it returns is
-                                          // the credential. Everything the
-                                          // password path needs is replaced by
-                                          // one button.
-                                          if (_form.isGoogle) ...<Widget>[
+                                          // Google first, and without asking
+                                          // what the address is. It is the
+                                          // fastest way in — no password,
+                                          // nothing stored, a token that
+                                          // expires — and it is the only one
+                                          // that works for a Workspace account
+                                          // as well as a Gmail one, which a
+                                          // check on the domain misses.
+                                          ...<Widget>[
                                             Text(
                                               'Ace Mail opens Google\u2019s own '
                                               'sign-in. It never sees your '
@@ -314,7 +315,32 @@ class _SignInScreenState extends State<SignInScreen> {
                                                   ? null
                                                   : _continueWithGoogle,
                                             ),
-                                          ] else ...<Widget>[
+                                            const SizedBox(
+                                                height: AstryxSpace.s4),
+                                            // And the other way in, said to be
+                                            // the other way in rather than left
+                                            // as a second set of fields.
+                                            Row(
+                                              children: <Widget>[
+                                                const Expanded(
+                                                    child: Divider()),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: AstryxSpace.s3,
+                                                  ),
+                                                  child: Text(
+                                                    'or use an app password',
+                                                    style: AstryxText.supporting(
+                                                        c.textSecondary),
+                                                  ),
+                                                ),
+                                                const Expanded(
+                                                    child: Divider()),
+                                              ],
+                                            ),
+                                            const SizedBox(
+                                                height: AstryxSpace.s4),
                                             AcePasswordField(
                                               label: 'Password / app password',
                                               controller: _form.password,

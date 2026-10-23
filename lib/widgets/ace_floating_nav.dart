@@ -32,6 +32,21 @@ class AceNavItem<T> {
 /// The current item is the only one that says its name. Two labels always on
 /// screen is a bar that reads like a table of contents; one label, moving,
 /// reads like a choice that has been made.
+/// The bar's height, and the height of one item inside it.
+///
+/// Pinned rather than derived. The bar is placed in a `Stack` as a `Positioned`
+/// with `left` and `bottom`, which hands it *loose* constraints — and a
+/// `Container` with a decoration and no height, in a loose box, is a container
+/// whose height is whatever its child decides. The child is a `Row` whose
+/// selected item is a filled pill; a pill with no height in a loose box fills
+/// what it is given. The result, on a phone, was a nav bar that ran from under
+/// the app bar to the bottom of the screen with the labels marooned in the
+/// middle of it.
+///
+/// Two numbers is a cheap price for a bar that is the same size everywhere.
+const double _barHeight = 60;
+const double _itemHeight = 44;
+
 class AceFloatingNav<T> extends StatelessWidget {
   const AceFloatingNav({
     super.key,
@@ -61,7 +76,12 @@ class AceFloatingNav<T> extends StatelessWidget {
         alignment: Alignment.centerLeft,
         widthFactor: 1,
         heightFactor: 1,
-        child: Container(
+        // The height is stated, not inherited from the constraints. See
+        // [_barHeight]: the loose constraints a `Positioned` provides are what
+        // let this grow to fill the screen.
+        child: SizedBox(
+          height: _barHeight,
+          child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AstryxRadius.pill),
             // A soft, wide shadow rather than a hard one: the bar should look
@@ -106,6 +126,7 @@ class AceFloatingNav<T> extends StatelessWidget {
               ),
             ),
           ),
+          ),
         ),
       ),
     );
@@ -137,6 +158,7 @@ class _NavButton<T> extends StatelessWidget {
         child: AnimatedContainer(
           duration: AstryxMotion.of(const Duration(milliseconds: 300)),
           curve: AstryxMotion.emphasized,
+          height: _itemHeight,
           padding: const EdgeInsets.symmetric(
             horizontal: AstryxSpace.s3,
             vertical: AstryxSpace.s2,

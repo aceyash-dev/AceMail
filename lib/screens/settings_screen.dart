@@ -18,6 +18,7 @@ import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
 import '../widgets/ace_glass.dart';
+import '../models/chyme_template.dart';
 import '../widgets/diagnostics_sheet.dart';
 import '../widgets/chyme_mark.dart';
 import '../widgets/legal_sheet.dart';
@@ -493,13 +494,54 @@ class SettingsScreen extends StatelessWidget {
                   // row — a mark that is not there.
                   leading: ChymeMark(size: 22, color: c.iconSecondary),
                   title: 'Chyme',
-                  subtitle: 'An experimental assistant that can read what is on '
-                      'screen, summarise a message, find one, and draft a reply. '
-                      'It needs an endpoint before it can do anything.',
+                  subtitle: 'An experimental assistant that reads the mail — '
+                      'summarises a message, finds one, drafts a reply. Pick a '
+                      'provider below and it is ready.',
                   value: prefs.chymeEnabled,
                   onChanged: prefs.setChymeEnabled,
                 ),
                 if (prefs.chymeEnabled) ...<Widget>[
+                  SettingsRow(
+                    icon: AceIcons.globe,
+                    title: 'Provider',
+                    subtitle: 'Fills in the endpoint for you. The model list '
+                        'comes from whatever you point it at.',
+                    value: ChymeTemplate.forEndpoint(prefs.chymeEndpoint).label,
+                    onTap: () async {
+                      final ChymeTemplate? chosen =
+                          await showChoiceSheet<ChymeTemplate>(
+                        context,
+                        title: 'Provider',
+                        current: ChymeTemplate.forEndpoint(prefs.chymeEndpoint),
+                        choices: <SettingsChoice<ChymeTemplate>>[
+                          for (final ChymeTemplate template
+                              in ChymeTemplate.values)
+                            SettingsChoice<ChymeTemplate>(
+                              template,
+                              template.label,
+                              description: template.description,
+                            ),
+                        ],
+                      );
+                      if (chosen == null) return;
+                      if (chosen.needsTyping) {
+                        // "Something else" clears it so the field is the next
+                        // thing tapped, rather than leaving the last provider's
+                        // URL in place to be edited by hand.
+                        await prefs.setChymeEndpoint('');
+                        await prefs.setChymeModel('');
+                        return;
+                      }
+                      // A model id belongs to the provider that served it, so
+                      // changing the provider has to drop it: keeping it would
+                      // leave a name no endpoint here recognises.
+                      if (ChymeTemplate.forEndpoint(prefs.chymeEndpoint) !=
+                          chosen) {
+                        await prefs.setChymeModel('');
+                      }
+                      await prefs.setChymeEndpoint(chosen.endpoint);
+                    },
+                  ),
                   SettingsRow(
                     icon: AceIcons.cloud,
                     title: 'Endpoint',
@@ -521,7 +563,9 @@ class SettingsScreen extends StatelessWidget {
                   SettingsRow(
                     icon: AceIcons.password,
                     title: 'API key',
-                    subtitle: 'Kept in the keychain, like an app password.',
+                    subtitle: _chymeKeyHint(
+                      ChymeTemplate.forEndpoint(prefs.chymeEndpoint),
+                    ),
                     value: prefs.chymeKey.isEmpty ? 'Not set' : '••••••',
                     onTap: () => _editChymeText(
                       context,
@@ -960,4 +1004,19 @@ class _CacheRowState extends State<_CacheRow> {
       onTap: _clear,
     );
   }
+}
+
+/// What to say under the API key row.
+///
+/// It names where the key comes from, because "paste your API key" with no
+/// answer to "from where" is the same wall as the endpoint field was.
+String _chymeKeyHint(ChymeTemplate template) {
+  final String? url = template.keyUrl;
+  if (url == null) {
+    return template == ChymeTemplate.local
+        ? 'Not needed for something on this machine.'
+        : 'Kept in the keychain, like an app password.';
+  }
+  return 'From ${url.replaceFirst(RegExp(r'^https?://'), '')} — kept in the '
+      'keychain, like an app password.';
 }
