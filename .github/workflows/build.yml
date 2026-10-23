@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    name: Analyze, test, build APK
+    name: Analyze, test, build APKs
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -47,9 +47,6 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          # Keyed on the files that decide what Gradle will resolve, so a
-          # dependency change starts a new cache rather than restoring a stale
-          # one and re-downloading anyway.
           key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'pubspec.lock') }}
           restore-keys: |
             gradle-${{ runner.os }}-
@@ -104,23 +101,31 @@ jobs:
         if: github.event_name == 'pull_request'
         run: echo "Pull request build - debug key, no release secrets used."
 
-      # arm only: x86/x86_64 are emulator and ChromeOS images, and shipping
-      # them just inflates the download. Flutter picks the ABIs, not Gradle.
+      # Split per ABI. One APK carrying both arm sets is about twice the size of
+      # either, and every device downloads the half it cannot run.
+      #
+      # arm only: x86/x86_64 are emulator and ChromeOS images, and shipping them
+      # just inflates the download. Flutter picks the ABIs, not Gradle.
       #
       # Validation and publishing are kept apart: a pull request builds the
-      # debug APK, and only a run that can publish builds — and signs — the
-      # release one.
-      - name: Build release APK
+      # debug APKs, and only a run that can publish builds — and signs — the
+      # release ones.
+      - name: Build the release APKs
         if: github.event_name != 'pull_request'
-        run: flutter build apk --release --target-platform android-arm,android-arm64
+        run: |
+          flutter build apk --release --split-per-abi \
+            --target-platform android-arm,android-arm64
+          ls -l build/app/outputs/flutter-apk/
 
-      - name: Build debug APK for a pull request
+      - name: Build the debug APKs for a pull request
         if: github.event_name == 'pull_request'
-        run: flutter build apk --debug --target-platform android-arm,android-arm64
+        run: |
+          flutter build apk --debug --split-per-abi \
+            --target-platform android-arm,android-arm64
 
-      # Fail closed. A publishing run must *prove* the APK carries the expected
-      # release key: a missing fingerprint secret, or an APK whose certificate
-      # cannot be read, is a failure — not a check quietly skipped.
+      # Fail closed. A publishing run must *prove* every APK carries the
+      # expected release key: a missing fingerprint secret, or an APK whose
+      # certificate cannot be read, is a failure — not a check quietly skipped.
       - name: Verify the signer
         if: github.event_name != 'pull_request'
         env:
@@ -131,65 +136,79 @@ jobs:
             PUBLISHING="yes"
           fi
 
-          APK=build/app/outputs/flutter-apk/app-release.apk
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$BT/apksigner" verify --print-certs "$APK" | grep -E "certificate DN|SHA-256" || true
-
           # Normalised: a fingerprint is the same bytes however it is written.
-          ACTUAL=$("$BT/apksigner" verify --print-certs "$APK" \
-            | grep -m1 "SHA-256 digest" | awk '{print $NF}' \
-            | tr -d ':' | tr 'A-Z' 'a-z')
           EXPECTED_NORM=$(echo "$EXPECTED" | tr -d ':' | tr 'A-Z' 'a-z')
-          echo "signer sha256: $ACTUAL"
 
-          if [ -z "$ACTUAL" ]; then
-            echo "::error::Could not read the APK's signing certificate."
-            exit 1
-          fi
+          # Both halves of the split, because a split is where an APK that was
+          # never signed can hide behind one that was.
+          for APK in build/app/outputs/flutter-apk/app-*-release.apk; do
+            echo "--- $APK"
+            "$BT/apksigner" verify --print-certs "$APK" \
+              | grep -E "certificate DN|SHA-256" || true
 
-          if [ "$PUBLISHING" = "yes" ] && [ -z "$EXPECTED_NORM" ]; then
-            echo "::error::ANDROID_KEY_SHA256 is not set; refusing to publish a build whose signer cannot be checked."
-            exit 1
-          fi
+            ACTUAL=$("$BT/apksigner" verify --print-certs "$APK" \
+              | grep -m1 "SHA-256 digest" | awk '{print $NF}' \
+              | tr -d ':' | tr 'A-Z' 'a-z')
+            echo "signer sha256: $ACTUAL"
 
-          if [ -n "$EXPECTED_NORM" ] && [ "$ACTUAL" != "$EXPECTED_NORM" ]; then
-            echo "::error::The APK is not signed with the expected release key."
-            exit 1
-          fi
+            if [ -z "$ACTUAL" ]; then
+              echo "::error::Could not read $APK's signing certificate."
+              exit 1
+            fi
 
-      - name: Upload APK artifact
+            if [ "$PUBLISHING" = "yes" ] && [ -z "$EXPECTED_NORM" ]; then
+              echo "::error::ANDROID_KEY_SHA256 is not set; refusing to publish a build whose signer cannot be checked."
+              exit 1
+            fi
+
+            if [ -n "$EXPECTED_NORM" ] && [ "$ACTUAL" != "$EXPECTED_NORM" ]; then
+              echo "::error::$APK is not signed with the expected release key."
+              exit 1
+            fi
+          done
+
+      # Renamed on the way out: `app-arm64-v8a-release.apk` is Flutter's name
+      # for a build step, and `AceMail-0.5.2-arm64-v8a.apk` is a name somebody
+      # can choose between in a list of downloads.
+      - name: Name the APKs
+        if: github.event_name != 'pull_request'
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          cd build/app/outputs/flutter-apk
+          for ABI in armeabi-v7a arm64-v8a; do
+            mv "app-$ABI-release.apk" "AceMail-$VERSION-$ABI.apk"
+          done
+          ls -l
+
+      - name: Upload the APKs
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: ace-mail-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: ace-mail-apks
+          path: build/app/outputs/flutter-apk/AceMail-*.apk
           if-no-files-found: error
 
-      - name: Upload the debug APK
+      - name: Upload the debug APKs
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: ace-mail-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: ace-mail-debug-apks
+          path: build/app/outputs/flutter-apk/app-*-debug.apk
           if-no-files-found: error
 
-  # Linux is built on every run, so the desktop target cannot rot unnoticed.
-  # The desktop Google client is passed in from secrets at build time; without
-  # them the app still builds, and Gmail sign-in says it is not configured.
+  # The other two platforms. Separate jobs because each needs a different
+  # machine, and a failure in one must not stop the others from being
+  # published — a build that works is worth more than a tidy run.
   linux:
-    name: Build for Linux
+    name: Build Linux
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install the Linux toolchain and libsecret
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libsecret-1-dev
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -197,34 +216,40 @@ jobs:
           channel: stable
           cache: true
 
+      # What the Linux embedder links against. Without these, `flutter build
+      # linux` fails at CMake rather than at the app.
+      - name: Install the Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libstdc++-12-dev
+
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Linux (release)
-        env:
-          GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.GOOGLE_DESKTOP_CLIENT_ID }}
-          GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
-        run: |
-          flutter build linux --release \
-            --dart-define=GOOGLE_DESKTOP_CLIENT_ID="$GOOGLE_DESKTOP_CLIENT_ID" \
-            --dart-define=GOOGLE_DESKTOP_CLIENT_SECRET="$GOOGLE_DESKTOP_CLIENT_SECRET"
+      - name: Build
+        run: flutter build linux --release
 
-      - name: Upload the Linux bundle
+      - name: Pack the bundle
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          cd build/linux/x64/release
+          tar -czf "$GITHUB_WORKSPACE/AceMail-$VERSION-linux-x64.tar.gz" bundle
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.tar.gz
+
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: ace-mail-linux
-          path: build/linux/x64/release/bundle
+          path: AceMail-*-linux-x64.tar.gz
           if-no-files-found: error
 
-  # iOS is built on a macOS runner and left unsigned. This proves the app
-  # compiles and links for iPhone, which is what can silently rot. Signing and
-  # distribution need an Apple developer account and are not part of CI yet.
-  # The runner is generated here from Flutter's template by tool/ios/setup_ios.sh,
-  # so a change that breaks the iOS configuration fails this job.
   ios:
-    name: Build for iOS (unsigned)
+    name: Build iOS
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 40
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
     steps:
@@ -239,31 +264,65 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate and configure the iOS runner
-        env:
-          IOS_GOOGLE_CLIENT_ID: ${{ secrets.IOS_GOOGLE_CLIENT_ID }}
-        run: tool/ios/setup_ios.sh
+      # Unsigned on purpose: signing needs a certificate and a provisioning
+      # profile that live in somebody's Apple account, and this repository does
+      # not have them. An unsigned build is what an Xcode user re-signs, and it
+      # is also the check that the app compiles for iOS at all.
+      - name: Build
+        run: flutter build ios --release --no-codesign
 
-      - name: Build iOS (unsigned, debug)
-        run: flutter build ios --no-codesign --debug
+      - name: Pack the app
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          cd build/ios/iphoneos
+          # -y keeps the symlinks: a .app that has been dereferenced is a much
+          # bigger file, and one Xcode may refuse.
+          zip -qry "$GITHUB_WORKSPACE/AceMail-$VERSION-ios-unsigned.zip" Runner.app
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-mail-ios
+          path: AceMail-*-ios-unsigned.zip
+          if-no-files-found: error
 
   release:
-    name: Publish the APK
-    needs: build
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    name: Publish
+    # It waits for all three — the artifacts have to exist before they can be
+    # attached — but `always()` with a check on the Android build alone means a
+    # Linux or iOS failure does not stop the APKs from being published.
+    needs: [build, linux, ios]
+    if: always() && needs.build.result == 'success' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       # The notes are read from the changelog in the repo, so this job needs the
-      # repo, not just the artifact.
+      # repo, not just the artifacts.
       - uses: actions/checkout@v4
 
-      - name: Download the APK
+      - name: Download the APKs
         uses: actions/download-artifact@v4
         with:
-          name: ace-mail-apk
+          name: ace-mail-apks
           path: apk
+
+      # Optional: a platform that failed to build is skipped rather than failing
+      # the release. The notes are already written by this point.
+      - name: Download the Linux build
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ace-mail-linux
+          path: linux
+
+      - name: Download the iOS build
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ace-mail-ios
+          path: ios
 
       # The body is generated from CHANGELOG.md at release time, so it cannot
       # drift from the changelog the app itself shows. The self-test runs first:
@@ -290,16 +349,24 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: release-notes.md
-          files: apk/app-release.apk
+          files: |
+            apk/AceMail-*.apk
+            linux/AceMail-*.tar.gz
+            ios/AceMail-*.zip
+          fail_on_unmatched_files: false
           prerelease: false
 
-      - name: Publish the rolling APK
+      - name: Publish the rolling build
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
-          name: Latest APK
+          name: Latest build
           body: |
-            Release APK built automatically from `${{ github.sha }}`.
-          files: apk/app-release.apk
+            Built automatically from `${{ github.sha }}`.
+          files: |
+            apk/AceMail-*.apk
+            linux/AceMail-*.tar.gz
+            ios/AceMail-*.zip
+          fail_on_unmatched_files: false
           prerelease: true
