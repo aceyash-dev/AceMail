@@ -283,6 +283,12 @@ error:
    builds will sign in and release builds will not — the plugin's README lists
    that as the most common cause of a confusing failure.
 
+   A SHA-1 fingerprint is **40 hex characters, in five groups of two**. The
+   console will happily accept fewer, and then nothing matches: a fingerprint
+   pasted from halfway along, or with the groups run together, produces the same
+   `clientConfigurationError` as a wrong one. If the field shows four groups
+   rather than five, it is not a SHA-1.
+
 2. **A web OAuth client**, in the same project. Its ID is what Android's
    Credential Manager wants as `serverClientId`, and it is the one in
    `GoogleAuth.clientId`:
@@ -291,8 +297,40 @@ error:
    919591212641-i8ugliojp1j16esai9jh3f5e5foiucoj.apps.googleusercontent.com
    ```
 
-   If that ID turns out to be an *Android* client rather than a web one, create
-   a web client and replace the constant — the value has to be a web client ID.
+   If that ID turns out to be an *Android* client rather than a web one, the
+   value is rejected and the sign-in fails with `clientConfigurationError` — the
+   client *type* is part of the identity. Making one:
+
+   1. Open
+      <https://console.cloud.google.com/apis/credentials> with the project
+      selected at the top. **APIs & Services → Credentials** reaches the same
+      page.
+   2. **+ Create credentials → OAuth client ID.**
+   3. **Application type: Web application.** This is the step that matters. An
+      Android client is a different kind of thing and cannot be used here.
+   4. **Name:** anything — "Ace Mail (server client)" says what it is for.
+   5. **Authorised JavaScript origins:** leave **empty.** Nothing in this app
+      runs in a browser, so there is no origin to name.
+   6. **Authorised redirect URIs:** add exactly `http://localhost`
+
+      Linux and Windows sign in through the system browser and catch the answer
+      on a loopback port, and Google allows any port on `http://localhost` for
+      that — so this one entry covers the app picking whatever port is free.
+      Skip it and the desktop flow fails with `redirect_uri_mismatch`, which
+      names a URL you never typed.
+   7. **Create.** The dialog shows the **Client ID**; copy it, and copy the
+      **client secret** from the same dialog.
+   8. Put the ID in `GoogleAuth.clientId` in `lib/services/google_auth.dart`,
+      and add both values as repository secrets:
+
+      | Secret | Value |
+      | --- | --- |
+      | `GOOGLE_DESKTOP_CLIENT_ID` | the same client ID |
+      | `GOOGLE_DESKTOP_CLIENT_SECRET` | the client secret |
+
+      Android does not need the secret — Credential Manager only wants the ID as
+      an audience — but the desktop flow does, and it is passed in at build time
+      rather than compiled in.
 
 3. **The Gmail API enabled** for the project, at
    <https://console.cloud.google.com/apis/library/gmail.googleapis.com>.
