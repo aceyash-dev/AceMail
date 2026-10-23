@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../data/accents.dart';
+
 /// Astryx's type scale, on a geometric ramp.
 ///
 /// Astryx names families per role and leaves loading to the app; its own
@@ -287,9 +289,27 @@ class AstryxColors extends ThemeExtension<AstryxColors> {
 
   factory AstryxColors.fromScheme(ColorScheme scheme) {
     final bool dark = scheme.brightness == Brightness.dark;
+
+    // The accent as *text* — a link, a chip's label, "Look around first" — has
+    // to clear AA on every surface it can land on, not only the page. It used
+    // to be one fixed brown: it cleared the page and missed the muted surface
+    // by a tenth of a point, for all ten accents, which is the kind of failure
+    // no single accent would ever have revealed.
+    final Color accentText = readableEverywhere(
+      scheme.primary,
+      <Color>[
+        scheme.surface,
+        scheme.surfaceContainerLowest,
+        scheme.surfaceContainerLow,
+        scheme.surfaceContainerHigh,
+        scheme.surfaceContainerHighest,
+      ],
+      dark: dark,
+    );
+
     return AstryxColors(
       scheme: scheme,
-      accentInk: dark ? const Color(0xFFFFB68F) : const Color(0xFFB03A00),
+      accentInk: accentText,
       success: dark ? const Color(0xFF9CD8A4) : const Color(0xFF1D6B2F),
       successMuted: dark ? const Color(0xFF20401F) : const Color(0xFFC8E8C6),
       onSuccess: dark ? const Color(0xFF06210B) : const Color(0xFFFFFFFF),
@@ -382,4 +402,28 @@ extension AstryxContext on BuildContext {
   AstryxColors get astryx =>
       Theme.of(this).extension<AstryxColors>() ??
       AstryxColors.fromScheme(Theme.of(this).colorScheme);
+}
+
+/// Walks [ink] along its own lightness until it clears AA against every one of
+/// [surfaces].
+///
+/// The alternative — a colour checked against the page and then used on four
+/// other surfaces — is how the accent-as-text ended up readable everywhere
+/// except the muted one. Pure, so the walk can be reasoned about on its own.
+Color readableEverywhere(
+  Color ink,
+  List<Color> surfaces, {
+  required bool dark,
+  double target = 4.5,
+}) {
+  final Color toward = dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+  Color candidate = ink;
+  for (int step = 0; step <= 40; step++) {
+    final bool clear = surfaces.every(
+      (Color surface) => contrastRatio(candidate, surface) >= target,
+    );
+    if (clear) return candidate;
+    candidate = Color.lerp(candidate, toward, 0.05)!;
+  }
+  return candidate;
 }
