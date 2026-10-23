@@ -54,7 +54,12 @@ class AceFloatingNav<T> extends StatelessWidget {
         AstryxSpace.s4,
         AstryxSpace.s4,
       ),
-      child: Center(
+      // Left-aligned and sized to its own content: the bar hugs the leading
+      // edge and never stretches to fill the height it is given.
+      child: Align(
+        alignment: Alignment.centerLeft,
+        widthFactor: 1,
+        heightFactor: 1,
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AstryxSpace.s2,
@@ -77,6 +82,7 @@ class AceFloatingNav<T> extends StatelessWidget {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               for (final AceNavItem<T> item in items)
                 _NavButton<T>(
@@ -133,6 +139,7 @@ class _NavButton<T> extends StatelessWidget {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               AceIconView(
                 icon: item.icon,

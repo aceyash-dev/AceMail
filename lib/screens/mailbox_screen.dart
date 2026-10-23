@@ -419,7 +419,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   // place you are in, not a tab you are on.
                   if (!reading)
                     Align(
-                      alignment: Alignment.bottomCenter,
+                      alignment: Alignment.bottomLeft,
                       child: AceFloatingNav<bool>(
                         value: controller.contactsTab,
                         onChanged: (bool contacts) {
