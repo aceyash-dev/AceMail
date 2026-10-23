@@ -180,7 +180,10 @@ class _MessageReaderState extends State<MessageReader> {
           onPressed: () => _reply(context, message, all: true),
         ),
         AceToolbarAction(
-          icon: flagged ? AceIcons.star : AceIcons.star,
+          // Two glyphs, not one. The fill said which state it was in, but a
+          // star and a star look the same at a glance, and the icon set has the
+          // other one.
+          icon: flagged ? AceIcons.star : AceIcons.starOff,
           tooltip: flagged ? 'Remove flag' : 'Flag',
           selected: flagged,
           onPressed: () => context.read<MailController>().toggleOpenFlagged(),

@@ -401,7 +401,18 @@ class AceIconButton extends StatelessWidget {
               builder: (BuildContext context, Color? colour, Widget? child) {
                 final Color drawn = colour ?? foreground;
                 return markBuilder?.call(drawn) ??
-                    AceIconView(icon: icon, size: size * 0.5, color: drawn);
+                    // Selection arrives with a small movement. A state that
+                    // changes without moving is a state you have to look for,
+                    // and on the star it is the whole answer to "did that
+                    // work". Subtle on purpose: this is every icon button in
+                    // the app, not one of them.
+                    AnimatedScale(
+                      scale: selected ? 1.15 : 1.0,
+                      duration: AstryxMotion.of(AstryxMotion.fast),
+                      curve: AstryxMotion.emphasized,
+                      child:
+                          AceIconView(icon: icon, size: size * 0.5, color: drawn),
+                    );
               },
             ),
           ),

@@ -484,7 +484,7 @@ class _NotSetUp extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          ChymeMark(size: 40, color: c.accent),
+          ChymeMark(size: 28, color: c.accent),
           const SizedBox(height: AstryxSpace.s4),
           Text(
             'Chyme needs somewhere to ask',

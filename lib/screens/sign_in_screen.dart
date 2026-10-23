@@ -248,7 +248,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             _header(context, c),
                             const SizedBox(height: AstryxSpace.s6),
                             if (!_welcome)
-                              _StepDots(
+                              _StepTrail(
                                 step: _step - 1,
                                 google: _form.isGoogle,
                               ),
@@ -283,15 +283,15 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          // Google first, and without asking
-                                          // what the address is. It is the
-                                          // fastest way in — no password,
-                                          // nothing stored, a token that
-                                          // expires — and it is the only one
-                                          // that works for a Workspace account
-                                          // as well as a Gmail one, which a
-                                          // check on the domain misses.
-                                          ...<Widget>[
+                                          // Only for a Google address. A
+                                          // Google button offered to somebody
+                                          // who has just typed their work
+                                          // address at a company that runs its
+                                          // own mail is a button that cannot
+                                          // work, and one that fails loudly on
+                                          // the screen where they are trying to
+                                          // sign in.
+                                          if (_form.isGoogle) ...<Widget>[
                                             Text(
                                               'Ace Mail opens Google\u2019s own '
                                               'sign-in. It never sees your '
@@ -341,7 +341,8 @@ class _SignInScreenState extends State<SignInScreen> {
                                             ),
                                             const SizedBox(
                                                 height: AstryxSpace.s4),
-                                            AcePasswordField(
+                                          ],
+                                          AcePasswordField(
                                               label: 'Password / app password',
                                               controller: _form.password,
                                               obscure: _form.obscure,
@@ -376,7 +377,6 @@ class _SignInScreenState extends State<SignInScreen> {
                                                   connecting ? null : _submit,
                                             ),
                                           ],
-                                        ],
                                       )
                                     : _step == 1
                                     ? Column(
@@ -444,7 +444,12 @@ class _SignInScreenState extends State<SignInScreen> {
                               duration: const Duration(milliseconds: 220),
                               curve: Curves.easeOutCubic,
                               alignment: Alignment.topCenter,
-                              child: error == null
+                              // Step 2 only. The error used to be rendered
+                              // outside the step switcher, so a Google
+                              // sign-in failure appeared on the address step as
+                              // well — a red box on a screen with no Google
+                              // button and nothing that could have failed.
+                              child: error == null || _step != 2
                                   ? const SizedBox(width: double.infinity)
                                   : Padding(
                                       padding: const EdgeInsets.only(
@@ -460,18 +465,50 @@ class _SignInScreenState extends State<SignInScreen> {
                                       ),
                                     ),
                             ),
-                            Text(
-                              _form.isGoogle
-                                  ? 'Gmail signs in through Google rather than '
-                                      'with a password, so there is nothing to '
-                                      'create, remember or store.'
-                                  : 'These providers want an app password here, '
-                                      'not your normal login — "How to sign in" '
-                                      'shows where to make one. Your password '
-                                      'stays in this device\'s keychain and goes '
-                                      'only to your provider.',
-                              style: AstryxText.supporting(c.textSecondary),
-                            ),
+                            // A paragraph that tells you to read something is a
+                            // dead end at exactly the moment somebody is stuck.
+                            // It is a row now, and the thing it names is one tap
+                            // away.
+                            if (_form.isGoogle)
+                              Text(
+                                'Gmail signs in through Google rather than with '
+                                'a password, so there is nothing to create, '
+                                'remember or store.',
+                                style: AstryxText.supporting(c.textSecondary),
+                              )
+                            else
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Text(
+                                      'These providers want an app password '
+                                      'here, not your normal login. Your '
+                                      'password stays in this device\'s '
+                                      'keychain and goes only to your provider.',
+                                      style: AstryxText.supporting(
+                                          c.textSecondary),
+                                    ),
+                                  ),
+                                  const SizedBox(width: AstryxSpace.s2),
+                                  TextButton(
+                                    onPressed: _openTutorial,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AstryxSpace.s2,
+                                      ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(
+                                      'How to sign in',
+                                      style: AstryxText.bodyStrong(
+                                          c.textAccent),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
@@ -512,19 +549,13 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
         const SizedBox(height: AstryxSpace.s6),
 
-        // Google first, because it is the one provider here that needs no
-        // password at all: the account is chosen on Google's own screen, and
-        // what comes back is a token that expires. It is also where most
-        // people's mail is, so it is the shortest path from here to a mailbox.
-        _GoogleButton(
-          busy: _googleSigningIn || controller.connecting,
-          onPressed: _googleSigningIn || controller.connecting
-              ? null
-              : _continueWithGoogle,
-        ),
-        const SizedBox(height: AstryxSpace.s3),
+        // No Google button here. It lives on the credentials step, where the
+        // address has been chosen and the app knows whether this is a Google
+        // account — offering it in two places, one of them before the question
+        // has been asked, is how you end up with two buttons that do the same
+        // thing and an error message on a screen with nothing to fail.
         AceButton(
-          label: 'Use another provider',
+          label: 'Get started',
           variant: AceButtonVariant.tonal,
           size: AceButtonSize.large,
           icon: AceIcons.chevronRight,
@@ -789,41 +820,109 @@ class _DomainFieldState extends State<_DomainField> {
 const String _kCustomDomain = '\u0000custom';
 
 /// Which of the two steps you are on. Two dots, because two steps.
-class _StepDots extends StatelessWidget {
-  const _StepDots({required this.step, required this.google});
+/// Where you are in the two steps, named.
+///
+/// It was a pair of dots with a floating label, which says "there is more" and
+/// nothing else — not what the steps are, not which one you are on, and not
+/// that the second one is called something different depending on the address
+/// you just typed. A trail of named steps says all three, and it is the same
+/// height.
+class _StepTrail extends StatelessWidget {
+  const _StepTrail({required this.step, required this.google});
 
   final int step;
 
   /// Whether the address on the first step is a Google one, which decides what
-  /// the second step is called. Passed in rather than read from the form: this
-  /// widget draws dots and a label, and nothing else.
+  /// the second step is called.
   final bool google;
 
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
+    final List<String> labels = <String>[
+      'Address',
+      google ? 'Google' : 'Password',
+    ];
 
     return Row(
       children: <Widget>[
-        for (int i = 0; i < 2; i++) ...<Widget>[
-          AnimatedContainer(
-            duration: AstryxMotion.medium,
-            curve: AstryxMotion.emphasized,
-            width: i == step ? 22 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: i == step ? c.accent : c.border,
-              borderRadius: BorderRadius.circular(AstryxRadius.full),
-            ),
+        for (int i = 0; i < labels.length; i++) ...<Widget>[
+          _StepChip(
+            number: i + 1,
+            label: labels[i],
+            active: i == step,
+            done: i < step,
           ),
-          if (i == 0) const SizedBox(width: AstryxSpace.s2),
+          if (i == 0)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AstryxSpace.s2,
+                ),
+                child: AnimatedContainer(
+                  duration: AstryxMotion.medium,
+                  curve: AstryxMotion.emphasized,
+                  height: 2,
+                  color: step > 0 ? c.accent : c.border,
+                ),
+              ),
+            ),
         ],
-        const Spacer(),
+      ],
+    );
+  }
+}
+
+/// One step: a number that becomes a tick, and its name.
+class _StepChip extends StatelessWidget {
+  const _StepChip({
+    required this.number,
+    required this.label,
+    required this.active,
+    required this.done,
+  });
+
+  final int number;
+  final String label;
+  final bool active;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    // Done is not the same as active: one is behind you, one is where you are,
+    // and a trail that drew them the same way would leave you guessing.
+    final Color fill = done
+        ? c.accentMuted
+        : active
+            ? c.accent
+            : c.backgroundMuted;
+    final Color ink = done
+        ? c.onAccentMuted
+        : active
+            ? c.onAccent
+            : c.textSecondary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        AnimatedContainer(
+          duration: AstryxMotion.medium,
+          curve: AstryxMotion.emphasized,
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+          child: done
+              ? AceIconView(icon: AceIcons.check, size: 14, color: ink)
+              : Text('$number', style: AstryxText.label(ink)),
+        ),
+        const SizedBox(width: AstryxSpace.s2),
         Text(
-          step == 0
-              ? 'Your address'
-              : (google ? 'Sign in with Google' : 'Your password'),
-          style: AstryxText.label(c.textSecondary),
+          label,
+          style: active
+              ? AstryxText.bodyStrong(c.textPrimary)
+              : AstryxText.body(c.textSecondary),
         ),
       ],
     );
