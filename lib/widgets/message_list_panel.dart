@@ -294,6 +294,11 @@ class MessageListPanel extends StatelessWidget {
         MessageFilter.unread => 'Everything here has been read.',
         MessageFilter.flagged => 'Nothing here is flagged.',
         MessageFilter.codes => 'No codes in this page.',
+        // A period is a window, so an empty one is a window with nothing in
+        // it — not a folder that is empty, which is a different sentence.
+        MessageFilter.today => 'Nothing from today.',
+        MessageFilter.week => 'Nothing from this week.',
+        MessageFilter.month => 'Nothing from this month.',
         MessageFilter.all => 'This folder is empty.',
       };
     }
@@ -440,6 +445,7 @@ Future<void> showSortSheet(BuildContext context) {
                     MessageSort.sender => AceIcons.sortSender,
                     MessageSort.subject => AceIcons.sortSubject,
                     MessageSort.unread => AceIcons.sortUnread,
+                    MessageSort.attachments => AceIcons.attachment,
                   },
                   title: sort.label,
                   trailing: prefs.messageSort == sort
