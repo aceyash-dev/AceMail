@@ -212,7 +212,11 @@ class _SignInScreenState extends State<SignInScreen> {
                           children: <Widget>[
                             _header(context, c),
                             const SizedBox(height: AstryxSpace.s6),
-                            if (!_welcome) _StepDots(step: _step - 1),
+                            if (!_welcome)
+                              _StepDots(
+                                step: _step - 1,
+                                google: _form.isGoogle,
+                              ),
                             const SizedBox(height: AstryxSpace.s4),
                             AnimatedSize(
                               duration: AstryxMotion.medium,
@@ -699,9 +703,14 @@ const String _kCustomDomain = '\u0000custom';
 
 /// Which of the two steps you are on. Two dots, because two steps.
 class _StepDots extends StatelessWidget {
-  const _StepDots({required this.step});
+  const _StepDots({required this.step, required this.google});
 
   final int step;
+
+  /// Whether the address on the first step is a Google one, which decides what
+  /// the second step is called. Passed in rather than read from the form: this
+  /// widget draws dots and a label, and nothing else.
+  final bool google;
 
   @override
   Widget build(BuildContext context) {
@@ -726,7 +735,7 @@ class _StepDots extends StatelessWidget {
         Text(
           step == 0
               ? 'Your address'
-              : (_form.isGoogle ? 'Sign in with Google' : 'Your password'),
+              : (google ? 'Sign in with Google' : 'Your password'),
           style: AstryxText.label(c.textSecondary),
         ),
       ],
