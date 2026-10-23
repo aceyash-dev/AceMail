@@ -325,6 +325,7 @@ class AceIconButton extends StatelessWidget {
     this.variant = AceIconButtonVariant.standard,
     this.selected = false,
     this.size = AstryxSize.touchTarget,
+    this.markBuilder,
   });
 
   final AceIcon icon;
@@ -333,6 +334,11 @@ class AceIconButton extends StatelessWidget {
   final AceIconButtonVariant variant;
   final bool selected;
   final double size;
+
+  /// Drawn instead of the glyph, and given the colour the button resolved for
+  /// its foreground — so a mark can sit in a button and still invert when the
+  /// button is selected, which a plain widget could not.
+  final Widget Function(Color foreground)? markBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -389,12 +395,11 @@ class AceIconButton extends StatelessWidget {
               tween: ColorTween(end: foreground),
               duration: AstryxMotion.of(AstryxMotion.fast),
               curve: AstryxMotion.emphasized,
-              builder: (BuildContext context, Color? colour, Widget? child) =>
-                  AceIconView(
-                icon: icon,
-                size: size * 0.5,
-                color: colour ?? foreground,
-              ),
+              builder: (BuildContext context, Color? colour, Widget? child) {
+                final Color drawn = colour ?? foreground;
+                return markBuilder?.call(drawn) ??
+                    AceIconView(icon: icon, size: size * 0.5, color: drawn);
+              },
             ),
           ),
         );

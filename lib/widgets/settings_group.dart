@@ -136,6 +136,7 @@ class SettingsSwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.subtitle,
+    this.leading,
   });
 
   final AceIcon icon;
@@ -143,6 +144,9 @@ class SettingsSwitchRow extends StatelessWidget {
   final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  /// Shown in place of the icon, for a row whose subject has a mark of its own.
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +172,8 @@ class SettingsSwitchRow extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                AceIconView(icon: icon, size: 20, color: c.iconSecondary),
+                leading ??
+                    AceIconView(icon: icon, size: 20, color: c.iconSecondary),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Column(

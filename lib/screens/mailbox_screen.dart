@@ -13,6 +13,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../widgets/astryx_widgets.dart';
+import '../widgets/chyme_mark.dart';
 import '../widgets/chyme_sheet.dart';
 import '../widgets/confirm_exit.dart';
 import '../widgets/folder_rail.dart';
@@ -287,6 +288,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
               AceIconButton(
                 icon: AceIcons.chyme,
                 tooltip: 'Chyme',
+                markBuilder: (Color foreground) =>
+                    ChymeMark(size: 22, color: foreground),
                 onPressed: () => ChymeSheet.show(context),
               ),
             // One button for the choices that used to take a row of the list:

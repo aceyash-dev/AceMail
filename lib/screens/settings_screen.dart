@@ -16,6 +16,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
+import '../widgets/chyme_mark.dart';
 import '../widgets/legal_sheet.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
@@ -456,6 +457,7 @@ class SettingsScreen extends StatelessWidget {
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.chyme,
+                  leading: const ChymeMark(size: 22),
                   title: 'Chyme',
                   subtitle: 'An experimental assistant that can read what is on '
                       'screen, summarise a message, find one, and draft a reply. '

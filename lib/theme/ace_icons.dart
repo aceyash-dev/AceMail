@@ -23,7 +23,6 @@ abstract final class AceIcons {
   static const AceIcon mail = HugeIcons.strokeRoundedMail01;
   static const AceIcon mailOpen = HugeIcons.strokeRoundedMailOpen01;
   static const AceIcon mailUnread = HugeIcons.strokeRoundedMail01;
-  static const AceIcon mailbox = HugeIcons.strokeRoundedMailbox01;
   static const AceIcon inbox = HugeIcons.strokeRoundedInbox;
   static const AceIcon reply = HugeIcons.strokeRoundedMailReply01;
   static const AceIcon replyAll = HugeIcons.strokeRoundedMailReplyAll01;
@@ -46,7 +45,6 @@ abstract final class AceIcons {
   static const AceIcon edit = HugeIcons.strokeRoundedEdit01;
   static const AceIcon copy = HugeIcons.strokeRoundedCopy01;
   static const AceIcon refresh = HugeIcons.strokeRoundedRefresh01;
-  static const AceIcon filter = HugeIcons.strokeRoundedFilterHorizontal;
   static const AceIcon filterOff = HugeIcons.strokeRoundedFilterRemove;
   static const AceIcon expandMore = HugeIcons.strokeRoundedChevronDown;
   static const AceIcon chevronLeft = HugeIcons.strokeRoundedChevronLeft;
@@ -70,7 +68,6 @@ abstract final class AceIcons {
   static const AceIcon signature = HugeIcons.strokeRoundedPencilEdit02;
   static const AceIcon headers = HugeIcons.strokeRoundedSourceCode;
   static const AceIcon account = HugeIcons.strokeRoundedUserCircle;
-  static const AceIcon person = HugeIcons.strokeRoundedUser;
   static const AceIcon logout = HugeIcons.strokeRoundedLogout01;
   static const AceIcon visibility = HugeIcons.strokeRoundedEye;
   static const AceIcon visibilityOff = HugeIcons.strokeRoundedEyeOff;
@@ -91,7 +88,6 @@ abstract final class AceIcons {
   static const AceIcon help = HugeIcons.strokeRoundedHelpCircle;
   static const AceIcon error = HugeIcons.strokeRoundedAlertCircle;
   static const AceIcon warning = HugeIcons.strokeRoundedAlert02;
-  static const AceIcon loading = HugeIcons.strokeRoundedHourglass;
   static const AceIcon globe = HugeIcons.strokeRoundedGlobe;
   static const AceIcon cloud = HugeIcons.strokeRoundedCloud;
   static const AceIcon shield = HugeIcons.strokeRoundedShield01;
@@ -101,11 +97,9 @@ abstract final class AceIcons {
   static const AceIcon chyme = HugeIcons.strokeRoundedAiBrain01;
   /// Writing with Chyme.
   static const AceIcon chymeWrite = HugeIcons.strokeRoundedAiContentGenerator01;
-  static const AceIcon instagram = HugeIcons.strokeRoundedInstagram;
   static const AceIcon github = HugeIcons.strokeRoundedGithub;
   static const AceIcon openInNew = HugeIcons.strokeRoundedArrowUpRight01;
   static const AceIcon news = HugeIcons.strokeRoundedNews;
-  static const AceIcon empty = HugeIcons.strokeRoundedMailOpen01;
 
   /// The icon for a folder, from its role.
   static AceIcon forFolder(String name, {bool isInbox = false}) {

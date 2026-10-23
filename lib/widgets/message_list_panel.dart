@@ -407,7 +407,15 @@ Future<void> showSortSheet(BuildContext context) {
               const SizedBox(height: AstryxSpace.s1),
               for (final MessageSort sort in MessageSort.values)
                 SettingsRow(
-                  icon: AceIcons.sort,
+                  // Each order has its own icon; they were drawn for this and
+                  // were sitting unused.
+                  icon: switch (sort) {
+                    MessageSort.newest => AceIcons.sortNewest,
+                    MessageSort.oldest => AceIcons.sortOldest,
+                    MessageSort.sender => AceIcons.sortSender,
+                    MessageSort.subject => AceIcons.sortSubject,
+                    MessageSort.unread => AceIcons.sortUnread,
+                  },
                   title: sort.label,
                   trailing: prefs.messageSort == sort
                       ? AceIconView(

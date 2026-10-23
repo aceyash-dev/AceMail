@@ -14,6 +14,7 @@ import '../util/ace_snack.dart';
 import '../util/dates.dart';
 import '../util/routes.dart';
 import 'ace_form_field.dart';
+import 'chyme_mark.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
 
@@ -227,11 +228,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
                       borderRadius: BorderRadius.circular(AstryxRadius.element),
                     ),
                     child: Center(
-                      child: AceIconView(
-                        icon: AceIcons.chyme,
-                        size: 18,
-                        color: c.onAccentMuted,
-                      ),
+                      child: ChymeMark(size: 20, color: c.onAccentMuted),
                     ),
                   ),
                   const SizedBox(width: AstryxSpace.s3),
@@ -350,7 +347,6 @@ class _ChymeSheetState extends State<ChymeSheet> {
         for (final String prompt in prompts) ...<Widget>[
           AceChip(
             label: prompt,
-            icon: AceIcons.chyme,
             onTap: () => _send(prompt),
           ),
           const SizedBox(height: AstryxSpace.s2),
@@ -472,7 +468,12 @@ class _NotSetUp extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Chyme needs somewhere to ask', style: AstryxText.heading3(c.textPrimary)),
+          ChymeMark(size: 40, color: c.accent),
+          const SizedBox(height: AstryxSpace.s4),
+          Text(
+            'Chyme needs somewhere to ask',
+            style: AstryxText.heading3(c.textPrimary),
+          ),
           const SizedBox(height: AstryxSpace.s2),
           Text(
             'There is no Chyme service and no account to make. Point it at any '

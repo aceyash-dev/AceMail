@@ -57,6 +57,12 @@ after the `+` is the Android version code.
   in the room. Notification visibility is private either way.
 
 ### Fixed
+- **0.5.1's APK could not be installed, and this is why.** The version was
+  written as `0.5.1` without a build number, and Flutter turns that into Android
+  `versionCode 1` — a *downgrade* from the 30 that 0.5.0 shipped with, which
+  Android refuses with "App not installed." It is `0.5.1+33` now, and a test
+  fails the build if the build number ever goes missing again. The signing key
+  was never the problem: all three APKs carry the same certificate.
 - **The dead second activity is gone.** `dev/acebase/ace_mail` was a leftover
   from the template: the namespace is `app.tab.mail`, so it could never have run.
 
@@ -164,6 +170,14 @@ after the `+` is the Android version code.
   a sender's address is logged as `y***@example.com`. The protocol log — which
   prints the whole `LOGIN` command — stays off in every build, and a test fails
   the build if a certificate-validation escape hatch ever appears.
+
+### Removed
+- **Stale code, found by looking for what nothing names.** The
+  first-connection splash screen, which nothing has imported since the launch
+  window took over from it; six icons nothing referred to; and two token classes
+  nothing used — one of which, `AstryxBrand`, carried an orange that disagreed
+  with the app's accent, so it was a trap rather than a reference. The five
+  per-order sort icons were being ignored too; the sort sheet uses them now.
 
 ### Faster
 - The message list passes its density down instead of every row watching the

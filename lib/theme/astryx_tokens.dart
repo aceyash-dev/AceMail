@@ -88,16 +88,6 @@ abstract final class AstryxRadius {
   static const double pill = full;
 }
 
-/// The two colours that are the brand itself, independent of theme.
-///
-/// The launcher icon, the splash mark and the in-app mark are all the same
-/// tile, so they share one definition rather than three near-misses.
-abstract final class AstryxBrand {
-  static const Color orange = Color(0xFFFF6A1A);
-  static const Color orangeBright = Color(0xFFFF8A45);
-  static const Color milk = Color(0xFFFFFCF6);
-}
-
 /// Astryx's element sizes.
 abstract final class AstryxSize {
   static const double elementSm = 28;
@@ -258,25 +248,13 @@ abstract final class AstryxMotion {
   static const Curve standard = Curves.easeOutCubic;
 }
 
-/// Astryx's elevation ramp, expressed as tonal levels rather than shadows — the
-/// Material 3 Expressive approach: a surface rises by getting lighter or
-/// darker, not by casting a bigger shadow.
-abstract final class AstryxElevation {
-  static const double level0 = 0;
-  static const double level1 = 1;
-  static const double level2 = 3;
-  static const double level3 = 6;
-  static const double level4 = 8;
-  static const double level5 = 12;
-}
-
 /// Astryx's semantic colour roles.
 ///
 /// This is a **vocabulary over the Material 3 Expressive scheme**, not a
 /// parallel palette: the scheme is generated from the Milk & Orange seed with
-/// Material's `expressive` variant, and every Astryx role reads from it. The
-/// brand lives in the scheme's overridden roles, so the two systems cannot
-/// drift apart.
+/// the accent as the source colour, and this class reads from it. The brand
+/// lives in the scheme's overridden roles, so the two systems cannot drift
+/// apart.
 @immutable
 class AstryxColors extends ThemeExtension<AstryxColors> {
   const AstryxColors({
