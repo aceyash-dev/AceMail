@@ -5,7 +5,6 @@ import '../services/contacts.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
-import 'ace_form_field.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
@@ -164,7 +163,7 @@ class _Empty extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             AceIconView(
-              icon: searching ? AceIcons.filterOff : AceIcons.person,
+              icon: searching ? AceIcons.filterOff : AceIcons.user,
               size: 40,
               color: c.iconDisabled,
             ),

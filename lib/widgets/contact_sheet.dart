@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/contact.dart';
@@ -9,7 +11,6 @@ import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/haptics.dart';
 import 'ace_form_field.dart';
-import 'contacts_panel.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
@@ -133,7 +134,7 @@ class _ContactSheetState extends State<ContactSheet> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 AceIconView(
-                  icon: _contact.saved ? AceIcons.star : AceIcons.person,
+                  icon: _contact.saved ? AceIcons.star : AceIcons.user,
                   size: 16,
                   color: c.textDisabled,
                 ),
