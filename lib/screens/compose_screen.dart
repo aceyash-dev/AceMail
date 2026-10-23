@@ -9,6 +9,7 @@ import '../data/limits.dart';
 import '../data/local_store.dart';
 import '../data/preferences.dart';
 import '../services/chyme.dart';
+import '../services/contacts.dart';
 import '../services/mail_service.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
@@ -534,6 +535,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
       // the bar survives the pop; saying it afterwards would use a context that
       // no longer has a Scaffold.
       AceSnack.show(context, 'Message sent.');
+      // Saved after it is sent, not before: an address somebody typed and then
+      // backed out of is not somebody they write to.
+      Contacts.recordSent(<String>[
+        ..._to.text.split(','),
+        ..._cc.text.split(','),
+        ..._bcc.text.split(','),
+      ], when: DateTime.now());
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) return;

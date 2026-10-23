@@ -65,6 +65,17 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+
+            // R8 removes the code nothing reaches, and the resource shrinker
+            // removes the files nothing references. Neither costs a feature:
+            // what goes is what was already unreachable, and the debug build
+            // keeps everything so a stack trace still names names.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 

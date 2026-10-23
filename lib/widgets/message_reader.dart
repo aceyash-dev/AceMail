@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
@@ -11,6 +12,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
+import '../util/links.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
 import 'message_html.dart';
@@ -363,11 +365,9 @@ class _MessageReaderState extends State<MessageReader> {
             confirmLink: (Uri uri) => _confirmLink(context, uri),
           )
         else
-          SelectableText(
-            message.textBody.isEmpty
-                ? '(This message has no text.)'
-                : collapseBlankLines(message.textBody),
-            style: AstryxText.body(c.textPrimary),
+          _PlainBody(
+            text: message.textBody,
+            confirmLink: (Uri uri) => _confirmLink(context, uri),
           ),
       ],
     );
@@ -656,6 +656,90 @@ class _HtmlBody extends StatelessWidget {
         loadRemoteImages: prefs.loadRemoteImages,
         confirmLink: confirmLink,
       ),
+    );
+  }
+}
+
+/// A plain-text body with its links tappable.
+///
+/// `SelectableText` on its own draws a URL as a URL and does nothing when it is
+/// tapped, which is worse than not looking like one: the text says "click
+/// here" and the screen disagrees. Stateful because a `TapGestureRecognizer`
+/// owns resources and has to be disposed — one per link, rebuilt on every
+/// build, so they are cleared before they are replaced.
+class _PlainBody extends StatefulWidget {
+  const _PlainBody({required this.text, required this.confirmLink});
+
+  final String text;
+  final Future<bool> Function(Uri uri) confirmLink;
+
+  @override
+  State<_PlainBody> createState() => _PlainBodyState();
+}
+
+class _PlainBodyState extends State<_PlainBody> {
+  final List<TapGestureRecognizer> _recognisers = <TapGestureRecognizer>[];
+
+  @override
+  void dispose() {
+    _clearRecognisers();
+    super.dispose();
+  }
+
+  void _clearRecognisers() {
+    for (final TapGestureRecognizer recogniser in _recognisers) {
+      recogniser.dispose();
+    }
+    _recognisers.clear();
+  }
+
+  Future<void> _open(Uri uri) async {
+    // The same two checks the formatted path makes, in the same order: the
+    // scheme policy first, then the person.
+    if (!mayOpenLink(uri)) return;
+    if (!await widget.confirmLink(uri)) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Nothing installed that can handle it.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    _clearRecognisers();
+
+    final String text = widget.text.isEmpty
+        ? '(This message has no text.)'
+        : collapseBlankLines(widget.text);
+
+    final List<InlineSpan> spans = <InlineSpan>[];
+    int at = 0;
+    for (final LinkSpan link in findLinks(text)) {
+      if (link.start > at) {
+        spans.add(TextSpan(text: text.substring(at, link.start)));
+      }
+      final TapGestureRecognizer recogniser = TapGestureRecognizer()
+        ..onTap = () => _open(link.uri);
+      _recognisers.add(recogniser);
+      spans.add(
+        TextSpan(
+          text: text.substring(link.start, link.end),
+          style: TextStyle(
+            color: c.textAccent,
+            decoration: TextDecoration.underline,
+            decorationColor: c.textAccent,
+          ),
+          recognizer: recogniser,
+        ),
+      );
+      at = link.end;
+    }
+    if (at < text.length) spans.add(TextSpan(text: text.substring(at)));
+
+    return SelectableText.rich(
+      TextSpan(style: AstryxText.body(c.textPrimary), children: spans),
     );
   }
 }

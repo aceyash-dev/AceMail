@@ -103,7 +103,7 @@ class AceSwipeTile extends StatefulWidget {
 }
 
 class _AceSwipeTileState extends State<AceSwipeTile>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// The fraction of the row's width at which a swipe arms. Under a fifth, so
   /// the gesture is a flick rather than a haul across the screen.
   static const double _armFraction = 0.18;
@@ -116,6 +116,21 @@ class _AceSwipeTileState extends State<AceSwipeTile>
   late final AnimationController _slide =
       AnimationController.unbounded(vsync: this, value: 0);
 
+  /// The shred, when a swipe commits to the trash.
+  ///
+  /// It runs *before* the list is told, because the list removes the row the
+  /// moment it hears — and a row that is gone has nothing left to animate. So
+  /// the row is cut into strips here, they fall, and only then does the message
+  /// actually go.
+  late final AnimationController _shred = AnimationController(
+    vsync: this,
+    duration: AstryxMotion.of(const Duration(milliseconds: 420)),
+  );
+
+  /// How many strips the row is cut into. Seven reads as a shred; three reads
+  /// as a slide.
+  static const int _strips = 7;
+
   double _width = 320;
 
   /// Set the moment the swipe crosses its line, so the tick fires once per
@@ -125,6 +140,7 @@ class _AceSwipeTileState extends State<AceSwipeTile>
   @override
   void dispose() {
     _slide.dispose();
+    _shred.dispose();
     super.dispose();
   }
 
@@ -161,6 +177,13 @@ class _AceSwipeTileState extends State<AceSwipeTile>
     _armed = false;
 
     if (action != SwipeAction.none && value.abs() >= _width * _armFraction) {
+      // A delete is the one that shreds. Archive and star are things that
+      // happen *to* a message it keeps; the trash is where it stops being one,
+      // and the animation is the only place that can be said.
+      if (action == SwipeAction.trash && !AstryxMotion.reduced) {
+        unawaited(_shredThen(action));
+        return;
+      }
       widget.onAction(action);
     }
 
@@ -172,6 +195,49 @@ class _AceSwipeTileState extends State<AceSwipeTile>
     }
     _slide.animateWith(
       SpringSimulation(AstryxMotion.press, _slide.value, 0, _slide.velocity),
+    );
+  }
+
+  /// Shreds the row, then tells the list.
+  Future<void> _shredThen(SwipeAction action) async {
+    try {
+      await _shred.forward();
+    } finally {
+      if (mounted) widget.onAction(action);
+    }
+  }
+
+  /// The row, cut into [count] strips, each sliding a little further than the
+  /// one above it and fading as it goes.
+  Widget _shredded(Widget child) {
+    return AnimatedBuilder(
+      animation: _shred,
+      builder: (BuildContext context, Widget? _) {
+        final double t = _shred.value;
+        return Stack(
+          children: <Widget>[
+            for (int i = 0; i < _strips; i++)
+              Positioned.fill(
+                child: ClipRect(
+                  clipper: _StripClipper(i, _strips),
+                  child: Opacity(
+                    opacity: (1 - t).clamp(0.0, 1.0),
+                    child: Transform.translate(
+                      // Further and faster for the lower strips, and alternating
+                      // a little sideways: a shred that moved as one piece would
+                      // be a slide with lines drawn on it.
+                      offset: Offset(
+                        t * (14 + i * 7),
+                        t * (i.isEven ? 1 : -1) * (3 + i),
+                      ),
+                      child: child,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -230,12 +296,32 @@ class _AceSwipeTileState extends State<AceSwipeTile>
                 ],
               );
             },
-            child: widget.child,
+            child: _shred.value > 0
+                ? _shredded(widget.child)
+                : widget.child,
           ),
         );
       },
     );
   }
+}
+
+/// One horizontal strip of a row, as a clip.
+class _StripClipper extends CustomClipper<Rect> {
+  const _StripClipper(this.index, this.count);
+
+  final int index;
+  final int count;
+
+  @override
+  Rect getClip(Size size) {
+    final double height = size.height / count;
+    return Rect.fromLTWH(0, height * index, size.width, height);
+  }
+
+  @override
+  bool shouldReclip(_StripClipper oldClipper) =>
+      oldClipper.index != index || oldClipper.count != count;
 }
 
 class _Reveal extends StatelessWidget {

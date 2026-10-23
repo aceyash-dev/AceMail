@@ -172,6 +172,21 @@ abstract final class Contacts {
   /// The only place the recipients appear — a list row carries the sender and
   /// nothing else — and they come without names, because the model keeps the
   /// addresses as a plain string. A name arrives later, from mail they send.
+  /// Records the people a message was sent to.
+  ///
+  /// Called when a message goes out, not only when one is opened. Loading the
+  /// Sent folder does not do this: every message in it has *you* in the From
+  /// line, so a book built from senders learns your own address and none of the
+  /// people you actually write to. The addresses you chose at send time are the
+  /// only place that information exists.
+  static void recordSent(Iterable<String> addresses, {DateTime? when}) {
+    bool changed = false;
+    for (final String email in addresses) {
+      changed |= _record(email, '', when);
+    }
+    if (changed) _schedulePersist();
+  }
+
   static void observeRecipients(FullMessage message) {
     bool changed = false;
     for (final String email in <String>[

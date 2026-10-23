@@ -44,6 +44,25 @@ Future<void> _pumpSignInScreen(
   await tester.pumpAndSettle();
 }
 
+/// Walks the two steps to the credentials screen, with a Google address.
+///
+/// The Google button is not on the welcome screen and not on the address step.
+/// It is on the credentials step, and only when the domain chosen is a Google
+/// one — a Google button in front of somebody who has just typed their work
+/// address at a company running its own mail is a button that cannot work. That
+/// is the placement, so this is what the tests have to do to reach it.
+Future<void> _walkToCredentials(
+  WidgetTester tester, {
+  String username = 'someone',
+}) async {
+  await tester.tap(find.text('Get started'));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextField).first, username);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Continue'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets(
     'Google login shows progress and ignores taps while OAuth is pending',
@@ -60,6 +79,12 @@ void main() {
           return auth.future;
         },
       );
+
+      // Not on the welcome screen: nothing has been chosen yet, so there is no
+      // answer to "is this a Google account".
+      expect(find.text('Continue with Google'), findsNothing);
+
+      await _walkToCredentials(tester);
 
       final Finder googleButton = find.text('Continue with Google');
       expect(googleButton, findsOneWidget);
@@ -108,6 +133,9 @@ void main() {
       },
     );
 
+    expect(find.text('Continue with Google'), findsNothing);
+    await _walkToCredentials(tester);
+
     final Finder googleButton = find.text('Continue with Google');
     expect(googleButton, findsOneWidget);
     await tester.ensureVisible(googleButton);
@@ -128,3 +156,4 @@ void main() {
     controller.dispose();
   });
 }
+
