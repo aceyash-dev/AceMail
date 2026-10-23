@@ -18,6 +18,7 @@ import '../util/ace_snack.dart';
 import '../util/addresses.dart';
 import '../util/attach_plan.dart';
 import '../util/files.dart';
+import '../util/text.dart';
 import '../widgets/ace_form_field.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/avatar.dart';

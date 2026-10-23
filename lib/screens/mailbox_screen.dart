@@ -146,6 +146,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final MailController controller = context.watch<MailController>();
+    // Watched rather than read: the sort button shows whether something other
+    // than the default order is in force, and the app bar shows Chyme only when
+    // it has been set up.
+    final Preferences prefs = context.watch<Preferences>();
     final bool wide =
         MediaQuery.sizeOf(context).width >= MailboxScreen._wideBreakpoint;
     final bool reading = controller.openSummary != null;
@@ -292,10 +296,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
             AceIconButton(
               icon: AceIcons.sort,
               tooltip: 'Sort and filter',
-              tint: controller.filter != MessageFilter.all ||
-                      prefs.messageSort != MessageSort.newest
-                  ? c.accent
-                  : null,
+              // Lit when something other than the default is in force — the one
+              // thing the always-on chips could never say.
+              selected: controller.filter != MessageFilter.all ||
+                  prefs.messageSort != MessageSort.newest,
               onPressed: () => showSortSheet(context),
             ),
             const SizedBox(width: AstryxSpace.s2),
