@@ -10,6 +10,8 @@
 /// ```
 ///
 /// So failures are logged through [safe] rather than interpolated straight in.
+import 'text.dart';
+
 abstract final class Redact {
   /// A command that carries a secret in its arguments.
   static final RegExp _authCommand = RegExp(

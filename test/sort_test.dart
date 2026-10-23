@@ -77,6 +77,10 @@ void main() {
   });
 
   group('MessageFilter', () {
+    // A fixed clock: the period filters ask what time it is, and a test that
+    // asks the real one is a test that fails at midnight.
+    final DateTime now = DateTime(2026, 10, 23, 12);
+
     final List<MessageSummary> page = <MessageSummary>[
       row(1, seen: false),
       row(2, flagged: true),
@@ -85,19 +89,19 @@ void main() {
     ];
 
     test('all matches everything', () {
-      expect(page.where(MessageFilter.all.matches).length, 4);
+      expect(page.where((MessageSummary m) => MessageFilter.all.matches(m, now: now)).length, 4);
     });
 
     test('unread matches only unread', () {
-      expect(uids(page.where(MessageFilter.unread.matches).toList()), <int>[1, 3]);
+      expect(uids(page.where((MessageSummary m) => MessageFilter.unread.matches(m, now: now)).toList()), <int>[1, 3]);
     });
 
     test('flagged matches only flagged', () {
-      expect(uids(page.where(MessageFilter.flagged.matches).toList()), <int>[2]);
+      expect(uids(page.where((MessageSummary m) => MessageFilter.flagged.matches(m, now: now)).toList()), <int>[2]);
     });
 
     test('codes matches only messages with a code', () {
-      expect(uids(page.where(MessageFilter.codes.matches).toList()), <int>[3]);
+      expect(uids(page.where((MessageSummary m) => MessageFilter.codes.matches(m, now: now)).toList()), <int>[3]);
     });
   });
 }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:enough_mail/enough_mail.dart';
 
 import '../data/limits.dart';
+import '../util/text.dart';
 import '../util/file_names.dart';
 
 class MailAttachment {

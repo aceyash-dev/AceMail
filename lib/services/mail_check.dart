@@ -3,6 +3,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../data/account_store.dart';
 import '../data/preferences.dart';
+import 'google_auth.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import 'mail_service.dart';
