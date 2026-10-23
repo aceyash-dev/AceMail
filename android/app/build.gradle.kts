@@ -66,16 +66,20 @@ android {
                 signingConfigs.getByName("debug")
             }
 
-            // R8 removes the code nothing reaches, and the resource shrinker
-            // removes the files nothing references. Neither costs a feature:
-            // what goes is what was already unreachable, and the debug build
-            // keeps everything so a stack trace still names names.
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            // Deliberately no `isMinifyEnabled` / `isShrinkResources`.
+            //
+            // They were turned on to make the APK smaller and measured
+            // afterwards: the 32-bit APK came out byte-identical and the 64-bit
+            // one grew by 65 KB. A Flutter release APK is the Dart AOT snapshot
+            // and the engine — the Java and Kotlin bytecode R8 removes is a
+            // rounding error, and the assets the resource shrinker prunes are in
+            // the Dart bundle, not in `res/`. What it did buy was R8's
+            // obfuscation and a longer build.
+            //
+            // The size comes from `--split-per-abi` and from `--obfuscate
+            // --split-debug-info`, which drops the symbol table the snapshot
+            // carries for stack traces. That is a build-command change, not a
+            // Gradle one.
         }
     }
 
