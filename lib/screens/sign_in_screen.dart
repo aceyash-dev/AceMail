@@ -84,9 +84,9 @@ class _SignInScreenState extends State<SignInScreen> {
   /// an account skips it — you already know what this app is.
   late bool _welcome = !widget.isAdding;
 
-  /// 1 is the address, 2 is the password. Two steps, so the form never shows
-  /// someone a server field before they have said who they are.
-  int _step = 1;
+  /// 0 is the welcome panel, 1 is the address, 2 is the password. Adding an
+  /// account skips the welcome panel because the person has already signed in.
+  late int _step = widget.isAdding ? 1 : 0;
 
   void _nextStep() {
     final String? problem = _form.addressProblem();
@@ -101,7 +101,10 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   /// Off the welcome panel and into the form.
-  void _getStarted() => setState(() => _welcome = false);
+  void _getStarted() => setState(() {
+        _welcome = false;
+        _step = 1;
+      });
 
   Future<void> _submit() async {
     final SignInOutcome outcome = _form.build();

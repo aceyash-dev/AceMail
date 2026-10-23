@@ -96,12 +96,23 @@ def configure_app_delegate(runner: Path) -> None:
     path = runner / "AppDelegate.swift"
     source = path.read_text()
 
-    if "GeneratedPluginRegistrant.register(with: self)" not in source:
-        fail("AppDelegate.swift does not register plugins the way this script expects.")
+    # Flutter 3.41+ uses UIScene and registers plugins from
+    # didInitializeImplicitFlutterEngine. Older templates register them in
+    # application(_:didFinishLaunchingWithOptions:). Support both forms.
+    legacy_registrant = "GeneratedPluginRegistrant.register(with: self)" in source
+    modern_registrant = (
+        "GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)"
+        in source
+    )
+    if not legacy_registrant and not modern_registrant:
+        fail(
+            "AppDelegate.swift has no recognized GeneratedPluginRegistrant "
+            "call (legacy or FlutterImplicitEngineDelegate)."
+        )
     if "import UIKit" not in source:
         fail("AppDelegate.swift has no `import UIKit` to anchor the imports to.")
     if "return super.application(" not in source:
-        fail("AppDelegate.swift has no `return super.application(` to insert before.")
+        fail("AppDelegate.swift has no `return super.application(` to anchor the configuration to.")
     if "app.tab.mail/voice" in source:
         return  # Already configured; the script is safe to run twice.
 
@@ -111,17 +122,50 @@ def configure_app_delegate(runner: Path) -> None:
         1,
     )
 
-    wiring = (
-        "    // The background mail check runs in its own engine, which needs the\n"
-        "    // same plugins as this one.\n"
-        "    WorkmanagerPlugin.setPluginRegistrantCallback { registry in\n"
-        "      GeneratedPluginRegistrant.register(with: registry)\n"
-        "    }\n"
-        "    aceVoiceChannel = AceVoiceChannel(\n"
-        "      messenger: self.registrar(forPlugin: \"AceVoice\")!.messenger()\n"
-        "    )\n\n"
-    )
-    source = source.replace("    return super.application(", wiring + "    return super.application(", 1)
+    if legacy_registrant:
+        # Legacy Flutter template: configure the background isolate and native
+        # channel in application(_:didFinishLaunchingWithOptions:).
+        wiring = (
+            "    // The background mail check runs in its own engine, which needs the\n"
+            "    // same plugins as this one.\n"
+            "    WorkmanagerPlugin.setPluginRegistrantCallback { registry in\n"
+            "      GeneratedPluginRegistrant.register(with: registry)\n"
+            "    }\n"
+            "    aceVoiceChannel = AceVoiceChannel(\n"
+            "      messenger: self.registrar(forPlugin: \"AceVoice\")!.messenger()\n"
+            "    )\n\n"
+        )
+        source = source.replace(
+            "    return super.application(", wiring + "    return super.application(", 1
+        )
+    else:
+        if "FlutterImplicitEngineDelegate" not in source:
+            fail(
+                "AppDelegate.swift uses the implicit-engine plugin registry but "
+                "does not conform to FlutterImplicitEngineDelegate."
+            )
+        # Modern Flutter template: both plugin registration and channel
+        # creation must use the implicit engine's registry/messenger. The
+        # app delegate's registrar is not the right engine under UIScene.
+        registration = (
+            "    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)\n"
+        )
+        wiring = (
+            "    // The background mail check runs in its own engine, which needs the\n"
+            "    // same plugins as this one.\n"
+            "    WorkmanagerPlugin.setPluginRegistrantCallback { registry in\n"
+            "      GeneratedPluginRegistrant.register(with: registry)\n"
+            "    }\n"
+            "    aceVoiceChannel = AceVoiceChannel(\n"
+            "      messenger: engineBridge.applicationRegistrar.messenger()\n"
+            "    )\n"
+        )
+        if registration not in source:
+            fail(
+                "AppDelegate.swift has an implicit-engine delegate but its plugin "
+                "registrant call is not in the expected form."
+            )
+        source = source.replace(registration, registration + wiring, 1)
 
     source = source.rstrip() + "\n\n" + VOICE_SNIPPET.read_text()
     path.write_text(source)

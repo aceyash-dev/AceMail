@@ -61,8 +61,10 @@ void main() {
         },
       );
 
-      expect(find.text('Continue with Google'), findsOneWidget);
-      await tester.tap(find.text('Continue with Google'));
+      final Finder googleButton = find.text('Continue with Google');
+      expect(googleButton, findsOneWidget);
+      await tester.ensureVisible(googleButton);
+      await tester.tap(googleButton);
       await tester.pump();
 
       expect(authAttempts, 1);
@@ -106,7 +108,10 @@ void main() {
       },
     );
 
-    await tester.tap(find.text('Continue with Google'));
+    final Finder googleButton = find.text('Continue with Google');
+    expect(googleButton, findsOneWidget);
+    await tester.ensureVisible(googleButton);
+    await tester.tap(googleButton);
     await tester.pumpAndSettle();
 
     expect(authAttempts, 1);
