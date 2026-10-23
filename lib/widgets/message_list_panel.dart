@@ -175,6 +175,17 @@ class MessageListPanel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
         sliver: SliverList.builder(
           itemCount: items.length,
+          // The rows carry uid keys, so a rebuild can find the element for a
+          // message it already built instead of building it again. Without
+          // this, anything that shifts the list re-creates every row below it.
+          findChildIndexCallback: (Key key) {
+            if (key is! ValueKey<int>) return null;
+            final int uid = key.value;
+            final int index = items.indexWhere(
+              (Object item) => item is MessageSummary && item.uid == uid,
+            );
+            return index == -1 ? null : index;
+          },
           // Each row already brings its own RepaintBoundary, so the sliver does
           // not need to add a second one — and a row that scrolls off does not
           // need keeping alive, because it has no state worth keeping.
@@ -208,6 +219,7 @@ class MessageListPanel extends StatelessWidget {
               child: MessageTile(
                 summary: summary,
                 index: index,
+                density: prefs.density,
                 selected: controller.openSummary?.uid == summary.uid,
                 picked: controller.isSelected(summary.uid),
                 selecting: controller.selecting,
@@ -475,6 +487,7 @@ class MessageTile extends StatelessWidget {
     super.key,
     required this.summary,
     required this.index,
+    required this.density,
     required this.selected,
     required this.onTap,
     this.onLongPress,
@@ -484,6 +497,11 @@ class MessageTile extends StatelessWidget {
 
   final MessageSummary summary;
   final int index;
+
+  /// Passed in rather than read here: a row that watches the preferences is a
+  /// dependency per row, and every settings change then rebuilds the whole list
+  /// once per row instead of once.
+  final ListDensity density;
   final bool selected;
   final VoidCallback onTap;
 
@@ -503,7 +521,7 @@ class MessageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final ListDensity density = context.watch<Preferences>().density;
+    final ListDensity density = this.density;
     final bool unread = !summary.isSeen;
 
     return TweenAnimationBuilder<double>(

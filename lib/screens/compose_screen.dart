@@ -23,6 +23,40 @@ import '../widgets/avatar.dart';
 import '../widgets/settings_group.dart';
 import '../widgets/ace_icon_view.dart';
 
+/// Opens the composer as a sheet.
+///
+/// A sheet rather than a pushed screen, because writing a message is something
+/// you do *over* the mail you were reading: the message you are answering stays
+/// behind it, and the sheet is one gesture from being gone. A pushed screen
+/// takes the whole display and a back gesture to leave, which is a different
+/// promise about how much of your attention it wants.
+Future<void> openComposeSheet(
+  BuildContext context, {
+  String initialTo = '',
+  String initialCc = '',
+  String initialSubject = '',
+  String initialBody = '',
+  String? inReplyTo,
+  String? references,
+  String? from,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (BuildContext sheetContext) => ComposeScreen(
+      initialTo: initialTo,
+      initialCc: initialCc,
+      initialSubject: initialSubject,
+      initialBody: initialBody,
+      inReplyTo: inReplyTo,
+      references: references,
+      from: from,
+    ),
+  );
+}
+
 class ComposeScreen extends StatefulWidget {
   const ComposeScreen({
     super.key,
@@ -32,12 +66,17 @@ class ComposeScreen extends StatefulWidget {
     this.initialBody = '',
     this.inReplyTo,
     this.references,
+    this.from,
   });
 
   final String initialTo;
   final String initialCc;
   final String initialSubject;
   final String initialBody;
+
+  /// The account to send from, or null for the automatic choice — the mailbox
+  /// the reader is in.
+  final String? from;
 
   /// Threading headers, so a reply lands in the same conversation.
   final String? inReplyTo;
@@ -268,22 +307,34 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   /// The accounts the message could go from, and the one it will.
   List<String> get accounts => context.read<MailController>().accountEmails;
-  String? _from;
+
+  /// The account chosen by hand, or null for the automatic one.
+  late String? _from = widget.from;
+
+  /// The account the app picks on its own: the one being read.
+  ///
+  /// "Automatic" is not a label for the first entry in a list. It means the
+  /// mailbox you are looking at, which is the account a reply belongs to and
+  /// the one a message written from this screen most likely means.
+  String get _autoFrom {
+    final MailController controller = context.read<MailController>();
+    return controller.account?.email ??
+        (accounts.isEmpty ? '' : accounts.first);
+  }
 
   /// Set once the empty-subject question has been answered, so sending after it
   /// does not ask again.
   bool _warnedAboutSubject = false;
 
-  String? get _chosenFrom =>
-      accounts.length > 1 ? (_from ?? accounts.first) : null;
-
   /// The address the message actually leaves from.
   ///
-  /// `_chosenFrom` is null when there is only one account — nothing to choose —
-  /// so this falls back to that account. It is what a blind copy to self needs
-  /// to name, and it is the same address the transport will stamp on the
-  /// message.
-  String get _senderEmail => _chosenFrom ?? (accounts.isEmpty ? '' : accounts.first);
+  /// It is what a blind copy to self needs to name, and it is the same address
+  /// the transport will stamp on the message.
+  String get _senderEmail => _from ?? _autoFrom;
+
+  /// Passed to the transport: null when the choice was automatic, so the
+  /// controller sends from the account that is open rather than from a name.
+  String? get _chosenFrom => _from;
 
   Future<void> _send() async {
     // A message with no subject is the one people regret, so it asks once.
@@ -379,37 +430,75 @@ class _ComposeScreenState extends State<ComposeScreen> {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
 
-    return Scaffold(
-      backgroundColor: c.backgroundBody,
-      appBar: AppBar(
-        title: Text('New message', style: AstryxText.heading3(c.textPrimary)),
-        actions: <Widget>[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AstryxSpace.s3,
-              vertical: AstryxSpace.s2,
-            ),
-            child: AceButton(
-              label: _sending ? 'Sending…' : 'Send',
-              icon: AceIcons.send,
-              variant: AceButtonVariant.primary,
-              onPressed: _sending ? null : _send,
-            ),
-          ),
-        ],
+    return Container(
+      // Nearly the whole display, so the message you are answering is a sliver
+      // behind it rather than gone.
+      height: MediaQuery.sizeOf(context).height * 0.92,
+      decoration: BoxDecoration(
+        color: c.backgroundBody,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AstryxRadius.sheet),
+        ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AstryxSpace.s5),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Only when there is a choice to make.
-              if (accounts.length > 1) ...<Widget>[
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: <Widget>[
+            const SizedBox(height: AstryxSpace.s3),
+            // The grab handle: a sheet is dismissed by dragging it, and this is
+            // how that is said without a word.
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: c.border,
+                borderRadius: BorderRadius.circular(AstryxRadius.full),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                AstryxSpace.s3,
+                AstryxSpace.s4,
+                AstryxSpace.s1,
+              ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'New message',
+                      style: AstryxText.heading3(c.textPrimary),
+                    ),
+                  ),
+                  AceButton(
+                    label: _sending ? 'Sending…' : 'Send',
+                    icon: AceIcons.send,
+                    variant: AceButtonVariant.primary,
+                    onPressed: _sending ? null : _send,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AstryxSpace.s5,
+                  AstryxSpace.s2,
+                  AstryxSpace.s5,
+                  AstryxSpace.s6,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+              // Shown whenever there is an account to name, so "which account
+              // does this go from?" always has an answer on screen.
+              if (accounts.isNotEmpty) ...<Widget>[
                 _FromRow(
                   accounts: accounts,
+                  automatic: _autoFrom,
                   selected: _from,
-                  onChanged: (String value) => setState(() => _from = value),
+                  onChanged: (String? value) => setState(() => _from = value),
                 ),
                 const SizedBox(height: AstryxSpace.s3),
               ],
@@ -456,8 +545,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 icon: AceIcons.attachment,
                 onPressed: _sending ? null : _attach,
               ),
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -504,22 +596,30 @@ class _ComposeScreenState extends State<ComposeScreen> {
 class _FromRow extends StatelessWidget {
   const _FromRow({
     required this.accounts,
+    required this.automatic,
     required this.selected,
     required this.onChanged,
   });
 
   final List<String> accounts;
+
+  /// The account the app picks on its own.
+  final String automatic;
+
+  /// The account chosen by hand, or null for [automatic].
   final String? selected;
-  final ValueChanged<String> onChanged;
+
+  final ValueChanged<String?> onChanged;
+
+  String get _effective => selected ?? automatic;
 
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
-    final String current = selected ?? accounts.first;
 
     return AceSpringy(
       onTap: () => _pick(context),
-      semanticLabel: 'Send from $current',
+      semanticLabel: 'Send from $_effective',
       builder: (BuildContext context, double press, bool hover) {
         final double t = press.clamp(0.0, 1.0);
         return Container(
@@ -535,7 +635,12 @@ class _FromRow extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              MailAvatar(email: current, name: current, size: 26, isSelf: true),
+              MailAvatar(
+                email: _effective,
+                name: _effective,
+                size: 26,
+                isSelf: true,
+              ),
               const SizedBox(width: AstryxSpace.s3),
               Expanded(
                 child: Column(
@@ -543,14 +648,27 @@ class _FromRow extends StatelessWidget {
                   children: <Widget>[
                     Text('From', style: AstryxText.label(c.textSecondary)),
                     Text(
-                      current,
+                      _effective,
                       overflow: TextOverflow.ellipsis,
                       style: AstryxText.body(c.textPrimary),
                     ),
                   ],
                 ),
               ),
-              AceIconView(icon: AceIcons.expandMore, size: 20, color: c.iconSecondary),
+              // One word, so which of the two it is needs no second line.
+              if (selected == null)
+                Padding(
+                  padding: const EdgeInsets.only(right: AstryxSpace.s2),
+                  child: Text(
+                    'Auto',
+                    style: AstryxText.supporting(c.textSecondary),
+                  ),
+                ),
+              AceIconView(
+                icon: AceIcons.expandMore,
+                size: 20,
+                color: c.iconSecondary,
+              ),
             ],
           ),
         );
@@ -559,44 +677,72 @@ class _FromRow extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final String? chosen = await showModalBottomSheet<String>(
+    // The result is wrapped rather than a bare `String?`: null has to mean
+    // "automatic", and a pop with no value means "dismissed". The same value
+    // for two different things is how a picker silently changes the sender.
+    final _FromChoice? chosen = await showModalBottomSheet<_FromChoice>(
       context: context,
       showDragHandle: true,
-      builder: (BuildContext sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AstryxSpace.s5,
-                0,
-                AstryxSpace.s5,
-                AstryxSpace.s3,
+      builder: (BuildContext sheetContext) {
+        final AstryxColors c = sheetContext.astryx;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AstryxSpace.s5,
+                  0,
+                  AstryxSpace.s5,
+                  AstryxSpace.s3,
+                ),
+                child: Text(
+                  'Send from',
+                  style: AstryxText.heading3(c.textPrimary),
+                ),
               ),
-              child: Text(
-                'Send from',
-                style: AstryxText.heading3(sheetContext.astryx.textPrimary),
-              ),
-            ),
-            for (final String account in accounts)
               SettingsRow(
-                icon: AceIcons.at,
-                title: account,
-                trailing: account == (selected ?? accounts.first)
-                    ? AceIconView(icon: 
-                        AceIcons.check,
+                icon: AceIcons.refresh,
+                title: 'Automatic',
+                subtitle: automatic,
+                trailing: selected == null
+                    ? AceIconView(
+                        icon: AceIcons.check,
                         size: 20,
-                        color: sheetContext.astryx.accent,
+                        color: c.accent,
                       )
                     : null,
-                onTap: () => Navigator.of(sheetContext).pop(account),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(const _FromChoice(null)),
               ),
-            const SizedBox(height: AstryxSpace.s3),
-          ],
-        ),
-      ),
+              for (final String account in accounts)
+                SettingsRow(
+                  icon: AceIcons.at,
+                  title: account,
+                  trailing: account == selected
+                      ? AceIconView(
+                          icon: AceIcons.check,
+                          size: 20,
+                          color: c.accent,
+                        )
+                      : null,
+                  onTap: () =>
+                      Navigator.of(sheetContext).pop(_FromChoice(account)),
+                ),
+              const SizedBox(height: AstryxSpace.s3),
+            ],
+          ),
+        );
+      },
     );
-    if (chosen != null) onChanged(chosen);
+    if (chosen != null) onChanged(chosen.email);
   }
+}
+
+/// A choice from the "send from" sheet. See [_FromRow._pick].
+class _FromChoice {
+  const _FromChoice(this.email);
+
+  final String? email;
 }

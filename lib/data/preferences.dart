@@ -171,6 +171,17 @@ class Preferences extends ChangeNotifier {
 
   final FlutterSecureStorage _storage;
 
+  // The defaults are deliberately *on*: the app ships with everything it can do
+  // switched on, and the settings are there to take things away. The four
+  // exceptions each say why they are exceptions.
+  //
+  // Off because it is a developer's view of the message:
+  bool _showRawHeaders = false;
+  // Off because it makes the accent the wallpaper's, and a launcher icon cannot
+  // follow the wallpaper — the icon would then disagree with the app it opens.
+  // One switch, for anyone who wants Material You anyway:
+  bool _useDynamicColour = false;
+
   bool _showAvatars = true;
   AceThemeMode _themeMode = AceThemeMode.system;
   AceTextSize _textSize = AceTextSize.medium;
@@ -188,33 +199,38 @@ class Preferences extends ChangeNotifier {
   MessageSort _messageSort = MessageSort.newest;
   bool _loadRemoteImages = true;
   AceAccent _accent = AceAccent.orange;
-  bool _showRawHeaders = false;
-  bool _useDynamicColour = false;
   bool _warnEmptySubject = true;
   bool _warnExternalLinks = true;
-  bool _notifyNewMail = false;
+  bool _notifyNewMail = true;
   bool _haptics = true;
-  bool _oled = false;
+  bool _oled = true;
+  // Off because it is an accessibility preference — one someone has to choose,
+  // rather than one that can be chosen for them.
   bool _reduceMotion = false;
   bool _groupByDate = true;
   bool _showFolderCounts = true;
   String? _lastSeenVersion;
   bool _quoteReplies = true;
-  bool _signatureOnReplies = false;
-  bool _confirmArchive = false;
+  bool _signatureOnReplies = true;
+  bool _confirmArchive = true;
   UndoWindow _undoWindow = UndoWindow.normal;
-  bool _bccSelf = false;
+  bool _bccSelf = true;
   bool _cacheMessages = true;
+  // Off because it locks the app for whoever installs it, before they have
+  // asked for a lock — and on a device that cannot authenticate, that is a
+  // screen with no way past it.
   bool _appLock = false;
   bool _privatePreviews = true;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
-  /// **Off by default, and deliberately so.** A Gravatar lookup sends an MD5 of
-  /// every sender's address to a third party. A hash of an address is not
-  /// anonymous — addresses are guessable and can be hashed by anyone — so this
-  /// is a disclosure the user opts into. When it is off, no request is made.
+  /// **A disclosure, and it is on.** A Gravatar lookup sends an MD5 of every
+  /// sender's address to a third party, and a hash of an address is not
+  /// anonymous — addresses are guessable and can be hashed by anyone. It is on
+  /// because a list with faces in it is a list you can read at a glance, and
+  /// the switch to stop the requests is one tap away. Off means no request is
+  /// ever made.
   bool get showAvatars => _showAvatars;
 
   AceThemeMode get themeMode => _themeMode;

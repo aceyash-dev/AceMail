@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The foreground is the envelope art, the background is the brand orange, and
-     the monochrome layer is the same art flattened to one colour — which is what
-     a themed icon needs. -->
+<!-- The foreground is the envelope art, the background is the accent, and the
+     monochrome layer is the envelope as a single-colour silhouette.
+
+     The monochrome layer is what Android 13's themed icons ("monet") tint with
+     the system accent, so the icon takes its colour from the wallpaper like
+     every other icon on the launcher. It points at the dedicated silhouette
+     drawable rather than at the colour artwork: the launcher masks the layer to
+     one colour, and a mask is only as good as the shape it is given. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />
     <foreground android:drawable="@mipmap/ic_launcher_foreground" />
-    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
 </adaptive-icon>

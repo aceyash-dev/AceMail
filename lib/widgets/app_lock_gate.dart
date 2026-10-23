@@ -32,6 +32,9 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
   bool _locked = false;
   bool _asking = false;
 
+  /// Whether this device can ask at all. Null until it has been asked once.
+  bool? _canAuthenticate;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +60,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
       return;
     }
     if (!mounted) return;
+    if (_canAuthenticate == false) return; // nothing to lock behind
     if (context.read<Preferences>().appLock && !_locked) {
       // On the way out, so the cover is already up when the app comes back —
       // rather than the inbox showing for a frame first.
@@ -64,14 +68,26 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
     }
   }
 
+  /// Whether the device can ask for a fingerprint or a face.
+  ///
+  /// Asked once and remembered. A device that cannot ask must not hold the door
+  /// shut: locking somebody out of their own mail because their phone has no
+  /// enrolled biometrics is a worse failure than the lock not engaging, so an
+  /// impossible lock is not a lock.
+  Future<bool> _canAsk() async =>
+      _canAuthenticate ??= await AppLock.available();
+
   Future<void> _ask() async {
     if (_asking) return;
     setState(() => _asking = true);
-    final bool ok = await AppLock.unlock();
+
+    final bool possible = await _canAsk();
+    final bool ok = possible && await AppLock.unlock();
+
     if (!mounted) return;
     setState(() {
       _asking = false;
-      if (ok) _locked = false;
+      if (ok || !possible) _locked = false;
     });
   }
 

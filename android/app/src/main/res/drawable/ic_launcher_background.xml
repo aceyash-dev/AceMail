@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ace Mail launcher background: the brand orange, very slightly graded so the
-     tile has some depth without turning into a different colour.
+<!-- Ace Mail launcher background: the accent, very slightly graded so the tile
+     has some depth without turning into a different colour.
+
+     The deep end is the accent itself — AceAccent.orange, #F25C05 — so the tile
+     on the home screen is the same colour as the app it opens. The light end is
+     that same hue lifted, not a second colour.
 
      A gradient rather than a flat colour because the foreground envelope's flap
      is a real notch cut through it — the background shows through, whatever the
      background happens to be. -->
+<!-- Keep in step with `AceAccent.orange` in lib/data/accents.dart, and with the
+     flat mipmap PNGs, which are already this colour. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
@@ -20,8 +26,8 @@
                 android:startY="2"
                 android:endX="94"
                 android:endY="106"
-                android:startColor="#FF9A52"
-                android:endColor="#F0560A" />
+                android:startColor="#FF8A47"
+                android:endColor="#F25C05" />
         </aapt:attr>
     </path>
 </vector>

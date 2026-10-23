@@ -347,9 +347,13 @@ class MailSession extends ChangeNotifier {
       // Never let a convenience break the list.
     } finally {
       _detecting = false;
-      // One rebuild for the whole pass. Notifying per code found meant a folder
-      // load could rebuild the list a dozen times, one per message.
-      if (touched && token == _folderToken) _notify();
+      if (touched && token == _folderToken) {
+        // One copy of the page and one rebuild for the whole pass. Notifying —
+        // or remembering — per code found meant a folder load copied the list
+        // and rebuilt it once per message.
+        _rememberPage();
+        _notify();
+      }
     }
   }
 
@@ -390,7 +394,9 @@ class MailSession extends ChangeNotifier {
     final int index = messages.indexWhere((MessageSummary m) => m.uid == uid);
     if (index == -1 || messages[index].otp == code) return;
     messages[index] = messages[index].copyWith(otp: code);
-    _rememberPage();
+    // The page is remembered once when the pass is done, not here: this used to
+    // copy the whole page for every code found, which is O(messages × codes)
+    // for one folder load.
   }
 
   Future<void> loadMore() async {

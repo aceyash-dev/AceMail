@@ -13,6 +13,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/routes.dart';
 import '../widgets/ace_form_field.dart';
+import '../widgets/legal_sheet.dart';
 import '../widgets/advanced_server_panel.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/confirm_exit.dart';
@@ -62,9 +63,16 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
-  /// 0 is the address, 1 is the password. Two steps, so the form never shows
+  /// Whether the welcome panel is still showing.
+  ///
+  /// Not one of the steps: it has no fields and nothing to validate, and the
+  /// step dots would be counting a screen that is not part of the form. Adding
+  /// an account skips it — you already know what this app is.
+  late bool _welcome = !widget.isAdding;
+
+  /// 1 is the address, 2 is the password. Two steps, so the form never shows
   /// someone a server field before they have said who they are.
-  int _step = 0;
+  int _step = 1;
 
   void _nextStep() {
     final String? problem = _form.addressProblem();
@@ -74,9 +82,12 @@ class _SignInScreenState extends State<SignInScreen> {
     }
     setState(() {
       _validationError = null;
-      _step = 1;
+      _step = 2;
     });
   }
+
+  /// Off the welcome panel and into the form.
+  void _getStarted() => setState(() => _welcome = false);
 
   Future<void> _submit() async {
     final SignInOutcome outcome = _form.build();
@@ -167,7 +178,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           children: <Widget>[
                             _header(context, c),
                             const SizedBox(height: AstryxSpace.s6),
-                            _StepDots(step: _step),
+                            if (!_welcome) _StepDots(step: _step - 1),
                             const SizedBox(height: AstryxSpace.s4),
                             AnimatedSize(
                               duration: AstryxMotion.medium,
@@ -193,9 +204,9 @@ class _SignInScreenState extends State<SignInScreen> {
                                     ),
                                   );
                                 },
-                                child: _step == 1
+                                child: _step == 2
                                     ? Column(
-                                        key: const ValueKey<int>(1),
+                                        key: const ValueKey<int>(2),
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
@@ -233,8 +244,9 @@ class _SignInScreenState extends State<SignInScreen> {
                                           ),
                                         ],
                                       )
-                                    : Column(
-                                        key: const ValueKey<int>(0),
+                                    : _step == 1
+                                    ? Column(
+                                        key: const ValueKey<int>(1),
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
@@ -289,7 +301,8 @@ class _SignInScreenState extends State<SignInScreen> {
                                             ),
                                           ),
                                         ],
-                                      ),
+                                      )
+                                    : _welcomePanel(c),
                               ),
                             ),
                             const SizedBox(height: AstryxSpace.s3),
@@ -333,6 +346,107 @@ class _SignInScreenState extends State<SignInScreen> {
       ),
     );
   }
+
+  /// The first thing anybody sees.
+  ///
+  /// It says what the app is, what it will do with your mail, and what it will
+  /// not do — in three lines, because that is the whole pitch of a mail client
+  /// you sign into with an app password. The legal footer is here rather than
+  /// buried in Settings: this is the screen where somebody decides to trust it
+  /// with a credential.
+  Widget _welcomePanel(AstryxColors c) {
+    return Column(
+      key: const ValueKey<int>(0),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Your mail,\non your terms.',
+          style: AstryxText.display3(c.textPrimary),
+        ),
+        const SizedBox(height: AstryxSpace.s3),
+        Text(
+          'Any provider that speaks IMAP and SMTP. No account to make here, no '
+          'server in the middle, and nothing to sign up for.',
+          style: AstryxText.body(c.textSecondary),
+        ),
+        const SizedBox(height: AstryxSpace.s5),
+        for (final ({AceIcon icon, String title, String body}) point
+            in _points) ...<Widget>[
+          _Point(icon: point.icon, title: point.title, body: point.body),
+          const SizedBox(height: AstryxSpace.s3),
+        ],
+        const SizedBox(height: AstryxSpace.s2),
+        AceButton(
+          label: 'Get started',
+          variant: AceButtonVariant.primary,
+          size: AceButtonSize.large,
+          icon: AceIcons.chevronRight,
+          expand: true,
+          onPressed: _getStarted,
+        ),
+        const SizedBox(height: AstryxSpace.s2),
+        Center(
+          child: TextButton(
+            onPressed: () => context.read<MailController>().startExploring(),
+            child: Text(
+              'Look around first',
+              style: AstryxText.body(c.textAccent),
+            ),
+          ),
+        ),
+        const SizedBox(height: AstryxSpace.s3),
+        // The consent line. Both halves are one tap from here, because a policy
+        // you cannot read is not a policy you agreed to.
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            Text(
+              'By continuing you agree to the ',
+              style: AstryxText.supporting(c.textSecondary),
+            ),
+            _LegalLink(
+              label: 'Terms',
+              onTap: () => LegalSheet.show(context, startAt: LegalDocument.terms),
+            ),
+            Text(
+              ' and the ',
+              style: AstryxText.supporting(c.textSecondary),
+            ),
+            _LegalLink(
+              label: 'Privacy Policy',
+              onTap: () =>
+                  LegalSheet.show(context, startAt: LegalDocument.privacy),
+            ),
+            Text('.', style: AstryxText.supporting(c.textSecondary)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// The three things worth saying before a password is typed.
+  static const List<({AceIcon icon, String title, String body})> _points =
+      <({AceIcon icon, String title, String body})>[
+    (
+      icon: AceIcons.lock,
+      title: 'Your password stays in the keychain',
+      body: 'The app password goes into the device keychain, never to us — '
+          'there is nowhere for it to go.',
+    ),
+    (
+      icon: AceIcons.image,
+      title: 'Nothing is loaded behind your back',
+      body: 'Remote images are a read receipt, so they are a choice. So is '
+          'looking up a sender\'s picture.',
+    ),
+    (
+      icon: AceIcons.shield,
+      title: 'What is kept is encrypted',
+      body: 'Drafts and messages you have read are sealed with AES-256-GCM on '
+          'this device, and can be cleared in one tap.',
+    ),
+  ];
 
   Widget _header(BuildContext context, AstryxColors c) {
     return Row(
@@ -622,4 +736,71 @@ Future<void> chooseProvider(
   if (domain == null) return;
   if (!sheetContext.mounted) return;
   Navigator.of(sheetContext).pop(domain);
+}
+
+/// One line of the welcome panel.
+class _Point extends StatelessWidget {
+  const _Point({required this.icon, required this.title, required this.body});
+
+  final AceIcon icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: c.accentMuted,
+            borderRadius: BorderRadius.circular(AstryxRadius.element),
+          ),
+          child: Center(
+            child: AceIconView(icon: icon, size: 17, color: c.onAccentMuted),
+          ),
+        ),
+        const SizedBox(width: AstryxSpace.s3),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(title, style: AstryxText.bodyStrong(c.textPrimary)),
+              const SizedBox(height: AstryxSpace.s0_5),
+              Text(body, style: AstryxText.supporting(c.textSecondary)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A tappable word inside a sentence.
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AstryxRadius.inner),
+      child: Text(
+        label,
+        style: AstryxText.supporting(c.textAccent).copyWith(
+          decoration: TextDecoration.underline,
+          decorationColor: c.textAccent,
+        ),
+      ),
+    );
+  }
 }

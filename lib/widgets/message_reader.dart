@@ -11,10 +11,9 @@ import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
-import '../util/html_render.dart';
-import '../util/routes.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
+import 'message_html.dart';
 import 'avatar.dart';
 import 'skeleton.dart';
 import 'ace_icon_view.dart';
@@ -356,7 +355,10 @@ class _MessageReaderState extends State<MessageReader> {
           ),
         if (html != null) const SizedBox(height: AstryxSpace.s4),
         if (showHtml)
-          _HtmlBody(html: html)
+          _HtmlBody(
+            html: html,
+            confirmLink: (Uri uri) => _confirmLink(context, uri),
+          )
         else
           SelectableText(
             message.textBody.isEmpty
@@ -459,19 +461,15 @@ class _MessageReaderState extends State<MessageReader> {
     // usual place at the top.
     final bool quote = context.read<Preferences>().quoteReplies;
 
-    await Navigator.of(context).push(
-      aceRoute(
-        ComposeScreen(
-          initialTo: message.fromEmail,
-          initialCc: cc,
-          initialSubject: subject,
-          initialBody: quote
-              ? '\n\n--- Original message ---\n${message.textBody}'
-              : '',
-          inReplyTo: message.messageId,
-          references: _referencesFor(message),
-        ),
-      ),
+    await openComposeSheet(
+      context,
+      initialTo: message.fromEmail,
+      initialCc: cc,
+      initialSubject: subject,
+      initialBody:
+          quote ? '\n\n--- Original message ---\n${message.textBody}' : '',
+      inReplyTo: message.messageId,
+      references: _referencesFor(message),
     );
   }
 
@@ -546,152 +544,112 @@ class _MessageReaderState extends State<MessageReader> {
   }
 }
 
-/// Renders an HTML body with [HtmlRenderer], owning the renderer's lifecycle so
-/// its link recognisers are released with the widget.
-class _HtmlBody extends StatefulWidget {
-  const _HtmlBody({required this.html});
+Future<bool> _confirmLink(BuildContext context, Uri uri) async {
+  if (!context.mounted) return false;
+  if (!context.read<Preferences>().warnExternalLinks) return true;
 
-  final String html;
-
-  @override
-  State<_HtmlBody> createState() => _HtmlBodyState();
+  final bool? go = await showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    builder: (BuildContext sheetContext) {
+      final AstryxColors c = sheetContext.astryx;
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AstryxSpace.s5,
+            0,
+            AstryxSpace.s5,
+            AstryxSpace.s5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  AceIconView(icon: AceIcons.warning, size: 18, color: c.warning),
+                  const SizedBox(width: AstryxSpace.s2),
+                  Text('Open this link?', style: AstryxText.heading3(c.textPrimary)),
+                ],
+              ),
+              const SizedBox(height: AstryxSpace.s3),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AstryxSpace.s3),
+                decoration: BoxDecoration(
+                  color: c.backgroundMuted,
+                  borderRadius: BorderRadius.circular(AstryxRadius.element),
+                ),
+                child: Text(
+                  uri.toString(),
+                  style: AstryxText.body(c.textPrimary),
+                ),
+              ),
+              const SizedBox(height: AstryxSpace.s3),
+              Text(
+                'This leaves Ace Mail and opens in another app.',
+                style: AstryxText.supporting(c.textSecondary),
+              ),
+              const SizedBox(height: AstryxSpace.s5),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: AceButton(
+                      label: 'Cancel',
+                      variant: AceButtonVariant.tonal,
+                      expand: true,
+                      onPressed: () => Navigator.of(sheetContext).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: AstryxSpace.s3),
+                  Expanded(
+                    child: AceButton(
+                      label: 'Open',
+                      variant: AceButtonVariant.primary,
+                      expand: true,
+                      onPressed: () => Navigator.of(sheetContext).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+  return go ?? false;
 }
 
-class _HtmlBodyState extends State<_HtmlBody> {
-  HtmlRenderer? _renderer;
+/// The body of a message, rendered.
+///
+/// Stateless: the renderer owns its own lifecycle, so there are no recognisers
+/// to release here, and nothing to rebuild by hand when the image setting
+/// changes — [AceHtml] watches it.
+class _HtmlBody extends StatelessWidget {
+  const _HtmlBody({required this.html, required this.confirmLink});
 
-  /// Mirrored so a change to the setting can be noticed and the render redone.
-  bool _loadRemote = false;
-  List<InlineSpan> _spans = const <InlineSpan>[];
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Reads the image setting, and re-renders when it changes: turning it on
-    // while a message is open has to load the images in that message, not just
-    // in the next one.
-    final bool loadRemote = context.watch<Preferences>().loadRemoteImages;
-    if (loadRemote == _loadRemote && _renderer != null) return;
-    _loadRemote = loadRemote;
-    _rebuild();
-  }
-
-  @override
-  void didUpdateWidget(covariant _HtmlBody oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.html != widget.html) _rebuild();
-  }
-
-  /// Shows the address before the browser opens.
-  ///
-  /// A link's text is the sender's, and need not be what the link does. This is
-  /// the difference between a decision and a reflex.
-  Future<bool> _confirmLink(Uri uri) async {
-    if (!mounted) return false;
-    if (!context.read<Preferences>().warnExternalLinks) return true;
-
-    final bool? go = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext sheetContext) {
-        final AstryxColors c = sheetContext.astryx;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AstryxSpace.s5,
-              0,
-              AstryxSpace.s5,
-              AstryxSpace.s5,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    AceIconView(icon: AceIcons.warning, size: 18, color: c.warning),
-                    const SizedBox(width: AstryxSpace.s2),
-                    Text('Open this link?', style: AstryxText.heading3(c.textPrimary)),
-                  ],
-                ),
-                const SizedBox(height: AstryxSpace.s3),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AstryxSpace.s3),
-                  decoration: BoxDecoration(
-                    color: c.backgroundMuted,
-                    borderRadius: BorderRadius.circular(AstryxRadius.element),
-                  ),
-                  child: Text(
-                    uri.toString(),
-                    style: AstryxText.body(c.textPrimary),
-                  ),
-                ),
-                const SizedBox(height: AstryxSpace.s3),
-                Text(
-                  'This leaves Ace Mail and opens in another app.',
-                  style: AstryxText.supporting(c.textSecondary),
-                ),
-                const SizedBox(height: AstryxSpace.s5),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: AceButton(
-                        label: 'Cancel',
-                        variant: AceButtonVariant.tonal,
-                        expand: true,
-                        onPressed: () => Navigator.of(sheetContext).pop(false),
-                      ),
-                    ),
-                    const SizedBox(width: AstryxSpace.s3),
-                    Expanded(
-                      child: AceButton(
-                        label: 'Open',
-                        variant: AceButtonVariant.primary,
-                        expand: true,
-                        onPressed: () => Navigator.of(sheetContext).pop(true),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    return go ?? false;
-  }
-
-  void _rebuild() {
-    final AstryxColors c = context.astryx;
-    _renderer?.dispose();
-    final HtmlRenderer renderer = HtmlRenderer(
-      // This is the line that makes the switch in Settings do anything at all.
-      loadRemoteImages: _loadRemote,
-      confirmLink: _confirmLink,
-      borderColor: c.border,
-      baseStyle: AstryxText.body(c.textPrimary),
-      linkColor: c.textAccent,
-      codeStyle: AstryxText.body(c.textPrimary).copyWith(
-        fontFamily: 'monospace',
-        fontSize: AstryxType.sSm,
-      ),
-    );
-    _renderer = renderer;
-    _spans = renderer.render(widget.html);
-  }
-
-  @override
-  void dispose() {
-    _renderer?.dispose();
-    super.dispose();
-  }
+  final String html;
+  final Future<bool> Function(Uri uri) confirmLink;
 
   @override
   Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    final Preferences prefs = context.watch<Preferences>();
+
     return SelectionArea(
-      child: Text.rich(TextSpan(children: _spans)),
+      child: AceHtml(
+        html: html,
+        baseStyle: AstryxText.body(c.textPrimary),
+        linkColor: c.textAccent,
+        codeStyle: AstryxText.body(c.textPrimary).copyWith(
+          fontFamily: 'monospace',
+          fontSize: AstryxType.sSm,
+        ),
+        // This is the line that makes the switch in Settings do anything.
+        loadRemoteImages: prefs.loadRemoteImages,
+        confirmLink: confirmLink,
+      ),
     );
   }
 }

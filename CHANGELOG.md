@@ -3,6 +3,78 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.5.0+32
+
+### Changed
+- **The HTML renderer is a maintained one.** Message bodies are rendered by
+  `flutter_widget_from_html_core` — the renderer the Flutter ecosystem settled
+  on — rather than by the hand-written one that used to live in
+  `lib/util/html_render.dart`. Mail HTML is a museum of it: layout tables inside
+  layout tables, inline styles, unclosed tags, quoted-printable soft breaks, and
+  a `<style>` block that contradicts all of it. The custom renderer handled a
+  subset of that and got the rest wrong; this one has a real CSS cascade and is
+  still being maintained.
+
+  Not a WebView, which is what Gmail and Outlook put on a phone. A WebView
+  renders more of the web's CSS and would also put a browser engine, its own
+  scrolling, its own text selection and its own layout pass in the middle of a
+  list that is supposed to feel like the rest of the app. This renders in the
+  app's own frame budget, in the app's own type, and is parsed off the frame for
+  anything long.
+
+  Everything the app decided before, it still decides: remote images are not
+  fetched unless the setting says so; only `http`, `https` and `mailto` are ever
+  handed to the platform; links are confirmed first when that setting is on;
+  nothing executes.
+- **The composer is a sheet, with an account picker.** Writing a message is
+  something you do *over* the mail you were reading — the message you are
+  answering stays behind it, and the sheet is one gesture from being gone. The
+  picker names the account the message will leave from, and its default is
+  **Automatic**: the mailbox you are reading, which is the account a reply
+  belongs to and the one a message written from here most likely means.
+- **The defaults are on.** The app ships with everything it can do switched on,
+  and the settings are there to take things away. Four exceptions, each for a
+  reason written next to it in `lib/data/preferences.dart`: raw headers (a
+  developer's view of a message), reduce motion (an accessibility preference,
+  which someone has to choose for themselves), the app lock (it would lock the
+  app for whoever installs it, before they asked for a lock), and dynamic
+  colour (it makes the accent the wallpaper's, which a launcher icon cannot
+  follow).
+- **The app icon wears the accent.** The adaptive icon's background is now the
+  brand accent — the deep end is `AceAccent.orange` exactly, which is what the
+  flat legacy icons already were — so the tile on the home screen is the same
+  colour as the app it opens.
+- **Themed icons are wired up.** The monochrome layer points at the envelope
+  silhouette that was drawn for it and was not being used, instead of at the
+  colour artwork. On Android 13+ with themed icons on, the launcher tints the
+  icon with the system accent like every other icon.
+
+### Added
+- **A welcome step.** The first screen says what the app is, what it will do
+  with your mail and what it will not, in three lines — then the form. Adding a
+  second account skips it.
+- **Terms of use and a privacy policy, as a sheet.** One sheet, two tabs, from
+  the welcome screen and from Settings. Short sections and plain sentences, and
+  every statement in it is a statement about what the code does: where the
+  password goes, what is kept on the device and how it is sealed, and — named,
+  one by one — the five things that ever leave it.
+
+### Fixed
+- **The app lock cannot lock you out.** It used to engage on a device that
+  cannot authenticate at all, which is a screen with no way past it. An
+  impossible lock is no longer a lock.
+
+### Faster
+- The message list passes its density down instead of every row watching the
+  preferences for itself, so a settings change rebuilds the list once rather
+  than once per row.
+- Rows carry uid keys and the list can now *find* the element for a message it
+  has already built, instead of building every row below a change again.
+- A folder's one-time-code pass copies the cached page once, at the end,
+  instead of once per code it finds.
+
+Version 0.5.0+32.
+
 ## 0.5.0+31
 
 ### Added

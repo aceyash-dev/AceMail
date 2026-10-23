@@ -355,7 +355,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
   }
 
   void _compose(BuildContext context) {
-    Navigator.of(context).push(aceRoute(const ComposeScreen()));
+    // A sheet, not a pushed screen — see [openComposeSheet].
+    unawaited(openComposeSheet(context));
   }
 
   Future<void> _confirmExit(BuildContext context) async {

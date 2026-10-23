@@ -14,6 +14,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
+import '../widgets/legal_sheet.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/settings_group.dart';
@@ -58,9 +59,10 @@ class SettingsScreen extends StatelessWidget {
                 SettingsSwitchRow(
                   icon: AceIcons.account,
                   title: 'Sender pictures',
-                  subtitle: 'Off by default. Turning this on sends a hash of '
-                      'every sender\'s address to gravatar.com, which is not '
-                      'anonymous.',
+                  subtitle: 'Sends a hash of every sender\'s address to '
+                      'gravatar.com to find a picture. A hash of an address is '
+                      'not anonymous, so this is a disclosure — off means no '
+                      'request is ever made.',
                   value: prefs.showAvatars,
                   onChanged: prefs.setShowAvatars,
                 ),
@@ -167,8 +169,9 @@ class SettingsScreen extends StatelessWidget {
                 SettingsSwitchRow(
                   icon: AceIcons.image,
                   title: 'Load images in messages',
-                  subtitle: 'Off by default: fetching an image tells the '
-                      'sender\u2019s server the message was opened.',
+                  subtitle: 'Fetching an image tells the sender\u2019s server '
+                      'that the message was opened, and from where. Off shows '
+                      'a placeholder in its place.',
                   value: prefs.loadRemoteImages,
                   onChanged: prefs.setLoadRemoteImages,
                 ),
@@ -457,6 +460,19 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                     aceRoute(const TutorialScreen()),
                   ),
+                ),
+                SettingsRow(
+                  icon: AceIcons.password,
+                  title: 'Terms of use',
+                  onTap: () =>
+                      LegalSheet.show(context, startAt: LegalDocument.terms),
+                ),
+                SettingsRow(
+                  icon: AceIcons.shield,
+                  title: 'Privacy policy',
+                  subtitle: 'What is kept on this device, and what leaves it',
+                  onTap: () =>
+                      LegalSheet.show(context, startAt: LegalDocument.privacy),
                 ),
                 SettingsRow(
                   icon: AceIcons.info,
