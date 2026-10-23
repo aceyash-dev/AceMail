@@ -173,7 +173,7 @@ Rules:
   /// Tolerant on purpose: providers wrap the list differently, some return
   /// `{data: [{id}]}`, some `{models: [{name}]}`, and one returns a bare array.
   static List<String> parseModels(String body) {
-    final Object? decoded = jsonDecode(body);
+    final Object? decoded = _tryDecode(body);
     final List<dynamic>? list = switch (decoded) {
       final List<dynamic> bare => bare,
       final Map<String, dynamic> map when map['data'] is List<dynamic> =>
@@ -199,7 +199,7 @@ Rules:
 
   /// The text out of a `/chat/completions` response.
   static String parseCompletion(String body) {
-    final Object? decoded = jsonDecode(body);
+    final Object? decoded = _tryDecode(body);
     if (decoded is! Map<String, dynamic>) return '';
     final Object? choices = decoded['choices'];
     if (choices is! List<dynamic> || choices.isEmpty) return '';
@@ -221,6 +221,19 @@ Rules:
     // Older / simpler shape.
     final Object? text = first['text'];
     return text is String ? text : '';
+  }
+
+  /// JSON, or null.
+  ///
+  /// A provider that answers with an HTML error page — a proxy, a captive
+  /// portal, a 404 page — must read as "no answer", not as a `FormatException`
+  /// thrown out of a parser and blamed on the model.
+  static Object? _tryDecode(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// The search the reply asked for, or null.
