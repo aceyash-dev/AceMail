@@ -1,5 +1,4 @@
 import 'package:ace_mail/data/preferences.dart';
-import 'package:ace_mail/services/contacts.dart';
 import 'package:ace_mail/state/mail_controller.dart';
 import 'package:ace_mail/theme/astryx_theme.dart';
 import 'package:ace_mail/widgets/message_list_panel.dart';
@@ -11,6 +10,19 @@ import 'package:provider/provider.dart';
 import 'fake_transport.dart';
 
 void main() {
+  /// Lets the contact book's debounced write fire.
+  ///
+  /// Loading a page teaches it some addresses, and a timer left pending at the
+  /// end of a widget test is a failure. Not `flush()`: that writes a file, and
+  /// a widget test runs in a fake-async zone where real I/O never completes —
+  /// awaiting it there does not fail the test, it hangs the whole run. Which is
+  /// exactly what it did.
+  ///
+  /// Called at the end of every test rather than only in the helper, because a
+  /// test that pulls to refresh loads a page *again* and schedules a new one.
+  Future<void> settleContacts(WidgetTester tester) =>
+      tester.pump(const Duration(seconds: 3));
+
   Future<MailController> pumpPanel(WidgetTester tester, FakeTransport transport) async {
     final MailController controller = MailController(
       store: FakeStore(),
@@ -41,14 +53,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
     }
 
-    // Loading a page teaches the contact book some addresses, and its write is
-    // debounced — a timer left pending fails a widget test. Flushing it is
-    // exactly what the app does when it is backgrounded.
-    //
-    // `runAsync` because the flush writes a file. A widget test runs in a
-    // fake-async zone, where real I/O never completes: awaiting it there does
-    // not fail the test, it hangs the whole run. Which is what it did.
-    await tester.runAsync(Contacts.flush);
+    await settleContacts(tester);
     return controller;
   }
 
@@ -109,5 +114,8 @@ void main() {
       greaterThan(before),
       reason: 'the pull should have reloaded the folder',
     );
+
+    // The reload taught the contact book some addresses again.
+    await settleContacts(tester);
   });
 }
