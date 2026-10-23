@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
 import '../models/glass_mode.dart';
-import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 
 abstract final class AceGlass {

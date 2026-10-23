@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
-import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../services/voice_input.dart';
 import '../state/mail_controller.dart';
@@ -215,10 +214,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final MailController controller = context.watch<MailController>();
-    // Watched rather than read: the sort button shows whether something other
-    // than the default order is in force, and the app bar shows Chyme only when
-    // it has been set up.
-    final Preferences prefs = context.watch<Preferences>();
     final bool wide =
         MediaQuery.sizeOf(context).width >= MailboxScreen._wideBreakpoint;
     final bool reading = controller.openSummary != null;

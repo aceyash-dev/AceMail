@@ -10,6 +10,8 @@
 /// ```
 ///
 /// So failures are logged through [safe] rather than interpolated straight in.
+library;
+
 import 'text.dart';
 
 abstract final class Redact {
