@@ -71,7 +71,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
       _search.text = heard;
       _search.selection = TextSelection.collapsed(offset: heard.length);
       _onSearchChanged(heard);
-      context.read<MailController>().search(heard);
+      // Deliberately not awaited: the search runs, and the field is already
+      // showing the words. Waiting would hold the microphone's spinner on
+      // screen for the length of a server round trip.
+      unawaited(context.read<MailController>().search(heard));
     } catch (error) {
       if (!mounted) return;
       AceSnack.show(context, '$error');
