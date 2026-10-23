@@ -3,6 +3,7 @@ import 'package:ace_mail/theme/astryx_theme.dart';
 import 'package:ace_mail/widgets/message_html.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 
 /// The renderer is a maintained package now. What is left to test here is
 /// everything the app still decides: which links may leave the app, and which
@@ -21,6 +22,13 @@ Widget host(String html, {bool loadRemoteImages = false}) => MaterialApp(
     );
 
 void main() {
+  setUpAll(() {
+    // The renderer's loading placeholder is a spinner by design, and a spinner
+    // never settles — which is all `pumpAndSettle` would ever hear about. This
+    // makes it a static widget instead, for tests only.
+    WidgetFactory.debugDeterministicLoadingWidget = true;
+  });
+
   group('AceHtml.mayOpen', () {
     test('http and https may leave', () {
       expect(AceHtml.mayOpen(Uri.parse('https://example.com')), isTrue);

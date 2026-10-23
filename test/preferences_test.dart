@@ -64,12 +64,26 @@ void main() {
     });
 
     test('the sending and gesture settings default sensibly', () {
+      // Everything the app can do ships switched on; the settings are there to
+      // take things away.
       final Preferences prefs = Preferences();
       expect(prefs.quoteReplies, isTrue);
-      expect(prefs.signatureOnReplies, isFalse);
-      expect(prefs.confirmArchive, isFalse);
+      expect(prefs.signatureOnReplies, isTrue);
+      expect(prefs.confirmArchive, isTrue);
       expect(prefs.undoWindow, UndoWindow.normal);
-      expect(prefs.bccSelf, isFalse);
+      expect(prefs.bccSelf, isTrue);
+    });
+
+    test('the four defaults that are off are off for a reason', () {
+      // Raw headers is a developer's view; reduce motion is an accessibility
+      // preference someone has to choose; the app lock would lock the app for
+      // whoever installs it; dynamic colour makes the accent the wallpaper's,
+      // which a launcher icon cannot follow.
+      final Preferences prefs = Preferences();
+      expect(prefs.showRawHeaders, isFalse);
+      expect(prefs.reduceMotion, isFalse);
+      expect(prefs.appLock, isFalse);
+      expect(prefs.useDynamicColour, isFalse);
     });
 
     test('every undo window has a label and a positive duration', () {
