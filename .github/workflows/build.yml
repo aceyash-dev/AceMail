@@ -18,7 +18,7 @@ jobs:
   build:
     name: Analyze, test, build APK
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -35,6 +35,24 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      # Gradle's own caches, which the Flutter action does not cover. Without
+      # this every run re-resolves the Android Gradle plugin and re-downloads
+      # its dependencies — most of the build's wall-clock time — and a change to
+      # the native code, which invalidates more of it, can push the job past its
+      # own timeout.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # Keyed on the files that decide what Gradle will resolve, so a
+          # dependency change starts a new cache rather than restoring a stale
+          # one and re-downloading anyway.
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'pubspec.lock') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Install dependencies
         run: flutter pub get
