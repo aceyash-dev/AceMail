@@ -15,6 +15,7 @@ import '../util/dates.dart';
 import '../util/routes.dart';
 import 'ace_form_field.dart';
 import 'chyme_mark.dart';
+import 'markdown_view.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
 
@@ -83,6 +84,13 @@ class _ChymeSheetState extends State<ChymeSheet> {
   /// A summary, and a deliberately short one: the sender, the subject and the
   /// date of the messages in view, and the body of the one that is open. Not the
   /// mailbox, not the attachments, not the other folders.
+  /// The mail, and only the mail.
+  ///
+  /// Deliberately not "what is on screen": the folder, the filter, the sort and
+  /// the selection are all things the *app* knows and the model has no use for,
+  /// and describing them invites answers about the interface instead of about
+  /// the mail. What goes in is what a person would hand over — who wrote, what
+  /// they wrote, when, and the whole of the message that is open.
   String _context(
     MailController controller,
     Preferences prefs,
@@ -93,12 +101,10 @@ class _ChymeSheetState extends State<ChymeSheet> {
           'still help them write, and still answer questions about the app.';
     }
 
-    final StringBuffer out = StringBuffer()
-      ..writeln('Folder on screen: ${controller.selectedFolder?.label ?? 'mail'}.');
-
+    final StringBuffer out = StringBuffer();
     final List<MessageSummary> visible = controller.visibleMessages;
     if (visible.isNotEmpty) {
-      out.writeln('The messages in it, newest first:');
+      out.writeln('Their recent mail, newest first:');
       for (final MessageSummary message in visible.take(25)) {
         out.writeln(
           '- ${message.fromName} <${message.fromEmail}> · ${message.subject}'
@@ -112,7 +118,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
       final String body = open.textBody;
       out
         ..writeln()
-        ..writeln('The message they have open:')
+        ..writeln('The message they have open, in full:')
         ..writeln('From: ${open.fromName} <${open.fromEmail}>')
         ..writeln('Subject: ${open.subject}')
         ..writeln('Date: ${open.date}')
@@ -120,6 +126,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ..writeln(body.length > 6000 ? body.substring(0, 6000) : body);
     }
 
+    if (out.isEmpty) return 'No mail is loaded at the moment.';
     return out.toString();
   }
 
@@ -398,10 +405,19 @@ class _Bubble extends StatelessWidget {
                 color: mine ? c.accent : c.backgroundMuted,
                 borderRadius: BorderRadius.circular(AstryxRadius.container),
               ),
-              child: SelectableText(
-                text,
-                style: AstryxText.body(mine ? c.onAccent : c.textPrimary),
-              ),
+              // What Chyme writes is Markdown, and it reads as Markdown when it
+              // is rendered as Markdown. What the person types is not, and is
+              // shown exactly as typed.
+              child: mine
+                  ? SelectableText(
+                      text,
+                      style: AstryxText.body(c.onAccent),
+                    )
+                  : MarkdownView(
+                      source: text,
+                      onLink: (String url) =>
+                          openMarkdownLink(context, url),
+                    ),
             ),
           ),
         ],

@@ -15,7 +15,7 @@ class GoogleAuthException implements Exception {
 }
 
 /// A Google account and a token for it.
-typedef GoogleCredential = ({String email, String token});
+typedef GoogleCredential = ({String email, String token, String? name});
 
 /// Signing in with Google.
 ///
@@ -71,6 +71,17 @@ abstract final class GoogleAuth {
     return account?.email;
   }
 
+  /// The name Google has for the signed-in account, if there is one.
+  ///
+  /// Free — it comes back with the lightweight sign-in — and it is the only
+  /// provider here that can say what to call somebody without being asked.
+  static Future<String?> knownName() async {
+    await _prepare();
+    final GoogleSignInAccount? account = await _lightweight();
+    final String? name = account?.displayName?.trim();
+    return (name == null || name.isEmpty) ? null : name;
+  }
+
   /// Asks the user to choose an account and consent, and returns a token.
   static Future<GoogleCredential> signIn() async {
     await _prepare();
@@ -78,7 +89,12 @@ abstract final class GoogleAuth {
       final GoogleSignInAccount account =
           await GoogleSignIn.instance.authenticate(scopeHint: scopes);
       final String token = await _tokenFor(account, allowPrompt: true);
-      return (email: account.email, token: token);
+      final String? name = account.displayName?.trim();
+      return (
+        email: account.email,
+        token: token,
+        name: (name == null || name.isEmpty) ? null : name,
+      );
     } on GoogleSignInException catch (error) {
       throw GoogleAuthException(describe(error));
     }

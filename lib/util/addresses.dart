@@ -96,3 +96,22 @@ abstract final class MailAddresses {
   /// comparing raw strings produced duplicate accounts for the same mailbox.
   static String normalize(String email) => email.trim().toLowerCase();
 }
+
+/// Whether an address belongs to a machine rather than a person.
+///
+/// Local parts that only ever send receipts, notifications and bounces. Used
+/// where a list of *people* is being built — the address book — because
+/// offering to write to "noreply@example.com" is offering something that cannot
+/// work.
+bool isMachineAddress(String email) {
+  final String local =
+      (email.contains('@') ? email.split('@').first : email).toLowerCase();
+  const Set<String> machine = <String>{
+    'noreply', 'no-reply', 'donotreply', 'do-not-reply', 'notification',
+    'notifications', 'mailer-daemon', 'postmaster', 'bounce', 'bounces',
+    'newsletter', 'updates', 'alerts',
+  };
+  return machine.contains(local) ||
+      local.startsWith('noreply') ||
+      local.startsWith('no-reply');
+}

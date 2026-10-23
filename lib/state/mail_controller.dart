@@ -123,6 +123,28 @@ class MailController extends ChangeNotifier {
   List<MessageSummary> get visibleMessages =>
       active?.visibleMessages ?? const <MessageSummary>[];
 
+  /// The account holder's own name, when the provider knows it. Null is
+  /// ordinary: the greeting is written to read well without one.
+  String? get displayName => active?.displayName;
+
+  /// Whether the body is showing the address book rather than the mail.
+  ///
+  /// Here rather than in the screen because two things switch it — the floating
+  /// bar on a phone, the rail on a wide window — and a tab with two switches
+  /// has to have one state.
+  bool contactsTab = false;
+
+  void showContacts(bool contacts) {
+    if (contactsTab == contacts) return;
+    contactsTab = contacts;
+    _notify();
+  }
+
+  /// Whether the active account needs Google's consent again — the grant was
+  /// withdrawn, or it never covered this scope. The screen offers the sign-in
+  /// rather than an error nobody can act on.
+  bool get needsGoogleSignIn => active?.needsGoogleSignIn ?? false;
+
   bool get selecting => active?.selecting ?? false;
   int get selectedCount => active?.selected.length ?? 0;
   bool isSelected(int uid) => active?.isSelected(uid) ?? false;
@@ -307,6 +329,18 @@ class MailController extends ChangeNotifier {
       active?.openFolder(folder);
 
   Future<void> refreshMessages() async => active?.refreshMessages();
+
+  /// Connects the active account, if it is not connected.
+  ///
+  /// Separate from refreshing, which needs a folder and a live connection: this
+  /// is the one that gets a mailbox back after a sign-in or a dropped session.
+  /// `connect()` is idempotent, so calling it when all is well does nothing.
+  Future<void> reconnect() async {
+    final MailSession? session = active;
+    if (session == null) return;
+    await session.connect();
+    _notify();
+  }
 
   Future<void> loadMore() async => active?.loadMore();
 

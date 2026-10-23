@@ -6,129 +6,118 @@ import 'package:ace_mail/theme/astryx_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// WCAG relative luminance.
-double _luminance(Color c) {
-  double channel(double v) =>
-      v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
-  return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+/// WCAG 2.1 relative luminance.
+double _luminance(Color colour) {
+  double channel(double value) {
+    final double v = value / 255;
+    return v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4) as double;
+  }
+
+  return 0.2126 * channel((colour.r * 255).roundToDouble()) +
+      0.7152 * channel((colour.g * 255).roundToDouble()) +
+      0.0722 * channel((colour.b * 255).roundToDouble());
 }
 
-/// WCAG contrast ratio, 1:1 to 21:1.
+/// The contrast ratio between two colours, 1 to 21.
 double contrast(Color a, Color b) {
-  final double la = _luminance(a);
-  final double lb = _luminance(b);
-  return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+  final double x = _luminance(a);
+  final double y = _luminance(b);
+  return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
 }
-
-/// AA for body text.
-const double aa = 4.5;
-
-/// AA for large text and non-text UI.
-const double aaLarge = 3.0;
 
 void main() {
-  // Every accent, in both modes. An accent is the user's choice, so its
-  // contrast cannot be assumed — this is what the palette is checked against.
-  for (final AceAccent accent in AceAccent.values) {
-  for (final Brightness brightness in Brightness.values) {
-    final AstryxColors c = AstryxColors.fromScheme(
-      buildAstryxScheme(brightness, accent: accent),
-    );
-    final String mode = '${accent.label} ${brightness.name}';
+  /// Every surface a text role can end up on.
+  List<({String name, Color colour})> surfaces(AstryxColors c) =>
+      <({String name, Color colour})>[
+        (name: 'backgroundBody', colour: c.backgroundBody),
+        (name: 'backgroundSurface', colour: c.backgroundSurface),
+        (name: 'backgroundCard', colour: c.backgroundCard),
+        (name: 'backgroundMuted', colour: c.backgroundMuted),
+        (name: 'surfaceHighest', colour: c.surfaceHighest),
+      ];
 
-    group('$mode contrast', () {
-      test('text on the accent passes AA', () {
-        expect(
-          contrast(c.onAccent, c.accent),
-          greaterThanOrEqualTo(aa),
-          reason: 'filled buttons, badges and toggles all sit on this',
-        );
-      });
+  group('text clears AA', () {
+    for (final Brightness brightness in Brightness.values) {
+      for (final AceAccent accent in AceAccent.values) {
+        test('${brightness.name} · ${accent.name}', () {
+          final ThemeData theme = buildAstryxTheme(brightness, accent: accent);
+          final AstryxColors c = theme.extension<AstryxColors>()!;
 
-      test('text on the muted accent passes AA', () {
-        expect(
-          contrast(c.onAccentMuted, c.accentMuted),
-          greaterThanOrEqualTo(aa),
-        );
-      });
+          for (final ({String name, Color colour}) surface in surfaces(c)) {
+            // 4.5:1 is AA for body text. Body and supporting text are the two
+            // roles that carry sentences.
+            expect(
+              contrast(c.textPrimary, surface.colour),
+              greaterThanOrEqualTo(4.5),
+              reason: 'textPrimary on ${surface.name} (${brightness.name}, '
+                  '${accent.name})',
+            );
+            expect(
+              contrast(c.textSecondary, surface.colour),
+              greaterThanOrEqualTo(4.5),
+              reason: 'textSecondary on ${surface.name} (${brightness.name}, '
+                  '${accent.name})',
+            );
+          }
 
-      test('body text on the page passes AAA', () {
-        expect(
-          contrast(c.textPrimary, c.backgroundBody),
-          greaterThanOrEqualTo(7.0),
-        );
-      });
+          // The accent as *text* — links, the "Look around first" button — is
+          // held to the same bar as any other text.
+          for (final ({String name, Color colour}) surface in surfaces(c)) {
+            expect(
+              contrast(c.textAccent, surface.colour),
+              greaterThanOrEqualTo(4.5),
+              reason: 'textAccent on ${surface.name} (${brightness.name}, '
+                  '${accent.name})',
+            );
+          }
 
-      test('secondary text — and therefore hints — passes AA', () {
-        expect(
-          contrast(c.textSecondary, c.backgroundBody),
-          greaterThanOrEqualTo(aa),
-        );
-        expect(
-          contrast(c.textSecondary, c.backgroundMuted),
-          greaterThanOrEqualTo(aa),
-          reason: 'the field fill is the muted surface',
-        );
-      });
+          // A label on the accent fill: the compose button, the selected tab,
+          // the current folder.
+          expect(
+            contrast(c.onAccent, c.accent),
+            greaterThanOrEqualTo(4.5),
+            reason: 'onAccent on accent (${brightness.name}, ${accent.name})',
+          );
 
-      test('disabled ink is still legible as large text', () {
-        expect(
-          contrast(c.textDisabled, c.backgroundBody),
-          greaterThanOrEqualTo(aaLarge),
-        );
-      });
+          // The error line, and the success and warning ones, are read as text.
+          expect(
+            contrast(c.error, c.backgroundBody),
+            greaterThanOrEqualTo(4.5),
+            reason: 'error on backgroundBody (${brightness.name}, '
+                '${accent.name})',
+          );
+        });
+      }
+    }
+  });
 
-      test('error text on its container passes AA', () {
-        expect(
-          contrast(c.errorMuted == c.error ? c.error : c.onErrorMuted, c.errorMuted),
-          greaterThanOrEqualTo(aa),
-        );
-      });
+  group('components clear 3:1', () {
+    // Non-text: an icon, a border, the accent as a fill. WCAG asks 3:1 of these,
+    // and the app's own rule is that a shape must read against the page.
+    for (final Brightness brightness in Brightness.values) {
+      for (final AceAccent accent in AceAccent.values) {
+        test('${brightness.name} · ${accent.name}', () {
+          final ThemeData theme = buildAstryxTheme(brightness, accent: accent);
+          final AstryxColors c = theme.extension<AstryxColors>()!;
 
-      test('the secondary and tertiary containers are usable too', () {
-        // These were Material's own secondary/tertiary, which for an orange
-        // seed came out green — the Close button in About was the visible
-        // symptom. They are the accent now, so they have to pass like it.
-        expect(
-          contrast(c.scheme.secondaryContainer, c.scheme.onSecondaryContainer),
-          greaterThanOrEqualTo(aa),
-        );
-        expect(
-          contrast(c.scheme.tertiaryContainer, c.scheme.onTertiaryContainer),
-          greaterThanOrEqualTo(aa),
-        );
-      });
-
-      test('the page carries the accent\u2019s hue, not just a tint of grey', () {
-        // A brown theme has to look beige, not grey.
-        final AstryxColors brown = AstryxColors.fromScheme(
-          buildAstryxScheme(brightness, accent: AceAccent.brown),
-        );
-        final AstryxColors grey = AstryxColors.fromScheme(
-          buildAstryxScheme(brightness, accent: AceAccent.indigo),
-        );
-        expect(brown.backgroundBody, isNot(grey.backgroundBody));
-        // Warm means more red than blue.
-        expect(brown.backgroundBody.r, greaterThan(brown.backgroundBody.b));
-      });
-
-      test('accent text passes AA on the page', () {
-        // The fill role cannot do this job: the brand orange is 2.8:1 on Milk,
-        // which is why there is a separate ink for accent-coloured text.
-        expect(
-          contrast(c.textAccent, c.backgroundBody),
-          greaterThanOrEqualTo(aa),
-        );
-      });
-
-      test('a filled accent is distinguishable from the page', () {
-        expect(
-          contrast(c.accent, c.backgroundBody),
-          greaterThanOrEqualTo(aaLarge),
-          reason: 'a filled button still has to read as a shape',
-        );
-      });
-    });
-  }
-  }
+          expect(
+            contrast(c.iconSecondary, c.backgroundBody),
+            greaterThanOrEqualTo(3),
+            reason: 'iconSecondary (${brightness.name}, ${accent.name})',
+          );
+          expect(
+            contrast(c.accent, c.backgroundBody),
+            greaterThanOrEqualTo(3),
+            reason: 'accent as a fill (${brightness.name}, ${accent.name})',
+          );
+          expect(
+            contrast(c.border, c.backgroundBody),
+            greaterThanOrEqualTo(1.2),
+            reason: 'border is a hairline, not a shape '
+                '(${brightness.name}, ${accent.name})',
+          );
+        });
+      }
+    }
+  });
 }

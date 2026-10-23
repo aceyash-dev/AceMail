@@ -30,6 +30,11 @@ abstract final class AceIcons {
   static const AceIcon archive = HugeIcons.strokeRoundedArchive01;
   static const AceIcon trash = HugeIcons.strokeRoundedDelete02;
   static const AceIcon star = HugeIcons.strokeRoundedStar;
+  static const AceIcon starOff = HugeIcons.strokeRoundedStarOff;
+  /// One person, for a contact.
+  static const AceIcon user = HugeIcons.strokeRoundedUser;
+  /// The address book, for the contacts tab.
+  static const AceIcon contacts = HugeIcons.strokeRoundedContactBook;
   static const AceIcon folder = HugeIcons.strokeRoundedFolder01;
   static const AceIcon attachment = HugeIcons.strokeRoundedAttachment01;
   static const AceIcon at = HugeIcons.strokeRoundedAtSign;

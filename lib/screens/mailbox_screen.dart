@@ -17,7 +17,9 @@ import '../util/haptics.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/chyme_mark.dart';
 import '../widgets/chyme_sheet.dart';
+import '../widgets/ace_floating_nav.dart';
 import '../widgets/confirm_exit.dart';
+import '../widgets/contacts_panel.dart';
 import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
@@ -50,6 +52,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
   final TextEditingController _search = TextEditingController();
   Timer? _searchDebounce;
   bool _searching = false;
+
+  /// What the contacts list is filtered by. Kept apart from the mail search:
+  /// typing a name while looking at contacts must not search the mailbox.
+  String _contactQuery = '';
 
   /// Whether the microphone is listening. The bar says so while it is: a
   /// microphone that gives no sign of being live is a microphone people talk to
@@ -162,6 +168,12 @@ class _MailboxScreenState extends State<MailboxScreen> {
   }
 
   void _onSearchChanged(String value) {
+    if (context.read<MailController>().contactsTab) {
+      // Filtering a list already in memory: no debounce, no server, no reason
+      // to wait.
+      setState(() => _contactQuery = value);
+      return;
+    }
     // The field is always on screen now, so "searching" means "there is a
     // query", not "a search screen is open".
     final bool searching = value.trim().isNotEmpty;
@@ -305,9 +317,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
             // the filters and the order. It wears the accent when something
             // other than the default is in force, which is what the chips were
             // never able to say.
-            AceIconButton(
-              icon: AceIcons.sort,
-              tooltip: 'Sort and filter',
+            if (!controller.contactsTab)
+              AceIconButton(
+                icon: AceIcons.sort,
+                tooltip: 'Sort and filter',
               // Lit when something other than the default is in force — the one
               // thing the always-on chips could never say.
               selected: controller.filter != MessageFilter.all ||
@@ -353,12 +366,22 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 children: <Widget>[
                   const FolderRail(),
                   VerticalDivider(width: 1, color: c.border),
-                  const SizedBox(width: 380, child: MessageListPanel()),
+                  // The list slot carries the address book when that is what is
+                  // being looked at: on a wide screen the two are the same
+                  // column, and swapping what fills it is the whole change.
+                  SizedBox(
+                    width: 380,
+                    child: controller.contactsTab
+                        ? ContactsPanel(query: _contactQuery)
+                        : const MessageListPanel(),
+                  ),
                   VerticalDivider(width: 1, color: c.border),
                   const Expanded(child: MessageReader()),
                 ],
               )
-            : AnimatedSwitcher(
+            : Stack(
+                children: <Widget>[
+                  AnimatedSwitcher(
                 duration: AstryxMotion.of(const Duration(milliseconds: 240)),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
@@ -377,17 +400,56 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     ),
                   );
                 },
-                child: reading
-                    ? MessageReader(
-                        key: const ValueKey<String>('reader'),
-                        onBack: controller.closeMessage,
-                      )
-                    : const MessageListPanel(key: ValueKey<String>('list')),
+                    child: reading
+                        ? MessageReader(
+                            key: const ValueKey<String>('reader'),
+                            onBack: controller.closeMessage,
+                          )
+                        : controller.contactsTab
+                        ? ContactsPanel(
+                            key: const ValueKey<String>('contacts'),
+                            query: _contactQuery,
+                          )
+                        : const MessageListPanel(
+                            key: ValueKey<String>('list'),
+                          ),
+                  ),
+                  // The bar floats over the page rather than sitting under it,
+                  // and it is not there while a message is open: reading is a
+                  // place you are in, not a tab you are on.
+                  if (!reading)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: AceFloatingNav<bool>(
+                        value: controller.contactsTab,
+                        onChanged: (bool contacts) {
+                          setState(() => _contactQuery = '');
+                          controller.showContacts(contacts);
+                          // The bar's search is one search bar; leaving the tab
+                          // must not leave a filter behind it.
+                          _search.clear();
+                          _exitSearch();
+                        },
+                        items: const <AceNavItem<bool>>[
+                          AceNavItem<bool>(
+                            value: false,
+                            icon: AceIcons.inbox,
+                            label: 'Mail',
+                          ),
+                          AceNavItem<bool>(
+                            value: true,
+                            icon: AceIcons.contacts,
+                            label: 'Contacts',
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
+            ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   /// The search bar, in the app bar where the folder's name used to be.

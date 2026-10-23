@@ -18,6 +18,8 @@ import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../services/google_auth.dart';
+import '../util/ace_snack.dart';
 import '../util/dates.dart';
 import '../util/greeting.dart';
 import 'astryx_widgets.dart';
@@ -127,12 +129,25 @@ class MessageListPanel extends StatelessWidget {
             icon: AceIcons.error,
             iconColor: c.error,
             message: error,
-            action: AceButton(
-              label: 'Try again',
-              icon: AceIcons.refresh,
-              variant: AceButtonVariant.tonal,
-              onPressed: () => context.read<MailController>().refreshMessages(),
-            ),
+            // Google's grant can be withdrawn from the account page, and a
+            // token that never covered the mail scope cannot be refreshed into
+            // one. Both end the same way — the person has to look at Google's
+            // screen once — so the button offers that rather than a retry that
+            // would fail identically.
+            action: controller.needsGoogleSignIn
+                ? AceButton(
+                    label: 'Sign in with Google',
+                    icon: AceIcons.mailOpen,
+                    variant: AceButtonVariant.primary,
+                    onPressed: () => _signInWithGoogle(context),
+                  )
+                : AceButton(
+                    label: 'Try again',
+                    icon: AceIcons.refresh,
+                    variant: AceButtonVariant.tonal,
+                    onPressed: () =>
+                        context.read<MailController>().refreshMessages(),
+                  ),
           ),
         ),
       ];
@@ -868,7 +883,7 @@ class _Greeting extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              greetingFor(DateTime.now()),
+              greetingFor(DateTime.now(), name: controller.displayName),
               style: AstryxText.display3(c.textPrimary),
             ),
             const SizedBox(height: AstryxSpace.s0_5),
@@ -881,4 +896,21 @@ class _Greeting extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks Google for consent again, then reconnects.
+///
+/// Signing in is only half of it: the mailbox is still disconnected, and the
+/// person asked to read their mail, not to see a permission screen. So the
+/// connection is retried as soon as the token exists.
+Future<void> _signInWithGoogle(BuildContext context) async {
+  final MailController controller = context.read<MailController>();
+  try {
+    await GoogleAuth.signIn();
+  } on GoogleAuthException catch (error) {
+    if (context.mounted) AceSnack.show(context, error.message);
+    return;
+  }
+  if (!context.mounted) return;
+  await controller.reconnect();
 }

@@ -457,7 +457,10 @@ class SettingsScreen extends StatelessWidget {
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.chyme,
-                  leading: const ChymeMark(size: 22),
+                  // Drawn in the row's own icon colour. The artwork is white
+                  // with transparency, so left untinted it is white on a light
+                  // row — a mark that is not there.
+                  leading: ChymeMark(size: 22, color: c.iconSecondary),
                   title: 'Chyme',
                   subtitle: 'An experimental assistant that can read what is on '
                       'screen, summarise a message, find one, and draft a reply. '

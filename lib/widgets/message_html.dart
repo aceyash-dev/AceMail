@@ -4,6 +4,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/limits.dart';
+import '../util/links.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
@@ -62,16 +63,12 @@ class AceHtml extends StatelessWidget {
   /// the browser opens is the difference between a decision and a reflex.
   final Future<bool> Function(Uri uri)? confirmLink;
 
-  /// The only schemes Ace Mail will hand to the platform launcher. Everything
-  /// else — `javascript:`, `data:`, `file:`, `intent:`, and arbitrary app
-  /// schemes — is discarded. `mailto:` is a deliberate exception because this
-  /// is a mail client.
-  static const Set<String> allowedSchemes = <String>{'http', 'https', 'mailto'};
+  /// The schemes Ace Mail will hand to the platform. The rule lives in
+  /// `util/links.dart` because the assistant's replies obey it too.
+  static const Set<String> allowedSchemes = kAllowedLinkSchemes;
 
-  /// Whether [uri] may be handed to the platform. Pure, so the rule can be
-  /// asserted without a browser.
-  static bool mayOpen(Uri uri) =>
-      allowedSchemes.contains(uri.scheme.toLowerCase());
+  /// Whether [uri] may be handed to the platform.
+  static bool mayOpen(Uri uri) => mayOpenLink(uri);
 
   @override
   Widget build(BuildContext context) {

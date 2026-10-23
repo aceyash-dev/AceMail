@@ -5,6 +5,28 @@ after the `+` is the Android version code.
 ## 0.5.1
 
 ### Added
+- **A Contacts tab.** A floating navigation bar in the shape Material 3
+  Expressive draws one — clear of the bottom edge, the current item the only one
+  that says its name — switching between the mail and the address book. The
+  addresses come from the mail: everyone who writes to you, and everyone you
+  write to, so the list arrives full instead of waiting to be built by hand.
+  The ones you chose to keep are marked and float to the top. Tapping one opens
+  a sheet with their name, their address and a **Send** button, because the
+  reason to open somebody's details in a mail client is almost always to write
+  to them. On a wide window the rail carries the same switch, since a wide
+  window has no floating bar and a view with no way in is not a view.
+- **Markdown, rendered.** Chyme's replies are written in it, so they are shown
+  in it: headings, lists, quotes, code, bold, italic and links that carry the
+  accent and obey the same scheme rules as a link in a message. Written here
+  rather than pulled in, because what it has to survive is a chat reply rather
+  than a document — and a dependency that renders tables and footnotes would be
+  one more thing to drift.
+- **Your name, in the greeting.** "Good morning, Yash". Google says outright;
+  every other provider is asked, because the one place a person writes their own
+  name is in the mail they send — so the newest message in Sent carries it in
+  its `From` header. Looked up once, in the background: the mail does not wait
+  for a greeting.
+
 - **Gmail signs in with Google.** Gmail stopped accepting app passwords for IMAP
   and SMTP in 2022, which made it the one provider this app could not offer at
   all. It can now: the sign-in screen shows *Continue with Google* instead of a
@@ -76,6 +98,21 @@ after the `+` is the Android version code.
   in the room. Notification visibility is private either way.
 
 ### Fixed
+- **iCloud's logo was a CloudFlare logo.** The file came from Wikimedia Commons
+  under the name `ICloud_logo.svg`, and its own metadata says `CloudFlare
+  logo.svg` — the wrong artwork, mislabelled at the source, showing up as a
+  generic blue cloud next to Gmail's envelope. It is Apple's own iCloud mark
+  now. The test that would have caught it checks that every provider logo is
+  valid XML with a `viewBox` and something to draw — and it immediately found a
+  second one: `yandex.svg` had no `viewBox`, so it could not scale.
+- **Contrast is now a test, not a hope.** Every text role against every surface,
+  for both brightnesses and all ten accents, at 4.5:1; icons and fills at 3:1.
+  The accent is generated to clear AA, and this is what holds it to that.
+- **Chyme's mark was invisible on a light row.** The artwork is white with
+  transparency, so a row that did not tint it drew white on white.
+- The rule about which links may be opened lives in one place, shared by the
+  message renderer and the assistant's replies.
+
 - **The release notes now appear after an update that only changes the build
   number.** The sheet compared version *names*, so 0.5.1+33 to 0.5.1+34 — a
   whole new section of notes — announced nothing at all. It compares the whole
@@ -113,6 +150,22 @@ after the `+` is the Android version code.
   over the first, and enforced once more in the sending service.
 
 ### Changed
+- **Chyme reads the mail, not the screen.** It used to be told the folder, the
+  filter and what was selected — things the *app* knows and the model has no use
+  for, which invite answers about the interface instead of about the mail. What
+  goes in now is what a person would hand over: who wrote, what they wrote, when,
+  and the whole of the message that is open.
+- **The switches move like switches.** The thumb overshoots and settles rather
+  than arriving and stopping dead, the tick turns into the cross instead of
+  being replaced by it, and the whole thing ticks under a thumb. A switch is the
+  smallest decision in the app and the one people flip most, so it is the one
+  that most needs to feel touched.
+- **Google sign-in recovers.** A grant can be withdrawn from the account page,
+  and a token that never covered the mail scope cannot be refreshed into one.
+  Both used to end as an error with no way out; the screen now offers the sign-in
+  again and reconnects afterwards.
+- The selected entry in the rail fills, the way the current folder does.
+
 - **The sign-in screen knows what it is asking for.** A Gmail address gets
   *Continue with Google* instead of a password field and no server panel, and the
   step heading and the footer note say why rather than talking about app

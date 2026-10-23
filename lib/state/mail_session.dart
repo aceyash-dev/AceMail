@@ -14,6 +14,7 @@ import '../models/mail_folder.dart';
 import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../util/otp.dart';
+import '../services/contacts.dart';
 import '../services/google_auth.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
@@ -88,6 +89,7 @@ class MailSession extends ChangeNotifier {
     if (!account.isGoogle) return Future<String>.value(password);
     return GoogleAuth.token().then((String? token) {
       if (token == null) {
+        needsGoogleSignIn = true;
         throw const GoogleAuthException(
           'Sign in to Google again to reach this mailbox.',
           needsSignIn: true,
@@ -99,6 +101,21 @@ class MailSession extends ChangeNotifier {
 
   bool connecting = false;
   String? errorMessage;
+
+  /// What to call the person whose mail this is.
+  ///
+  /// Google says outright. Any other provider has to be asked, and the one place
+  /// a person writes their own name is in the mail they send — so the newest
+  /// message in Sent carries it in its `From` header. Looked up once, in the
+  /// background, because a greeting is not worth a delay before the mail
+  /// appears.
+  String? displayName;
+  bool _nameLookupTried = false;
+
+  /// True when Google wants the person back: the grant was withdrawn, or it
+  /// never covered the mail scope. Distinct from a connection failure, because
+  /// the answer is a sign-in rather than a retry.
+  bool needsGoogleSignIn = false;
 
   List<MailFolder> folders = <MailFolder>[];
   MailFolder? selectedFolder;
@@ -262,11 +279,17 @@ class MailSession extends ChangeNotifier {
 
       folders = loaded;
       _connected = true;
+      needsGoogleSignIn = false;
     // Opening the app is seeing the mail: whatever the background check put in
     // the shade for this account is no longer news.
     unawaited(AceNotifications.clear(account.email));
       connecting = false;
       _notify();
+
+      // Not awaited: the greeting can say "Good morning" for a moment and
+      // "Good morning, Yash" a moment later, which is better than the mail
+      // waiting on a name.
+      unawaited(_resolveDisplayName());
 
       final MailFolder? inbox =
           _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.inbox) ??
@@ -280,6 +303,41 @@ class MailSession extends ChangeNotifier {
       _notify();
       return false;
     }
+  }
+
+  /// Finds the account holder's own name, once.
+  Future<void> _resolveDisplayName() async {
+    if (_nameLookupTried || displayName != null) return;
+    _nameLookupTried = true;
+
+    try {
+      if (account.isGoogle) {
+        displayName = await GoogleAuth.knownName();
+      } else {
+        final MailFolder? sent =
+            _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.sent);
+        if (sent == null) return;
+        // The newest sent message, and only its headers: the display name is in
+        // the From line, and that is the name this person chose for themselves.
+        final List<int> uids = await _transport.listMessageUids(sent);
+        if (uids.isEmpty) return;
+        final List<MessageSummary> newest =
+            await _transport.fetchSummariesByUid(sent, <int>[uids.last]);
+        if (newest.isEmpty) return;
+        final String name = newest.first.fromName.trim();
+        // A name equal to the address is not a name: it is a client that did
+        // not find one, and greeting somebody by their email is worse than not
+        // greeting them by name at all.
+        if (name.isNotEmpty &&
+            name.toLowerCase() != account.email.toLowerCase()) {
+          displayName = name;
+        }
+      }
+    } catch (_) {
+      // A name is a nicety. If the lookup fails the greeting simply has no name
+      // in it, which is exactly what it did before this existed.
+    }
+    if (displayName != null && !_disposed) _notify();
   }
 
   Future<void> openFolder(MailFolder folder, {bool refresh = false}) async {
@@ -330,6 +388,9 @@ class MailSession extends ChangeNotifier {
       if (token != _folderToken) return; // a newer folder won
       _uids = uids;
       messages = page;
+      // The address book grows as mail loads: the people who actually write to
+      // you, rather than a list somebody has to build by hand.
+      Contacts.observe(page);
       if (_pageCache.length > 24) _pageCache.clear();
       _pageCache[folder.path] = List<MessageSummary>.of(page);
       unawaited(_detectCodes());
@@ -527,6 +588,9 @@ class MailSession extends ChangeNotifier {
       final FullMessage loaded = cached ?? await _transport.fetchMessage(summary);
       if (token != _messageToken) return; // a newer message won
       openMessage = loaded;
+      // The only place the recipients of a message appear: a list row carries
+      // the sender and nothing else.
+      Contacts.observeRecipients(loaded);
       if (cached == null) unawaited(_rememberBody(summary, loaded));
       if (_markAsRead) {
         _replace(summary.uid, summary.copyWith(isSeen: true));
