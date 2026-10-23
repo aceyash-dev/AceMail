@@ -334,8 +334,13 @@ class MailSession extends ChangeNotifier {
         // the From line, and that is the name this person chose for themselves.
         final List<int> uids = await _transport.listMessageUids(sent);
         if (uids.isEmpty) return;
+        // `first`, not `last`: `listMessageUids` is documented newest-first, so
+        // the last of the page is the *oldest* of it — which is the message a
+        // person wrote longest ago, and the least likely to carry the name they
+        // use now. The line above says "the newest sent message"; this is the
+        // line that has to mean it.
         final List<MessageSummary> newest =
-            await _transport.fetchSummariesByUid(sent, <int>[uids.last]);
+            await _transport.fetchSummariesByUid(sent, <int>[uids.first]);
         if (newest.isEmpty) return;
         final String name = newest.first.fromName.trim();
         // A name equal to the address is not a name: it is a client that did

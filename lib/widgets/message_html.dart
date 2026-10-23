@@ -4,6 +4,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/limits.dart';
+import '../util/text.dart';
 import '../util/links.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
@@ -76,9 +77,14 @@ class AceHtml extends StatelessWidget {
 
     // The cap, before the parser sees it: a ten-megabyte HTML part is not a
     // message, it is an attack on the frame budget.
-    final String source = html.length > MailLimits.maxHtmlBytes
-        ? html.substring(0, MailLimits.maxHtmlBytes)
-        : html;
+    //
+    // Through `truncateSafely`, because a raw `substring` on a boundary inside
+    // a surrogate pair leaves half a character, which renders as a replacement
+    // glyph at the end of the body. The limit is counted in UTF-16 code units
+    // rather than bytes — it is a guard against a part nobody meant to send, not
+    // a contract about size, and encoding the string to measure it would cost
+    // more than the cap saves.
+    final String source = truncateSafely(html, MailLimits.maxHtmlBytes);
 
     return HtmlWidget(
       source,
