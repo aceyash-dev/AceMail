@@ -1,4 +1,4 @@
-import 'message_summary.dart';
+import '../models/message_summary.dart';
 
 /// A search, as somebody typed it.
 ///

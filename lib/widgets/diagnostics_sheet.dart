@@ -72,7 +72,7 @@ class _Diagnostics extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        SettingsGroup(
+        SettingsSection(
           title: 'Connection',
           children: <Widget>[
             _Line(
@@ -98,7 +98,7 @@ class _Diagnostics extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AstryxSpace.s5),
-        SettingsGroup(
+        SettingsSection(
           title: 'Loaded',
           children: <Widget>[
             _Line(
@@ -123,7 +123,7 @@ class _Diagnostics extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AstryxSpace.s5),
-        SettingsGroup(
+        SettingsSection(
           title: 'Local cache',
           children: <Widget>[
             _Line(label: 'Records', value: '${controller.cacheEntries}'),
@@ -153,7 +153,7 @@ class _Diagnostics extends StatelessWidget {
           style: AstryxText.supporting(c.textSecondary),
         ),
         const SizedBox(height: AstryxSpace.s5),
-        SettingsGroup(
+        SettingsSection(
           title: 'This build',
           children: <Widget>[
             _Line(label: 'Version', value: AppInfo.fullVersion),
