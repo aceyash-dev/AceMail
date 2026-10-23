@@ -91,6 +91,20 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * Answers a caller that is still waiting when this activity goes away.
+     *
+     * A `MethodChannel.Result` that is never resolved is an `await` on the Dart
+     * side that never completes — the microphone would pulse for ever. A
+     * configuration change or a low-memory kill while the recogniser is open is
+     * enough to do it.
+     */
+    override fun onDestroy() {
+        listening?.success(null)
+        listening = null
+        super.onDestroy()
+    }
+
     @Deprecated("The result API is newer, but this is what FlutterActivity forwards.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode != VOICE_REQUEST) {

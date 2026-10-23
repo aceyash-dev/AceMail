@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 /// The device cannot listen.
@@ -29,13 +31,22 @@ class VoiceInputException implements Exception {
 abstract final class VoiceInput {
   static const MethodChannel _channel = MethodChannel('app.tab.mail/voice');
 
+  /// How long to wait for an answer before giving up.
+  ///
+  /// The device's speech app is another window: it can be swiped away, or the
+  /// process can be killed while it is open, and a channel call whose result is
+  /// never sent would leave the microphone spinning for ever. Two minutes is
+  /// longer than anyone speaks into a search box.
+  static const Duration timeout = Duration(minutes: 2);
+
   /// Asks the device to listen, and returns what it heard.
   ///
   /// Null means the person cancelled, or said nothing — the two are the same
   /// from here, and neither is an error.
   static Future<String?> listen() async {
     try {
-      final String? heard = await _channel.invokeMethod<String>('listen');
+      final String? heard =
+          await _channel.invokeMethod<String>('listen').timeout(timeout);
       final String words = heard?.trim() ?? '';
       return words.isEmpty ? null : words;
     } on PlatformException catch (error) {
@@ -44,6 +55,9 @@ abstract final class VoiceInput {
             ? 'This device has no speech recogniser installed.'
             : 'The microphone could not be used.',
       );
+    } on TimeoutException {
+      // Nothing came back. The microphone stops saying it is listening.
+      return null;
     } on MissingPluginException {
       // Not Android, or a build without the channel.
       throw const VoiceInputException('Voice search needs Android.');
