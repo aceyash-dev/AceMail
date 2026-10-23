@@ -415,8 +415,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   // and it is not there while a message is open: reading is a
                   // place you are in, not a tab you are on.
                   if (!reading)
-                    Align(
-                      alignment: Alignment.bottomLeft,
+                    Positioned(
+                      left: 0,
+                      bottom: 0,
                       child: AceFloatingNav<bool>(
                         value: controller.contactsTab,
                         onChanged: (bool contacts) {

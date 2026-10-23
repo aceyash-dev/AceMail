@@ -323,6 +323,36 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
+                                          // Google first on this step too. Add-account skips the
+                                          // welcome panel, so without this it had no Google way in.
+                                          _GoogleButton(
+                                            busy: connecting,
+                                            onPressed: connecting
+                                                ? null
+                                                : _continueWithGoogle,
+                                          ),
+                                          const SizedBox(height: AstryxSpace.s4),
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: Divider(
+                                                    color: c.border, height: 1),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: AstryxSpace.s3),
+                                                child: Text(
+                                                  'or',
+                                                  style: AstryxText.body(c.textSecondary),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Divider(
+                                                    color: c.border, height: 1),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: AstryxSpace.s4),
                                           Row(
                                             children: <Widget>[
                                               Expanded(
