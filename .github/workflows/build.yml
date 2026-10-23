@@ -223,13 +223,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
-            libstdc++-12-dev
+            libstdc++-12-dev libsecret-1-dev
 
       - name: Install dependencies
         run: flutter pub get
 
+      # The desktop Google client, from secrets. Without them the app still
+      # builds, and Gmail sign-in on this build says it is not configured.
       - name: Build
-        run: flutter build linux --release
+        env:
+          GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.GOOGLE_DESKTOP_CLIENT_ID }}
+          GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
+        run: |
+          flutter build linux --release \
+            --dart-define=GOOGLE_DESKTOP_CLIENT_ID="$GOOGLE_DESKTOP_CLIENT_ID" \
+            --dart-define=GOOGLE_DESKTOP_CLIENT_SECRET="$GOOGLE_DESKTOP_CLIENT_SECRET"
 
       - name: Pack the bundle
         run: |
@@ -263,6 +271,15 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # The iOS runner is not committed. tool/ios/setup_ios.sh generates it from
+      # Flutter's template and applies Ace Mail's iOS settings (permissions, the
+      # background check, the bundle ID, the voice channel). Doing it here means
+      # a change that breaks that configuration fails this job.
+      - name: Generate and configure the iOS runner
+        env:
+          IOS_GOOGLE_CLIENT_ID: ${{ secrets.IOS_GOOGLE_CLIENT_ID }}
+        run: tool/ios/setup_ios.sh
 
       # Unsigned on purpose: signing needs a certificate and a provisioning
       # profile that live in somebody's Apple account, and this repository does

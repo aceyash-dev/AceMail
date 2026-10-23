@@ -56,6 +56,11 @@ def configure_info_plist(runner: Path, client_id: str | None) -> None:
         "Ace Mail turns the words you say into text for the search bar."
     )
 
+    # Saved attachments live in the documents folder, and these two keys are
+    # what make that folder show up in the Files app, under "Ace Mail".
+    plist["UIFileSharingEnabled"] = True
+    plist["LSSupportsOpeningDocumentsInPlace"] = True
+
     # The mail check runs as a BGTask. The identifier has to be the Dart task
     # name exactly, or iOS refuses to schedule it.
     plist["UIBackgroundModes"] = sorted(set(plist.get("UIBackgroundModes", []) + ["fetch"]))

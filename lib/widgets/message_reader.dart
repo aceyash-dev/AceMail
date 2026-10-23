@@ -530,16 +530,9 @@ class _MessageReaderState extends State<MessageReader> {
     final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     try {
-      // Where the iPad share sheet points. Taken from the tapped row, which is
-      // still on screen, before the await.
-      final RenderObject? box = context.findRenderObject();
-      final Rect? origin = box is RenderBox && box.hasSize
-          ? box.localToGlobal(Offset.zero) & box.size
-          : null;
       final String? path = await saveAttachmentFile(
         attachment.fileName,
         attachment.bytes,
-        sharePositionOrigin: origin,
       );
       if (path != null) {
         messenger
