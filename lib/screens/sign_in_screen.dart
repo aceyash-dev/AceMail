@@ -304,13 +304,14 @@ class _SignInScreenState extends State<SignInScreen> {
                                             ),
                                             const SizedBox(
                                                 height: AstryxSpace.s5),
-                                            AceButton(
-                                              label: 'Continue with Google',
-                                              icon: AceIcons.mailOpen,
-                                              variant: AceButtonVariant.primary,
-                                              size: AceButtonSize.large,
-                                              loading: googleBusy,
-                                              expand: true,
+                                            // The white one with Google's own
+                                            // mark on it, not a themed button:
+                                            // a Google sign-in button looks
+                                            // like this everywhere, and one
+                                            // that has been restyled is a
+                                            // button people hesitate over.
+                                            _GoogleButton(
+                                              busy: googleBusy,
                                               onPressed: googleBusy
                                                   ? null
                                                   : _continueWithGoogle,
@@ -531,8 +532,6 @@ class _SignInScreenState extends State<SignInScreen> {
   /// buried in Settings: this is the screen where somebody decides to trust it
   /// with a credential.
   Widget _welcomePanel(AstryxColors c) {
-    final MailController controller = context.watch<MailController>();
-
     return Column(
       key: const ValueKey<int>(0),
       crossAxisAlignment: CrossAxisAlignment.start,
