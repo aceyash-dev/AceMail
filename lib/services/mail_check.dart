@@ -61,12 +61,24 @@ Future<List<String>> checkAllAccounts() async {
 
 /// Checks one account. Returns true when it found something new.
 Future<bool> checkOne(StoredAccount stored) async {
-  final MailService service = MailService(stored.account);
+  // A Google account has no stored password: it is reached with a token, and
+  // one that expires in about an hour. This used to hand `stored.password` —
+  // an empty string — to a Gmail account, so the check failed for every Gmail
+  // user and they never got a new-mail notification at all.
+  final MailService service = MailService(
+    stored.account,
+    tokenProvider: stored.account.isGoogle ? GoogleAuth.token : null,
+  );
   final Preferences prefs = Preferences();
   await prefs.load();
 
   try {
-    final List<MailFolder> folders = await service.connect(stored.password);
+    final String? secret = stored.account.isGoogle
+        ? await GoogleAuth.token()
+        : stored.password;
+    if (secret == null) return false;
+
+    final List<MailFolder> folders = await service.connect(secret);
     final MailFolder inbox = folders.firstWhere(
       (MailFolder f) => f.role == FolderRole.inbox,
       orElse: () => folders.first,

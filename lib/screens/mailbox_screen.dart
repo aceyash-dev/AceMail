@@ -156,6 +156,11 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final bool folderMoved = controller.selectedFolder?.path != _searchFolder;
     final bool openedMessage = controller.openSummary != null;
     if (folderMoved || openedMessage) {
+      // Cancelled now rather than in the callback below: a debounce with a few
+      // milliseconds left on it would otherwise fire between the switch and the
+      // frame that ends the search, and search the new folder for the old
+      // folder's words.
+      _searchDebounce?.cancel();
       // The session has already reset its own query in the folder case, so only
       // the field and the mode need clearing.
       WidgetsBinding.instance.addPostFrameCallback((_) {

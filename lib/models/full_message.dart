@@ -232,7 +232,7 @@ class FullMessage {
   static String? _capped(String? html) {
     if (html == null) return null;
     if (html.length <= MailLimits.maxHtmlBytes) return html;
-    return html.substring(0, MailLimits.maxHtmlBytes);
+    return truncateSafely(html, MailLimits.maxHtmlBytes);
   }
 
   static String _emails(List<MailAddress>? list) => list == null

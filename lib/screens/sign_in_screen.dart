@@ -433,6 +433,8 @@ class _SignInScreenState extends State<SignInScreen> {
   /// buried in Settings: this is the screen where somebody decides to trust it
   /// with a credential.
   Widget _welcomePanel(AstryxColors c) {
+    final MailController controller = context.watch<MailController>();
+
     return Column(
       key: const ValueKey<int>(0),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,22 +449,36 @@ class _SignInScreenState extends State<SignInScreen> {
           'server in the middle, and nothing to sign up for.',
           style: AstryxText.body(c.textSecondary),
         ),
-        const SizedBox(height: AstryxSpace.s5),
-        for (final ({AceIcon icon, String title, String body}) point
-            in _points) ...<Widget>[
-          _Point(icon: point.icon, title: point.title, body: point.body),
-          const SizedBox(height: AstryxSpace.s3),
-        ],
-        const SizedBox(height: AstryxSpace.s2),
+        const SizedBox(height: AstryxSpace.s6),
+
+        // Google first, because it is the one provider here that needs no
+        // password at all: the account is chosen on Google's own screen, and
+        // what comes back is a token that expires. It is also where most
+        // people's mail is, so it is the shortest path from here to a mailbox.
+        _GoogleButton(
+          busy: controller.connecting,
+          onPressed: controller.connecting ? null : _continueWithGoogle,
+        ),
+        const SizedBox(height: AstryxSpace.s3),
         AceButton(
-          label: 'Get started',
-          variant: AceButtonVariant.primary,
+          label: 'Use another provider',
+          variant: AceButtonVariant.tonal,
           size: AceButtonSize.large,
           icon: AceIcons.chevronRight,
           expand: true,
           onPressed: _getStarted,
         ),
-        const SizedBox(height: AstryxSpace.s2),
+        const SizedBox(height: AstryxSpace.s6),
+
+        // The reasons, after the way in rather than before it. Somebody who has
+        // already decided does not want to read three paragraphs first, and
+        // somebody who has not will scroll anyway.
+        for (final ({AceIcon icon, String title, String body}) point
+            in _points) ...<Widget>[
+          _Point(icon: point.icon, title: point.title, body: point.body),
+          const SizedBox(height: AstryxSpace.s3),
+        ],
+        const SizedBox(height: AstryxSpace.s1),
         Center(
           child: TextButton(
             onPressed: () => context.read<MailController>().startExploring(),
@@ -472,7 +488,7 @@ class _SignInScreenState extends State<SignInScreen> {
             ),
           ),
         ),
-        const SizedBox(height: AstryxSpace.s3),
+        const SizedBox(height: AstryxSpace.s2),
         // The consent line. Both halves are one tap from here, because a policy
         // you cannot read is not a policy you agreed to.
         Wrap(
@@ -503,6 +519,14 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
+  /// The Google sign-in button.
+  ///
+  /// Its own widget rather than an [AceButton] because the mark is the
+  /// provider's own artwork, and a button that takes an icon can only take
+  /// ours. It is also the one place in the app that is deliberately white: a
+  /// Google sign-in button looks like this everywhere, and inventing a themed
+  /// one would be a button people hesitate over.
+  ///
   /// The three things worth saying before a password is typed.
   static const List<({AceIcon icon, String title, String body})> _points =
       <({AceIcon icon, String title, String body})>[
@@ -885,6 +909,66 @@ class _LegalLink extends StatelessWidget {
           decoration: TextDecoration.underline,
           decorationColor: c.textAccent,
         ),
+      ),
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    final bool enabled = onPressed != null;
+
+    return Semantics(
+      button: true,
+      label: 'Continue with Google',
+      child: AceSpringy(
+        onTap: onPressed,
+        builder: (BuildContext context, double press, bool hover) {
+          return AnimatedContainer(
+            duration: AstryxMotion.of(AstryxMotion.fast),
+            curve: AstryxMotion.emphasized,
+            height: AstryxSize.elementXl,
+            decoration: BoxDecoration(
+              // White in both themes. The mark is Google's, and it is drawn for
+              // a white field.
+              color: enabled ? const Color(0xFFFFFFFF) : c.backgroundMuted,
+              borderRadius: BorderRadius.circular(AstryxRadius.pill),
+              border: Border.all(color: c.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                if (busy)
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: c.textSecondary,
+                    ),
+                  )
+                else
+                  SvgPicture.asset(
+                    'assets/providers/gmail.svg',
+                    width: 22,
+                    height: 22,
+                  ),
+                const SizedBox(width: AstryxSpace.s3),
+                Text(
+                  busy ? 'Signing in…' : 'Continue with Google',
+                  style: AstryxText.bodyStrong(const Color(0xFF1F1F1F)),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

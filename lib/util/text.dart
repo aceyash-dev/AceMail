@@ -19,3 +19,19 @@ final RegExp _attachmentWords = RegExp(
 );
 
 bool mentionsAttachment(String body) => _attachmentWords.hasMatch(body);
+
+/// The first [maxCodeUnits] of [text], never cutting a character in half.
+///
+/// A Dart string is UTF-16, so an emoji or any character outside the basic
+/// plane is two code units. `substring` on a boundary between them yields a
+/// lone surrogate, which renders as a replacement character — which is how a
+/// long message ends up with a broken glyph at the end of the preview.
+String truncateSafely(String text, int maxCodeUnits) {
+  if (maxCodeUnits <= 0) return '';
+  if (text.length <= maxCodeUnits) return text;
+  int end = maxCodeUnits;
+  final int last = text.codeUnitAt(end - 1);
+  // A high surrogate with nothing after it: drop it rather than keep half.
+  if (last >= 0xD800 && last <= 0xDBFF) end -= 1;
+  return text.substring(0, end);
+}

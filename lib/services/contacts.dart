@@ -97,6 +97,31 @@ abstract final class Contacts {
     }
   }
 
+  /// A write waiting to happen, so that a folder load is one write and not
+  /// forty.
+  ///
+  /// The addresses arrive a page at a time as folders load, and writing the
+  /// whole book on every page is the same file rewritten several times a
+  /// second for a file that changes slowly. A decision the person made goes
+  /// straight to disk; what the mail told us waits a moment.
+  static Timer? _writeSoon;
+
+  static void _schedulePersist() {
+    _writeSoon?.cancel();
+    _writeSoon = Timer(const Duration(seconds: 2), () {
+      _writeSoon = null;
+      unawaited(_persist());
+    });
+  }
+
+  /// Writes anything pending, now.
+  static Future<void> flush() async {
+    if (_writeSoon == null) return;
+    _writeSoon!.cancel();
+    _writeSoon = null;
+    await _persist();
+  }
+
   static Future<void> _persist() async {
     try {
       await _ensureFile();
@@ -139,7 +164,7 @@ abstract final class Contacts {
     for (final MessageSummary message in messages) {
       changed |= _record(message.fromEmail, message.fromName, message.date);
     }
-    if (changed) unawaited(_persist());
+    if (changed) _schedulePersist();
   }
 
   /// Records who an opened message was sent to.
@@ -155,7 +180,7 @@ abstract final class Contacts {
     ]) {
       changed |= _record(email, '', message.date);
     }
-    if (changed) unawaited(_persist());
+    if (changed) _schedulePersist();
   }
 
   static bool _record(String email, String name, DateTime? when) {
@@ -192,6 +217,8 @@ abstract final class Contacts {
   /// the list as an unsaved contact rather than removing it — it is still in
   /// the mail, and pretending otherwise would be a lie the next page undoes.
   static Future<void> setSaved(String email, bool saved) async {
+    // A person's decision is written at once; only what the mail volunteered
+    // waits.
     final String key = email.trim().toLowerCase();
     final Contact? existing = _byEmail[key];
     if (existing == null) {

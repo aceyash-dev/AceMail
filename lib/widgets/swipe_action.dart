@@ -196,6 +196,11 @@ class _AceSwipeTileState extends State<AceSwipeTile>
               // "the swipe will commit" are the same moment.
               final double reveal =
                   (dx.abs() / (_width * _armFraction)).clamp(0.0, 1.0);
+              // How much of the chip the row has uncovered, over the whole
+              // travel rather than over the arm point. The chip is revealed by
+              // the row moving off it, which is what a swipe *is*.
+              final double exposed =
+                  (dx.abs() / (_width * _travelFraction)).clamp(0.0, 1.0);
 
               return Stack(
                 children: <Widget>[
@@ -209,9 +214,19 @@ class _AceSwipeTileState extends State<AceSwipeTile>
                                 swipeAppearance(action, c)),
                         fromLeft: fromLeft,
                         reveal: reveal,
+                        exposed: exposed,
                       ),
                     ),
-                  Transform.translate(offset: Offset(dx, 0), child: child),
+                  Transform.translate(
+                    offset: Offset(dx, 0),
+                    // The row lifts very slightly as it comes off its mark:
+                    // enough to read as a card being picked up, not enough to
+                    // look like it is being thrown.
+                    child: Transform.scale(
+                      scale: 1 - 0.012 * reveal,
+                      child: child,
+                    ),
+                  ),
                 ],
               );
             },
@@ -228,11 +243,17 @@ class _Reveal extends StatelessWidget {
     required this.appearance,
     required this.fromLeft,
     required this.reveal,
+    required this.exposed,
   });
 
   final SwipeAppearance appearance;
   final bool fromLeft;
+
+  /// How far past the arm point the swipe has gone, 0 to 1.
   final double reveal;
+
+  /// How much of the chip the row has uncovered, 0 to 1.
+  final double exposed;
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +279,11 @@ class _Reveal extends StatelessWidget {
       ),
     );
 
+    // The chip slides out from under the row rather than fading where it
+    // stands. A reveal that is already in position when the drag begins is a
+    // picture of a swipe; this is the swipe.
+    final double hidden = (1 - exposed) * 56;
+
     return Container(
       margin: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
       padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
@@ -270,26 +296,31 @@ class _Reveal extends StatelessWidget {
               (AstryxRadius.container - AstryxRadius.inner) * reveal,
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (!fromLeft) ...<Widget>[
-            label,
-            const SizedBox(width: AstryxSpace.s2),
-          ],
-          Transform.scale(
-            scale: 0.7 + 0.3 * reveal,
-            child: AceIconView(
-              icon: appearance.icon,
-              size: 22,
-              color: appearance.foreground,
+      child: Transform.translate(
+        offset: Offset(fromLeft ? -hidden : hidden, 0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (!fromLeft) ...<Widget>[
+              label,
+              const SizedBox(width: AstryxSpace.s2),
+            ],
+            Transform.scale(
+              // Grows out of the edge, and gives one push as the line is
+              // crossed — the visual half of the tick the hand already felt.
+              scale: (0.7 + 0.3 * reveal) * (armed ? 1.12 : 1),
+              child: AceIconView(
+                icon: appearance.icon,
+                size: 22,
+                color: appearance.foreground,
+              ),
             ),
-          ),
-          if (fromLeft) ...<Widget>[
-            const SizedBox(width: AstryxSpace.s2),
-            label,
+            if (fromLeft) ...<Widget>[
+              const SizedBox(width: AstryxSpace.s2),
+              label,
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

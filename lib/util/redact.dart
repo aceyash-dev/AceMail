@@ -44,7 +44,7 @@ abstract final class Redact {
     text = text.replaceAllMapped(_authCommand, (Match m) => '${m[1]} <redacted>');
     text = text.replaceAllMapped(_namedSecret, (Match m) => '${m[1]}=<redacted>');
     if (text.length > maxLength) {
-      text = '${text.substring(0, maxLength)}…';
+      text = '${truncateSafely(text, maxLength)}…';
     }
     return text;
   }

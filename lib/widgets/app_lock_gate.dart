@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../services/contacts.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
@@ -53,6 +57,13 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Leaving the app is the moment to write anything the contact book is
+    // holding: its writes are debounced, and a debounce that never fires is a
+    // page of addresses learned and lost.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      unawaited(Contacts.flush());
+    }
     // `paused` and `hidden` only. `inactive` also fires for the app switcher and
     // for system dialogs — including the authentication prompt itself — and
     // locking on it would put the cover up in the middle of unlocking.

@@ -375,7 +375,10 @@ abstract final class GoogleDesktopAuth {
       final HttpClientResponse response = await request.close();
       final String text = await utf8.decodeStream(response);
 
-      final Object? decoded = _decodeObject(text);
+      // The type matters: `_decodeObject` returns a map or null, and widening
+      // it to `Object?` here is what made the return and the lookup below fail
+      // to compile.
+      final Map<String, Object?>? decoded = _decodeObject(text);
       if (decoded == null) {
         throw const GoogleAuthException('Google sent an answer Ace Mail could not read.');
       }

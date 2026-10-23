@@ -98,12 +98,18 @@ enum MessageFilter {
         _ => null,
       };
 
-  bool matches(MessageSummary message, {DateTime? now}) => switch (this) {
+  /// Whether [message] passes.
+  ///
+  /// [now] is passed in rather than read here: a period filter asks the clock a
+  /// question, and asking it once per message is a syscall per row for an answer
+  /// that cannot change during the pass.
+  bool matches(MessageSummary message, {required DateTime now}) =>
+      switch (this) {
         MessageFilter.all => true,
         MessageFilter.unread => !message.isSeen,
         MessageFilter.flagged => message.isFlagged,
         MessageFilter.codes => message.otp != null,
-        _ => _inPeriod(message, now ?? DateTime.now()),
+        _ => _inPeriod(message, now),
       };
 
   bool _inPeriod(MessageSummary message, DateTime now) {

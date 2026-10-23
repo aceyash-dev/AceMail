@@ -205,9 +205,13 @@ class MailSession extends ChangeNotifier {
 
   /// The page, filtered and sorted. What the list actually renders.
   List<MessageSummary> get visibleMessages {
+    // One reading of the clock for the whole pass, not one per message.
+    final DateTime now = DateTime.now();
     final List<MessageSummary> matching = filter == MessageFilter.all
         ? messages
-        : messages.where((MessageSummary m) => filter.matches(m)).toList();
+        : messages
+            .where((MessageSummary m) => filter.matches(m, now: now))
+            .toList();
     return sort.apply(matching);
   }
 
