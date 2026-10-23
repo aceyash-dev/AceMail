@@ -656,7 +656,11 @@ class _MailboxScreenState extends State<MailboxScreen> {
 /// a recogniser is open — the speech app is a separate window — so on the way
 /// back this is what says the app is still waiting.
 class _MicButton extends StatefulWidget {
-  const _MicButton({required this.listening, required this.onPressed});
+  const _MicButton({
+    super.key,
+    required this.listening,
+    required this.onPressed,
+  });
 
   final bool listening;
   final VoidCallback onPressed;

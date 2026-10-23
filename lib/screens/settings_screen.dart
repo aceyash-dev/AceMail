@@ -5,6 +5,7 @@ import '../data/accents.dart';
 import '../data/app_info.dart';
 import '../data/local_store.dart';
 import '../data/preferences.dart';
+import '../models/glass_mode.dart';
 import '../services/app_lock.dart';
 import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
@@ -16,6 +17,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/routes.dart';
 import '../widgets/about_dialog.dart';
+import '../widgets/ace_glass.dart';
 import '../widgets/chyme_mark.dart';
 import '../widgets/legal_sheet.dart';
 import '../widgets/account_sheet.dart';
@@ -369,7 +371,7 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => _chooseAccent(context, prefs),
                 ),
                 SettingsRow(
-                  icon: AceIcons.layers,
+                  icon: AceIcons.blur,
                   title: 'See-through surfaces',
                   subtitle: AceGlass.limitation,
                   value: prefs.glass.label,

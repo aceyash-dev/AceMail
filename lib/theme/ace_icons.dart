@@ -65,6 +65,8 @@ abstract final class AceIcons {
   // --- settings ----------------------------------------------------------
   static const AceIcon settings = HugeIcons.strokeRoundedSettings01;
   static const AceIcon palette = HugeIcons.strokeRoundedPalette;
+  /// A blurred surface, for the see-through setting.
+  static const AceIcon blur = HugeIcons.strokeRoundedBlur;
   static const AceIcon density = HugeIcons.strokeRoundedLayoutList;
   static const AceIcon textSize = HugeIcons.strokeRoundedTextFont;
   static const AceIcon brightness = HugeIcons.strokeRoundedSun01;
