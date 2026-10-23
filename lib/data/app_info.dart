@@ -21,6 +21,17 @@ abstract final class AppInfo {
     }
   }
 
+  /// `0.5.1+34` — the name and the build number together.
+  ///
+  /// This is what the changelog's headings carry, and it is what an update
+  /// actually changes: 0.5.1+33 and 0.5.1+34 are different builds, and the
+  /// version *name* alone cannot tell them apart. Comparing names meant a
+  /// build-number-only update announced nothing at all.
+  static String get fullVersion {
+    if (version.isEmpty) return '';
+    return build.isEmpty ? version : '$version+$build';
+  }
+
   /// `0.3.3 (7)`, or empty if the platform would not say.
   static String get label {
     if (version.isEmpty) return '';

@@ -57,6 +57,11 @@ after the `+` is the Android version code.
   in the room. Notification visibility is private either way.
 
 ### Fixed
+- **The release notes now appear after an update that only changes the build
+  number.** The sheet compared version *names*, so 0.5.1+33 to 0.5.1+34 — a
+  whole new section of notes — announced nothing at all. It compares the whole
+  version now, and a test pins the heading rule that made the two sections
+  distinguishable in the first place.
 - **0.5.1's APK could not be installed, and this is why.** The version was
   written as `0.5.1` without a build number, and Flutter turns that into Android
   `versionCode 1` — a *downgrade* from the 30 that 0.5.0 shipped with, which
@@ -193,6 +198,11 @@ after the `+` is the Android version code.
   per-order sort icons were being ignored too; the sort sheet uses them now.
 
 ### Faster
+- **Builds.** Gradle ran its tasks one at a time with no build cache — the
+  Flutter template's defaults — and CI did not cache Gradle's dependencies, so
+  every run re-resolved the Android Gradle plugin. Tasks now run in parallel,
+  a task whose inputs have not changed is not run again, CI keeps Gradle's
+  caches between runs, and the release build has 4 GB of heap instead of 1.5.
 - The microphone pulses while the device is listening, and the search bar's
   outline takes the accent — the speech app is a separate window, so on the way
   back this is the only thing that says the app is still waiting.

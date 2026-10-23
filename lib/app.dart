@@ -24,7 +24,9 @@ class AceMailApp extends StatelessWidget {
       if (!context.mounted) return;
       await WhatsNewSheet.showIfUpdated(context);
       if (!context.mounted) return;
-      await context.read<Preferences>().setLastSeenVersion(AppInfo.version);
+      await context
+          .read<Preferences>()
+          .setLastSeenVersion(AppInfo.fullVersion);
     });
   }
 

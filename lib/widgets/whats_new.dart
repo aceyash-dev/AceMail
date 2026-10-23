@@ -18,6 +18,10 @@ abstract final class ReleaseNotes {
   static String? _cache;
 
   /// The section of the changelog for [version], or null when there is none.
+  ///
+  /// [version] is the full `name+build`, which is what the headings carry. A
+  /// heading without a build number still matches, so a changelog written by
+  /// hand does not have to know about them.
   static Future<String?> forVersion(String version) async {
     final String changelog;
     try {
@@ -26,10 +30,24 @@ abstract final class ReleaseNotes {
       return null;
     }
 
-    // Headings look like `## 0.5.0+27`. Find that one and take everything up to
-    // the next heading of the same level.
-    final RegExp heading = RegExp(r'^## +' + RegExp.escape(version) + r'\b.*$',
-        multiLine: true);
+    return sectionFor(changelog, version) ??
+        sectionFor(changelog, version.split('+').first);
+  }
+
+  /// The body of the `## <version>` section of [changelog], or null.
+  ///
+  /// Pure, so the heading rule can be tested against a literal changelog rather
+  /// than against whatever the app happens to be bundled with.
+  static String? sectionFor(String changelog, String version) {
+    if (version.isEmpty) return null;
+
+    // Headings look like `## 0.5.1+34`. The version has to be the *whole* of
+    // what follows `##` — a trailing title is allowed, a `+34` on the end is
+    // not, or asking for `0.5.1` would answer with `0.5.1+34`'s section.
+    final RegExp heading = RegExp(
+      r'^## +' + RegExp.escape(version) + r'(\s.*)?$',
+      multiLine: true,
+    );
     final RegExpMatch? match = heading.firstMatch(changelog);
     if (match == null) return null;
 
@@ -48,11 +66,14 @@ class WhatsNewSheet extends StatelessWidget {
 
   static Future<void> showIfUpdated(BuildContext context) async {
     final String? seen = context.read<Preferences>().lastSeenVersion;
-    final String running = AppInfo.version;
+    // The whole version, build number included. Comparing names alone meant
+    // that 0.5.1+33 to 0.5.1+34 — which is how this app ships a change — said
+    // nothing at all.
+    final String running = AppInfo.fullVersion;
 
     // First run after install: nothing to compare against, and a wall of
     // release notes is a poor introduction to an app.
-    if (seen == null || seen == running) return;
+    if (running.isEmpty || seen == null || seen == running) return;
 
     final String? body = await ReleaseNotes.forVersion(running);
     if (body == null || !context.mounted) return;
