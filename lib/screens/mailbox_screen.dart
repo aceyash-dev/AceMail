@@ -50,6 +50,11 @@ class _MailboxScreenState extends State<MailboxScreen> {
   String? _lastError;
 
   final TextEditingController _search = TextEditingController();
+
+  /// Whether the search field is live. What the bar's right-hand end shows
+  /// depends on it: the microphone when somebody is searching, the assistant
+  /// when they are not.
+  final FocusNode _searchFocus = FocusNode();
   Timer? _searchDebounce;
   bool _searching = false;
 
@@ -110,9 +115,21 @@ class _MailboxScreenState extends State<MailboxScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // The bar's right-hand end changes with the focus, so the focus has to
+    // rebuild it. Tapping is not enough: putting the keyboard away is a way of
+    // leaving the search, and the microphone has to leave with it.
+    _searchFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _searchDebounce?.cancel();
     _search.dispose();
+    _searchFocus.dispose();
     _controller?.removeListener(_onControllerChanged);
     super.dispose();
   }
@@ -317,26 +334,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
             // the filters and the order. It wears the accent when something
             // other than the default is in force, which is what the chips were
             // never able to say.
-            if (!controller.contactsTab)
-              AceIconButton(
-                icon: AceIcons.sort,
-                tooltip: 'Sort and filter',
-              // Lit when something other than the default is in force — the one
-              // thing the always-on chips could never say.
-              selected: controller.filter != MessageFilter.all ||
-                  prefs.messageSort != MessageSort.newest,
-              onPressed: () => showSortSheet(context),
-            ),
-            // Only when it has been set up: a button that opens a sheet telling
-            // you it is not configured is a button that wastes a tap.
-            if (prefs.chymeEnabled)
-              AceIconButton(
-                icon: AceIcons.chyme,
-                tooltip: 'Chyme',
-                markBuilder: (Color foreground) =>
-                    ChymeMark(size: 22, color: foreground),
-                onPressed: () => ChymeSheet.show(context),
-              ),
             const SizedBox(width: AstryxSpace.s2),
           ],
         ),
@@ -460,11 +457,19 @@ class _MailboxScreenState extends State<MailboxScreen> {
   /// the device — see [VoiceInput].
   Widget _searchBar(AstryxColors c) {
     final bool hasText = _search.text.isNotEmpty;
+    final Preferences prefs = context.watch<Preferences>();
+    // Live means somebody is looking at it: focused, or with something typed.
+    // A microphone offered to somebody who is reading the list is a button
+    // that competes with the one thing the bar is for.
+    final bool live = _searchFocus.hasFocus || hasText;
 
     return AnimatedContainer(
       duration: AstryxMotion.of(AstryxMotion.fast),
       curve: AstryxMotion.emphasized,
-      height: 52,
+      // Taller than it was, and taller again while it is being used: the bar is
+      // the first thing a thumb reaches for, and 52 was a compromise made when
+      // it shared the row with the folder's name.
+      height: live ? 60 : 56,
       padding: const EdgeInsets.only(
         left: AstryxSpace.s4,
         right: AstryxSpace.s1,
@@ -486,6 +491,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
           Expanded(
             child: TextField(
               controller: _search,
+              focusNode: _searchFocus,
+              // Not autofocused: the bar is on screen from the moment a folder
+              // opens, and a keyboard that appears by itself is a keyboard you
+              // have to dismiss before you can read anything. Tapping it is
+              // what makes it live, and that is when the microphone arrives.
+              onTap: () => setState(() {}),
+              onEditingComplete: () => setState(() {}),
               // Not autofocused: the bar is on screen from the moment a folder
               // opens, and a keyboard that appears by itself is a keyboard you
               // have to dismiss before you can read anything.
@@ -514,8 +526,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
             ),
           ),
           // Only when there is something to clear, so the bar never offers a
-          // button that does nothing. It sits after the microphone, so the
-          // microphone is always in the same place.
+          // button that does nothing.
           AnimatedSize(
             duration: AstryxMotion.of(AstryxMotion.fast),
             curve: AstryxMotion.emphasized,
@@ -527,7 +538,37 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   )
                 : const SizedBox.shrink(),
           ),
-          _MicButton(listening: _listening, onPressed: _listenForSearch),
+          // One slot, two occupants, and which one is in it is the whole
+          // point: the microphone belongs to searching, and the assistant
+          // belongs to everything else. Neither is ever a wasted tap, because
+          // neither is there when it is not the thing you are doing.
+          AnimatedSwitcher(
+            duration: AstryxMotion.of(const Duration(milliseconds: 240)),
+            switchInCurve: AstryxMotion.emphasized,
+            switchOutCurve: AstryxMotion.emphasized,
+            transitionBuilder: (Widget child, Animation<double> animation) =>
+                FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.7, end: 1).animate(animation),
+                child: child,
+              ),
+            ),
+            child: live || !prefs.chymeEnabled
+                ? _MicButton(
+                    key: const ValueKey<String>('mic'),
+                    listening: _listening,
+                    onPressed: _listenForSearch,
+                  )
+                : AceIconButton(
+                    key: const ValueKey<String>('chyme'),
+                    icon: AceIcons.chyme,
+                    tooltip: 'Chyme',
+                    markBuilder: (Color foreground) =>
+                        ChymeMark(size: 22, color: foreground),
+                    onPressed: () => ChymeSheet.show(context),
+                  ),
+          ),
         ],
       ),
     );

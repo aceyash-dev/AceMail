@@ -15,6 +15,7 @@ class MessageSummary {
     required this.date,
     required this.isSeen,
     required this.isFlagged,
+    this.hasAttachments = false,
     this.otp,
   });
 
@@ -26,6 +27,12 @@ class MessageSummary {
   final DateTime? date;
   final bool isSeen;
   final bool isFlagged;
+
+  /// Whether the message carries something attached.
+  ///
+  /// Read from the structure the server already sent with the envelope, so it
+  /// costs nothing — which is the only reason a list row can say it at all.
+  final bool hasAttachments;
 
   /// A one-time code, when the subject carries one. The body is searched later,
   /// and only for the mail that needs it.
@@ -50,11 +57,17 @@ class MessageSummary {
       date: message.decodeDate(),
       isSeen: message.isSeen,
       isFlagged: message.isFlagged,
+      hasAttachments: message.hasAttachments(),
       otp: code,
     );
   }
 
-  MessageSummary copyWith({bool? isSeen, bool? isFlagged, String? otp}) =>
+  MessageSummary copyWith({
+    bool? isSeen,
+    bool? isFlagged,
+    bool? hasAttachments,
+    String? otp,
+  }) =>
       MessageSummary(
         uid: uid,
         sequenceId: sequenceId,
@@ -64,6 +77,7 @@ class MessageSummary {
         date: date,
         isSeen: isSeen ?? this.isSeen,
         isFlagged: isFlagged ?? this.isFlagged,
+        hasAttachments: hasAttachments ?? this.hasAttachments,
         otp: otp ?? this.otp,
       );
 

@@ -2,9 +2,31 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
-## 0.5.1
+## 0.5.2
 
 ### Added
+- **Split APKs, and two more platforms.** Android now ships one APK per ABI —
+  `armeabi-v7a` and `arm64-v8a` — because one APK carrying both is about twice
+  the size of either and every phone downloads the half it cannot run. The
+  signature is verified on both, since a split is where an APK that was never
+  signed can hide behind one that was. Linux and iOS are built too: Linux on
+  every run, so the desktop target cannot rot unnoticed, and iOS unsigned on a
+  macOS runner, which is the check that it compiles and links for iPhone.
+- **Sorting by attachment, and filtering by period.** "Attachments first" puts
+  the ones with something on them at the top — what it is for is finding the
+  thing somebody sent you when the subject has been forgotten and the date has
+  not. Today, This week and This month are rolling windows rather than calendar
+  ones, because "this week" that empties on Sunday night is not what somebody
+  looking for last Tuesday's receipt wants.
+- **See-through surfaces, decided by the device.** Android 12 and later blurs a
+  backdrop with a render effect the compositor does; iOS has done it in hardware
+  for a decade and gets a heavier blur over a thinner fill, which is as close to
+  Liquid Glass as Flutter can reach. Android 11 and older, and Linux, blur by
+  reading the framebuffer back every frame — which is not a material, it is a
+  stall — so they get a flat opaque surface in the same colour. The setting says
+  which one you are getting, because "Always" that behaves like "Never" is a
+  setting that looks broken.
+
 - **A Contacts tab.** A floating navigation bar in the shape Material 3
   Expressive draws one — clear of the bottom edge, the current item the only one
   that says its name — switching between the mail and the address book. The
@@ -150,6 +172,17 @@ after the `+` is the Android version code.
   over the first, and enforced once more in the sending service.
 
 ### Changed
+- **The search bar is bigger, and it carries both of the things that belong to
+  it.** It is 56px at rest and 60 while it is live, where it was 52. The
+  microphone appears when the field is focused or has something in it — a
+  microphone offered to somebody who is reading the list competes with the one
+  thing the bar is for — and Chyme sits in that same slot the rest of the time,
+  so neither is ever a wasted tap.
+- **Sorting moved out of the app bar and into the greeting.** It is a choice
+  about the list, and the greeting is the line that introduces the list. The
+  button lights when something other than the default order or filter is in
+  force, which is the one thing the always-on chips could never say.
+
 - **Chyme reads the mail, not the screen.** It used to be told the folder, the
   filter and what was selected — things the *app* knows and the model has no use
   for, which invite answers about the interface instead of about the mail. What
@@ -305,7 +338,7 @@ after the `+` is the Android version code.
 - A folder's one-time-code pass copies the cached page once, at the end,
   instead of once per code it finds.
 
-Version 0.5.1.
+Version 0.5.2.
 
 ## 0.5.0+30
 

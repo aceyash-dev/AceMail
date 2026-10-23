@@ -6,6 +6,7 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/haptics.dart';
+import 'ace_glass.dart';
 import 'ace_icon_view.dart';
 
 /// One entry in the floating bar.
@@ -61,14 +62,8 @@ class AceFloatingNav<T> extends StatelessWidget {
         widthFactor: 1,
         heightFactor: 1,
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AstryxSpace.s2,
-            vertical: AstryxSpace.s2,
-          ),
           decoration: BoxDecoration(
-            color: c.backgroundCard,
             borderRadius: BorderRadius.circular(AstryxRadius.pill),
-            border: Border.all(color: c.border),
             // A soft, wide shadow rather than a hard one: the bar should look
             // lifted off the page, not cut into it.
             boxShadow: <BoxShadow>[
@@ -80,21 +75,36 @@ class AceFloatingNav<T> extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              for (final AceNavItem<T> item in items)
-                _NavButton<T>(
-                  item: item,
-                  selected: item.value == value,
-                  onTap: () {
-                    if (item.value == value) return;
-                    unawaited(AceHaptics.select());
-                    onChanged(item.value);
-                  },
-                ),
-            ],
+          // The bar is the one surface that is *always* over something — the
+          // list scrolls behind it — so it is the one that earns the material.
+          // On a device that cannot blur it is the same bar in the same colour.
+          child: AceGlass.material(
+            context,
+            radius: BorderRadius.circular(AstryxRadius.pill),
+            bordered: true,
+            opacity: 0.78,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AstryxSpace.s2,
+                vertical: AstryxSpace.s2,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  for (final AceNavItem<T> item in items)
+                    _NavButton<T>(
+                      item: item,
+                      selected: item.value == value,
+                      onTap: () {
+                        if (item.value == value) return;
+                        unawaited(AceHaptics.select());
+                        onChanged(item.value);
+                      },
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

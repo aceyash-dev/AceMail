@@ -369,6 +369,34 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => _chooseAccent(context, prefs),
                 ),
                 SettingsRow(
+                  icon: AceIcons.layers,
+                  title: 'See-through surfaces',
+                  subtitle: AceGlass.limitation,
+                  value: prefs.glass.label,
+                  onTap: () async {
+                    final GlassMode? chosen = await showChoiceSheet<GlassMode>(
+                      context,
+                      title: 'See-through surfaces',
+                      current: prefs.glass,
+                      choices: <SettingsChoice<GlassMode>>[
+                        for (final GlassMode mode in GlassMode.values)
+                          SettingsChoice<GlassMode>(
+                            mode,
+                            mode.label,
+                            description: switch (mode) {
+                              GlassMode.auto => AceGlass.capable
+                                  ? 'Blur where the device can afford it'
+                                  : 'This device cannot, so the surfaces stay flat',
+                              GlassMode.always => 'Blur wherever possible',
+                              GlassMode.never => 'Flat surfaces everywhere',
+                            },
+                          ),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setGlass(chosen);
+                  },
+                ),
+                SettingsRow(
                   icon: AceIcons.density,
                   title: 'List density',
                   value: prefs.density.label,

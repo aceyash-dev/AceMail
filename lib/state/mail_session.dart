@@ -207,7 +207,7 @@ class MailSession extends ChangeNotifier {
   List<MessageSummary> get visibleMessages {
     final List<MessageSummary> matching = filter == MessageFilter.all
         ? messages
-        : messages.where(filter.matches).toList();
+        : messages.where((MessageSummary m) => filter.matches(m)).toList();
     return sort.apply(matching);
   }
 

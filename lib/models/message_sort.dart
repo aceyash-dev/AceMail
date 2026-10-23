@@ -11,7 +11,8 @@ enum MessageSort {
   oldest('Oldest'),
   sender('Sender'),
   subject('Subject'),
-  unread('Unread first');
+  unread('Unread first'),
+  attachments('Attachments first');
 
   const MessageSort(this.label);
 
@@ -48,6 +49,16 @@ enum MessageSort {
           if (a.isSeen != b.isSeen) return a.isSeen ? 1 : -1;
           return byDate(a, b);
         });
+      case MessageSort.attachments:
+        // The ones with something on them first, newest within each group. What
+        // it is for: finding the thing somebody sent you, when the subject has
+        // been forgotten and the date has not.
+        sorted.sort((MessageSummary a, MessageSummary b) {
+          if (a.hasAttachments != b.hasAttachments) {
+            return a.hasAttachments ? -1 : 1;
+          }
+          return byDate(a, b);
+        });
     }
     return sorted;
   }
@@ -65,16 +76,42 @@ enum MessageFilter {
   all('All'),
   unread('Unread'),
   flagged('Flagged'),
-  codes('Codes');
+  codes('Codes'),
+  today('Today'),
+  week('This week'),
+  month('This month');
 
   const MessageFilter(this.label);
 
   final String label;
 
-  bool matches(MessageSummary message) => switch (this) {
+  /// The oldest a message may be to match, or null for "any time".
+  ///
+  /// A period is a filter rather than a sort because that is what people mean
+  /// by it: "today" is not an order to put things in, it is a smaller pile.
+  /// Rolling windows, not calendar ones — "this week" that empties on Sunday
+  /// night is not what somebody looking for last Tuesday's receipt wants.
+  Duration? get within => switch (this) {
+        MessageFilter.today => const Duration(days: 1),
+        MessageFilter.week => const Duration(days: 7),
+        MessageFilter.month => const Duration(days: 30),
+        _ => null,
+      };
+
+  bool matches(MessageSummary message, {DateTime? now}) => switch (this) {
         MessageFilter.all => true,
         MessageFilter.unread => !message.isSeen,
         MessageFilter.flagged => message.isFlagged,
         MessageFilter.codes => message.otp != null,
+        _ => _inPeriod(message, now ?? DateTime.now()),
       };
+
+  bool _inPeriod(MessageSummary message, DateTime now) {
+    final Duration? window = within;
+    final DateTime? date = message.date;
+    // A message with no date is not in any period. Sorting it to the end of a
+    // window would be inventing a date it does not have.
+    if (window == null || date == null) return false;
+    return now.difference(date) <= window;
+  }
 }

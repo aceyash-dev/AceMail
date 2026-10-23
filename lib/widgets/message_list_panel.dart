@@ -878,17 +878,36 @@ class _Greeting extends StatelessWidget {
           AstryxSpace.s4,
           AstryxSpace.s4,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
-            Text(
-              greetingFor(DateTime.now(), name: controller.displayName),
-              style: AstryxText.display3(c.textPrimary),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    greetingFor(DateTime.now(), name: controller.displayName),
+                    style: AstryxText.display3(c.textPrimary),
+                  ),
+                  const SizedBox(height: AstryxSpace.s0_5),
+                  Text(
+                    folderSummary(folder, unseen),
+                    style: AstryxText.body(c.textSecondary),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: AstryxSpace.s0_5),
-            Text(
-              folderSummary(folder, unseen),
-              style: AstryxText.body(c.textSecondary),
+            // Sorting lives here now, not in the app bar: it is a choice about
+            // the list, and this is the line that introduces the list. It lights
+            // when something other than the default order or filter is in force,
+            // which is the one thing the always-on chips could never say.
+            const SizedBox(width: AstryxSpace.s3),
+            AceIconButton(
+              icon: AceIcons.sort,
+              tooltip: 'Sort and filter',
+              selected: controller.filter != MessageFilter.all ||
+                  controller.sort != MessageSort.newest,
+              onPressed: () => showSortSheet(context),
             ),
           ],
         ),

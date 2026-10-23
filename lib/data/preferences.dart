@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'accents.dart';
+import '../models/glass_mode.dart';
 import '../models/message_sort.dart';
 import '../models/swipe_action.dart';
 
@@ -134,6 +135,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyChymeKey = 'ace.chymeKey';
   static const String _keyChymeReadsMail = 'ace.chymeReadsMail';
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
+  static const String _keyGlass = 'ace.glass';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -179,6 +181,7 @@ class Preferences extends ChangeNotifier {
     _keyChymeKey,
     _keyChymeReadsMail,
     _keyWarnMissingAttachment,
+    _keyGlass,
   ];
 
   final FlutterSecureStorage _storage;
@@ -243,6 +246,7 @@ class Preferences extends ChangeNotifier {
   String _chymeKey = '';
   bool _chymeReadsMail = true;
   bool _warnMissingAttachment = true;
+  GlassMode _glass = GlassMode.auto;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -397,6 +401,13 @@ class Preferences extends ChangeNotifier {
   /// one: "I've attached the form" and no form.
   bool get warnMissingAttachment => _warnMissingAttachment;
 
+  /// How see-through the floating surfaces are.
+  ///
+  /// Automatic by default, which means "when the device can afford it": the
+  /// blur is a render effect on Android 12 and later and a framebuffer readback
+  /// before that, and only one of those is a material.
+  GlassMode get glass => _glass;
+
   /// Whether a notification names the sender and the subject.
   ///
   /// On by default: a notification on a lock screen is read by whoever is
@@ -441,6 +452,9 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setChymeReadsMail(bool value) =>
       _write(_keyChymeReadsMail, '$value', () => _chymeReadsMail = value);
+
+  Future<void> setGlass(GlassMode value) =>
+      _write(_keyGlass, value.name, () => _glass = value);
 
   Future<void> setWarnMissingAttachment(bool value) => _write(
         _keyWarnMissingAttachment,
@@ -528,6 +542,7 @@ class Preferences extends ChangeNotifier {
       raw[_keyWarnMissingAttachment],
       _warnMissingAttachment,
     );
+    _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

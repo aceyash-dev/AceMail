@@ -7,9 +7,32 @@ for iOS, Android, macOS, Windows and Linux. Any provider, no vendor lock-in.
 
 ## Design
 
-The interface is built on **Astryx**, Meta's open-source design system
-([astryx.atmeta.com](https://astryx.atmeta.com)), rather than approximating its
-look. Concretely, `lib/theme/astryx_tokens.dart` carries the real token set:
+**A hybrid, deliberately.** No single design system covers what this app has to
+be, and pretending otherwise is how a mail client ends up looking like a
+settings pane.
+
+Three sources, and what each one is for:
+
+| Source | What comes from it |
+| --- | --- |
+| **Astryx** (Meta, [astryx.atmeta.com](https://astryx.atmeta.com)) | The tokens: type scale, spacing, radii, semantic colour roles. The vocabulary every widget speaks. |
+| **Material 3 Expressive** (Google) | The behaviour of the controls: the switch's spring and its tick, the floating navigation bar's shape and its moving label, the shape-morph pull-to-refresh, the state layers. |
+| **Liquid Glass** (Apple) | The see-through surfaces on iOS, approximated — a heavier backdrop blur over a thinner fill, since the real material is not reachable from Flutter without a plugin. |
+
+The seams are deliberate and load-bearing. **Astryx is the vocabulary, Material
+is the grammar, and Apple's material is the surface.** Colour and type come from
+one place, so nothing is a near-miss of anything else; motion and control shape
+come from the system whose users have those gestures in their thumbs; and the
+material follows the platform, because a frosted panel is native on one and a
+stall on another.
+
+Where the three disagree, the *tokens* win, because they are the only ones the
+app owns. Where the platform matters — a blur that costs a framebuffer readback
+on Android 11, a spring that Android users expect — the platform wins, and
+`lib/widgets/ace_glass.dart` is where that decision is written down rather than
+scattered.
+
+Concretely, `lib/theme/astryx_tokens.dart` carries the real token set:
 
 - **Type** — the geometric scale, `round(14 × 1.2^step)`, with Astryx's leading
   rule: a tiered target ratio (1.5 / 1.4 / 1.25) snapped to the 4px grid.
