@@ -196,9 +196,9 @@ class SettingsScreen extends StatelessWidget {
                   icon: AceIcons.mailUnread,
                   title: 'Notify me about new mail',
                   subtitle: 'Checked in the background about every fifteen '
-                      'minutes — Android\u2019s floor for work like this. '
-                      'Nothing is sent anywhere: the check talks to your '
-                      'provider and tells you.',
+                      'minutes. On iPhone the system decides the exact time, '
+                      'so a check can come later. Nothing is sent anywhere: '
+                      'the check talks to your provider and tells you.',
                   value: prefs.notifyNewMail,
                   onChanged: (bool value) async {
                     final bool on =

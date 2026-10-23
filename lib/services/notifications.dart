@@ -32,15 +32,34 @@ abstract final class AceNotifications {
     visibility: NotificationVisibility.private,
   );
 
+  /// The Apple one. Permission is not requested at launch — see
+  /// [requestPermission] — so the initialisation switches the prompt off.
+  static const DarwinNotificationDetails _darwin = DarwinNotificationDetails();
+
+  /// The Linux one. Desktop notifications need no permission.
+  static const LinuxNotificationDetails _linux = LinuxNotificationDetails();
+
   static Future<void> initialise() async {
     if (_ready) return;
     try {
       await _plugin.initialize(
         settings: const InitializationSettings(
-          android: // The app's own mark, flattened to one colour. Android tints a
+          // The app's own mark, flattened to one colour. Android tints a
           // notification icon, so anything with colour in it comes out as a
           // blob; this is the envelope as a silhouette.
-          AndroidInitializationSettings('@drawable/ic_notification'),
+          android: AndroidInitializationSettings('@drawable/ic_notification'),
+          // No prompt here: iOS asks once, when the setting is turned on.
+          iOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
+          macOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
+          linux: LinuxInitializationSettings(defaultActionName: 'Open Ace Mail'),
         ),
       );
       _ready = true;
@@ -52,14 +71,35 @@ abstract final class AceNotifications {
   /// Asks the platform for permission. Called when the setting is turned on,
   /// not at launch: a permission prompt before the user has asked for anything
   /// is a prompt they refuse.
+  ///
+  /// Each platform answers for itself. A platform that asks nothing (Linux)
+  /// is allowed; a platform whose prompt is not reachable is refused, rather
+  /// than assumed granted — a switch that says "on" for notifications that
+  /// will never show is the failure this method exists to prevent.
   static Future<bool> requestPermission() async {
     await initialise();
     try {
       final AndroidFlutterLocalNotificationsPlugin? android =
           _plugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
-      if (android == null) return true;
-      return await android.requestNotificationsPermission() ?? false;
+      if (android != null) {
+        return await android.requestNotificationsPermission() ?? false;
+      }
+
+      final IOSFlutterLocalNotificationsPlugin? ios =
+          _plugin.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        return await ios.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            ) ??
+            false;
+      }
+
+      // Linux, Windows and the web: nothing to ask for here.
+      return true;
     } catch (error) {
       debugPrint('Ace Mail: could not ask for permission (${Redact.safe(error)})');
       return false;
@@ -92,7 +132,12 @@ abstract final class AceNotifications {
         id: account.hashCode,
         title: title,
         body: body,
-        notificationDetails: const NotificationDetails(android: _android),
+        notificationDetails: const NotificationDetails(
+          android: _android,
+          iOS: _darwin,
+          macOS: _darwin,
+          linux: _linux,
+        ),
       );
     } catch (error) {
       debugPrint('Ace Mail: could not notify (${Redact.safe(error)})');

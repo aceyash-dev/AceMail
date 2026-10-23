@@ -50,6 +50,9 @@ dependencies:
   html: ^0.15.5
   package_info_plus: ^9.0.1
   provider: ^6.1.2
+  # Saving an attachment on iPhone and iPad. There is no save dialog to open
+  # there, so the share sheet's "Save to Files" does the job.
+  share_plus: ^13.3.1
   url_launcher: ^6.3.1
 
 dev_dependencies:

@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+
+import 'google_desktop_auth.dart';
 
 /// Google sign-in could not be completed.
 class GoogleAuthException implements Exception {
@@ -54,6 +57,12 @@ abstract final class GoogleAuth {
 
   static bool _ready = false;
 
+  /// Linux and Windows have no `google_sign_in` implementation, so there the
+  /// sign-in happens in the browser instead. Same answers, different road.
+  static bool get _desktop =>
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.windows;
+
   /// Prepares the plugin. Once, before anything else touches it.
   static Future<void> _prepare() async {
     if (_ready) return;
@@ -66,6 +75,7 @@ abstract final class GoogleAuth {
   /// Null is the ordinary answer, not a failure: it means nobody has signed in
   /// yet, or the last grant was withdrawn.
   static Future<String?> knownEmail() async {
+    if (_desktop) return GoogleDesktopAuth.knownEmail();
     await _prepare();
     final GoogleSignInAccount? account = await _lightweight();
     return account?.email;
@@ -76,6 +86,7 @@ abstract final class GoogleAuth {
   /// Free — it comes back with the lightweight sign-in — and it is the only
   /// provider here that can say what to call somebody without being asked.
   static Future<String?> knownName() async {
+    if (_desktop) return GoogleDesktopAuth.knownName();
     await _prepare();
     final GoogleSignInAccount? account = await _lightweight();
     final String? name = account?.displayName?.trim();
@@ -84,6 +95,7 @@ abstract final class GoogleAuth {
 
   /// Asks the user to choose an account and consent, and returns a token.
   static Future<GoogleCredential> signIn() async {
+    if (_desktop) return GoogleDesktopAuth.signIn();
     await _prepare();
     try {
       final GoogleSignInAccount account =
@@ -111,6 +123,7 @@ abstract final class GoogleAuth {
   /// longer covers the scope, so the screen can offer the sign-in again rather
   /// than an error nobody can act on.
   static Future<String?> token() async {
+    if (_desktop) return GoogleDesktopAuth.token();
     await _prepare();
     final GoogleSignInAccount? account = await _lightweight();
     if (account == null) return null;
@@ -119,6 +132,7 @@ abstract final class GoogleAuth {
 
   /// Signs out, so the next connection asks for an account again.
   static Future<void> forget() async {
+    if (_desktop) return GoogleDesktopAuth.forget();
     await _prepare();
     try {
       await GoogleSignIn.instance.signOut();

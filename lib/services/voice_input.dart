@@ -59,8 +59,11 @@ abstract final class VoiceInput {
       // Nothing came back. The microphone stops saying it is listening.
       return null;
     } on MissingPluginException {
-      // Not Android, or a build without the channel.
-      throw const VoiceInputException('Voice search needs Android.');
+      // A platform with no channel at all (desktop, the web). Said plainly,
+      // because a microphone that does nothing is worse than one that says why.
+      throw const VoiceInputException(
+        'Voice search is not available on this platform.',
+      );
     }
   }
 }

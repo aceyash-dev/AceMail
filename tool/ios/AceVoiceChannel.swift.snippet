@@ -1,0 +1,136 @@
+// --- Ace Mail: voice search -------------------------------------------------
+// Appended to ios/Runner/AppDelegate.swift by tool/ios/configure_ios.py.
+//
+// The Dart side is lib/services/voice_input.dart. This answers the same
+// channel the Android activity answers, with the same contract: the transcript
+// as a string, null when nothing was heard, and an error code when the device
+// cannot listen at all.
+//
+// Unlike Android, iOS does not hand the listening to another app: speech
+// recognition runs here, with the microphone permission the system asks for
+// on first use. That is the one place iOS differs from the Android design,
+// which never asks for the microphone; the Settings copy says so.
+
+final class AceVoiceChannel {
+    private let engine = AVAudioEngine()
+    private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var task: SFSpeechRecognitionTask?
+    /// The reply still owed to Dart. Non-nil while the microphone is in use.
+    private var pending: FlutterResult?
+
+    init(messenger: FlutterBinaryMessenger) {
+        let channel = FlutterMethodChannel(
+            name: "app.tab.mail/voice",
+            binaryMessenger: messenger
+        )
+        channel.setMethodCallHandler { [weak self] call, result in
+            guard call.method == "listen" else {
+                result(FlutterMethodNotImplemented)
+                return
+            }
+            self?.listen(result: result)
+        }
+    }
+
+    private func listen(result: @escaping FlutterResult) {
+        // One microphone, one listener — the same rule as the Android side.
+        if pending != nil {
+            result(nil)
+            return
+        }
+        pending = result
+
+        guard let recognizer = SFSpeechRecognizer(locale: Locale.current),
+              recognizer.isAvailable else {
+            finish(FlutterError(
+                code: "no_recogniser",
+                message: "This device has no speech recogniser.",
+                details: nil
+            ))
+            return
+        }
+
+        SFSpeechRecognizer.requestAuthorization { [weak self] status in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                guard status == .authorized else {
+                    self.finish(FlutterError(
+                        code: "denied",
+                        message: "Speech recognition was not allowed.",
+                        details: nil
+                    ))
+                    return
+                }
+                self.start(recognizer: recognizer)
+            }
+        }
+    }
+
+    private func start(recognizer: SFSpeechRecognizer) {
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = false
+        self.request = request
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+            let input = engine.inputNode
+            let format = input.outputFormat(forBus: 0)
+            input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+                request.append(buffer)
+            }
+            engine.prepare()
+            try engine.start()
+        } catch {
+            finish(FlutterError(
+                code: "microphone",
+                message: "The microphone could not be used.",
+                details: nil
+            ))
+            return
+        }
+
+        task = recognizer.recognitionTask(with: request) { [weak self] transcript, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let transcript = transcript, transcript.isFinal {
+                    self.finish(transcript.bestTranscription.formattedString)
+                } else if error != nil {
+                    // Silence and cancellation both end here. Dart treats a
+                    // null as "nothing heard", which is what they are.
+                    self.finish(nil)
+                }
+            }
+        }
+    }
+
+    /// Stops the microphone and answers Dart exactly once.
+    private func finish(_ value: Any?) {
+        stop()
+        let reply = pending
+        pending = nil
+        reply?(value)
+    }
+
+    /// Safe to call more than once: each step checks what is still running.
+    private func stop() {
+        if engine.isRunning {
+            engine.stop()
+        }
+        engine.inputNode.removeTap(onBus: 0)
+        request?.endAudio()
+        task?.cancel()
+        request = nil
+        task = nil
+        try? AVAudioSession.sharedInstance().setActive(
+            false,
+            options: .notifyOthersOnDeactivation
+        )
+    }
+}
+
+/// Held here so the channel lives as long as the app does.
+private var aceVoiceChannel: AceVoiceChannel?
+// --- end Ace Mail: voice search ---------------------------------------------
