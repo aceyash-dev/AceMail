@@ -1,10 +1,15 @@
 package app.tab.mail
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.speech.RecognizerIntent
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.util.Locale
 
 /**
  * Ace Mail's activity, plus the one thing about it that Android will not let
@@ -20,6 +25,12 @@ import io.flutter.plugin.common.MethodChannel
  * launcher for a moment. Disabling first could leave none, and an app with no
  * launcher entry is an app that has disappeared. The default alias is enabled
  * in the manifest, so a fresh install always has exactly one.
+ *
+ * It also runs the microphone. `RecognizerIntent` hands the listening to the
+ * device's own speech app — on a phone with Google services that is Google's
+ * recogniser, which is what the search bar's microphone is meant to be — and
+ * comes back with text. Nothing is recorded here: the app never sees the audio,
+ * and it never asks for the microphone permission, because it never listens.
  */
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -32,6 +43,67 @@ class MainActivity : FlutterActivity() {
                 }
                 result.success(setLauncherAccent(call.argument<String>("accent") ?: ""))
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VOICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method != "listen") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                listen(result)
+            }
+    }
+
+    /** The reply waiting on the recogniser, or null when none is listening. */
+    private var listening: MethodChannel.Result? = null
+
+    /**
+     * Asks the device's speech app to listen, and answers with what it heard.
+     *
+     * Answers null when the person cancelled, and an error when there is nothing
+     * on the device that can listen at all — which is a real possibility on a
+     * phone without Google's app, and not something to report as a failure of
+     * the microphone.
+     */
+    private fun listen(result: MethodChannel.Result) {
+        if (listening != null) {
+            // Already listening. One microphone, one listener.
+            result.success(null)
+            return
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            // The device's own language, not the app's — somebody searching in
+            // Hindi on an English phone still says Hindi words.
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+        }
+        try {
+            listening = result
+            startActivityForResult(intent, VOICE_REQUEST)
+        } catch (error: ActivityNotFoundException) {
+            listening = null
+            result.error("no_recogniser", "This device has no speech recogniser.", null)
+        }
+    }
+
+    @Deprecated("The result API is newer, but this is what FlutterActivity forwards.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != VOICE_REQUEST) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+        val heard = if (resultCode == Activity.RESULT_OK) {
+            data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        } else {
+            null
+        }
+        listening?.success(heard)
+        listening = null
     }
 
     /**
@@ -85,6 +157,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "app.tab.mail/launcher"
+        private const val VOICE_CHANNEL = "app.tab.mail/voice"
+        private const val VOICE_REQUEST = 7301
         private const val PACKAGE = "app.tab.mail"
 
         private const val LauncherOrange = "$PACKAGE.LauncherOrange"

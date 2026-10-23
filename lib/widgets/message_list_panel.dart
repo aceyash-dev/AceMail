@@ -19,6 +19,7 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/dates.dart';
+import '../util/greeting.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 import 'confirm_exit.dart';
@@ -65,6 +66,10 @@ class MessageListPanel extends StatelessWidget {
             builder: _refreshIndicator,
           ),
           const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
+          // Where you are and what is in it, before the mail itself. It carries
+          // the folder's name, which the app bar gave up to the search bar.
+          if (controller.searchQuery == null)
+            SliverToBoxAdapter(child: _Greeting(controller: controller)),
           ..._slivers(context, controller),
         ],
         ),
@@ -816,6 +821,57 @@ class _GroupHeading extends StatelessWidget {
       child: Text(
         label.toUpperCase(),
         style: AstryxText.label(c.textSecondary).copyWith(letterSpacing: 1.1),
+      ),
+    );
+  }
+}
+
+/// The line above the list: where you are, and what is in it.
+///
+/// It is the first thing on the screen and it is not mail, so it has one job —
+/// to say the app knows where it is — and it does it in two lines. It arrives
+/// rather than appearing, because a heading that pops in under a list that is
+/// still fading reads as a repaint.
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.controller});
+
+  final MailController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    final String folder = controller.selectedFolder?.label ?? 'Mail';
+    final int unseen = controller.selectedFolder?.unseen ?? 0;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: AstryxMotion.of(const Duration(milliseconds: 420)),
+      curve: AstryxMotion.emphasizedDecelerate,
+      builder: (BuildContext context, double t, Widget? child) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, (1 - t) * 12), child: child),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AstryxSpace.s4,
+          AstryxSpace.s2,
+          AstryxSpace.s4,
+          AstryxSpace.s4,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              greetingFor(DateTime.now()),
+              style: AstryxText.display3(c.textPrimary),
+            ),
+            const SizedBox(height: AstryxSpace.s0_5),
+            Text(
+              folderSummary(folder, unseen),
+              style: AstryxText.body(c.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }

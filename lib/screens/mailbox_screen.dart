@@ -49,6 +49,35 @@ class _MailboxScreenState extends State<MailboxScreen> {
   Timer? _searchDebounce;
   bool _searching = false;
 
+  /// Whether the microphone is listening. The bar says so while it is: a
+  /// microphone that gives no sign of being live is a microphone people talk to
+  /// twice.
+  bool _listening = false;
+
+  /// Asks the device to listen, then searches what it heard.
+  ///
+  /// The words land in the field and the search runs, because that is what
+  /// somebody tapping a microphone in a search bar wants. They can edit them
+  /// afterwards — which is the difference between this and a voice command.
+  Future<void> _listenForSearch() async {
+    if (_listening) return;
+    unawaited(AceHaptics.tap());
+    setState(() => _listening = true);
+    try {
+      final String? heard = await VoiceInput.listen();
+      if (!mounted || heard == null) return;
+      _search.text = heard;
+      _search.selection = TextSelection.collapsed(offset: heard.length);
+      _onSearchChanged(heard);
+      context.read<MailController>().search(heard);
+    } catch (error) {
+      if (!mounted) return;
+      AceSnack.show(context, '$error');
+    } finally {
+      if (mounted) setState(() => _listening = false);
+    }
+  }
+
   /// Whether the compose button is showing its label.
   ///
   /// It shortens once the list has been scrolled: the label is there to teach
@@ -233,7 +262,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 ],
               )
             : AppBar(
-          titleSpacing: AstryxSpace.s4,
+          // Taller than Material's 56, because the search bar lives in the
+          // title slot now and it is not a 40px pill.
+          toolbarHeight: 68,
+          titleSpacing: AstryxSpace.s2,
           // Ours, not Material's default DrawerButton: the hamburger was the
           // last Material icon left in the app bar, and it was the wrong
           // weight next to everything else.
@@ -248,30 +280,12 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   tooltip: 'Folders',
                   onPressed: () => _scaffold.currentState?.openDrawer(),
                 ),
-          // The folder you are in, not the app's name. The name is on the
-          // launcher and the splash; here the space is better spent telling you
-          // where you are.
-          title: Text(
-            controller.selectedFolder?.label ?? 'Mail',
-            style: AstryxText.heading3(c.textPrimary),
-          ),
-          // The search bar is not behind an icon any more, and it is taller
-          // than it was: searching a folder is a thing people do constantly,
-          // and a 40px pill you have to open first made it a small expedition.
-          bottom: reading && !wide
-              ? null
-              : PreferredSize(
-                  preferredSize: const Size.fromHeight(64),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AstryxSpace.s4,
-                      0,
-                      AstryxSpace.s4,
-                      AstryxSpace.s3,
-                    ),
-                    child: _searchBar(c),
-                  ),
-                ),
+          // The search bar, where the folder's name used to be. The name is not
+          // lost — the greeting above the list says which folder you are in and
+          // what is in it, which is where a person looks anyway — and the space
+          // it gave up is the search bar's, which is the thing people reach for
+          // far more often.
+          title: reading && !wide ? null : _searchBar(c),
           actions: <Widget>[
             // Emptying the trash lives where the trash does, and nowhere else:
             // an action that destroys everything should not be one tap away
@@ -281,16 +295,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 icon: AceIcons.deleteSweep,
                 tooltip: 'Empty trash',
                 onPressed: () => _confirmEmptyTrash(context),
-              ),
-            // Only when it has been set up: a button that opens a sheet telling
-            // you it is not configured is a button that wastes a tap.
-            if (prefs.chymeEnabled && !(reading && !wide))
-              AceIconButton(
-                icon: AceIcons.chyme,
-                tooltip: 'Chyme',
-                markBuilder: (Color foreground) =>
-                    ChymeMark(size: 22, color: foreground),
-                onPressed: () => ChymeSheet.show(context),
               ),
             // One button for the choices that used to take a row of the list:
             // the filters and the order. It wears the accent when something
@@ -305,6 +309,16 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   prefs.messageSort != MessageSort.newest,
               onPressed: () => showSortSheet(context),
             ),
+            // Only when it has been set up: a button that opens a sheet telling
+            // you it is not configured is a button that wastes a tap.
+            if (prefs.chymeEnabled)
+              AceIconButton(
+                icon: AceIcons.chyme,
+                tooltip: 'Chyme',
+                markBuilder: (Color foreground) =>
+                    ChymeMark(size: 22, color: foreground),
+                onPressed: () => ChymeSheet.show(context),
+              ),
             const SizedBox(width: AstryxSpace.s2),
           ],
         ),
@@ -371,23 +385,32 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
   }
 
-  /// The search bar, always on screen.
+  /// The search bar, in the app bar where the folder's name used to be.
   ///
-  /// It used to be a 40px pill that appeared only after tapping a search icon,
-  /// in the app bar's title slot. Searching a folder is something people do
-  /// constantly, so the bar is simply there, and it is taller: a target you can
-  /// hit without looking.
+  /// It is not a pill behind an icon any more, and it is not 40px: searching a
+  /// folder is something people do constantly, and it is the one thing in the
+  /// app bar worth the room. The microphone on its right hands the listening to
+  /// the device — see [VoiceInput].
   Widget _searchBar(AstryxColors c) {
-    return Container(
-      height: AstryxSize.elementXl,
+    final bool hasText = _search.text.isNotEmpty;
+
+    return AnimatedContainer(
+      duration: AstryxMotion.of(AstryxMotion.fast),
+      curve: AstryxMotion.emphasized,
+      height: 52,
       padding: const EdgeInsets.only(
         left: AstryxSpace.s4,
-        right: AstryxSpace.s2,
+        right: AstryxSpace.s1,
       ),
       decoration: BoxDecoration(
         color: c.backgroundMuted,
         borderRadius: BorderRadius.circular(AstryxRadius.full),
-        border: Border.all(color: c.border),
+        // The outline takes the accent while the microphone is live, which is
+        // the only thing on screen that says the app is listening to the room.
+        border: Border.all(
+          color: _listening ? c.accent : c.border,
+          width: _listening ? 1.5 : 1,
+        ),
       ),
       child: Row(
         children: <Widget>[
@@ -407,7 +430,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
               textInputAction: TextInputAction.search,
               style: AstryxText.body(c.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search this folder',
+                hintText: 'Search',
                 // Every state, not just the resting one: leaving the focused
                 // border unset lets the theme's outline draw inside the pill.
                 border: InputBorder.none,
@@ -424,17 +447,20 @@ class _MailboxScreenState extends State<MailboxScreen> {
             ),
           ),
           // Only when there is something to clear, so the bar never offers a
-          // button that does nothing.
+          // button that does nothing. It sits after the microphone, so the
+          // microphone is always in the same place.
           AnimatedSize(
             duration: AstryxMotion.of(AstryxMotion.fast),
-            child: _search.text.isEmpty
-                ? const SizedBox(width: AstryxSpace.s2)
-                : AceIconButton(
+            curve: AstryxMotion.emphasized,
+            child: hasText
+                ? AceIconButton(
                     icon: AceIcons.close,
                     tooltip: 'Clear the search',
                     onPressed: _exitSearch,
-                  ),
+                  )
+                : const SizedBox.shrink(),
           ),
+          _MicButton(listening: _listening, onPressed: _listenForSearch),
         ],
       ),
     );
@@ -514,4 +540,84 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
   }
 
+}
+
+/// The search bar's microphone.
+///
+/// It pulses while the device is listening. Nothing else on screen changes when
+/// a recogniser is open — the speech app is a separate window — so on the way
+/// back this is what says the app is still waiting.
+class _MicButton extends StatefulWidget {
+  const _MicButton({required this.listening, required this.onPressed});
+
+  final bool listening;
+  final VoidCallback onPressed;
+
+  @override
+  State<_MicButton> createState() => _MicButtonState();
+}
+
+class _MicButtonState extends State<_MicButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.listening) _pulse.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_MicButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.listening == oldWidget.listening) return;
+    if (widget.listening) {
+      _pulse.repeat(reverse: true);
+    } else {
+      _pulse.animateTo(0, duration: AstryxMotion.of(AstryxMotion.fast));
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (BuildContext context, Widget? child) {
+        final double t = _pulse.value;
+        return Transform.scale(
+          scale: 1 + 0.06 * t,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              // The ring grows and fades as it pulses, so the button reads as
+              // waiting rather than as broken.
+              color: widget.listening
+                  ? c.accent.withValues(alpha: 0.12 + 0.10 * t)
+                  : Colors.transparent,
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: AceIconButton(
+        icon: AceIcons.mic,
+        // Still tappable while it is live, and does nothing: the listening is
+        // happening in the device's speech app, which this cannot reach in to
+        // stop. Saying so is better than a button that looks broken.
+        tooltip: widget.listening ? 'Listening…' : 'Search by voice',
+        onPressed: widget.onPressed,
+      ),
+    );
+  }
 }

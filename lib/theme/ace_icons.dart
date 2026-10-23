@@ -93,6 +93,8 @@ abstract final class AceIcons {
   static const AceIcon shield = HugeIcons.strokeRoundedShield01;
   static const AceIcon lock = HugeIcons.strokeRoundedLock;
   static const AceIcon fingerprint = HugeIcons.strokeRoundedFingerprintScan;
+  /// The search bar's microphone.
+  static const AceIcon mic = HugeIcons.strokeRoundedMic01;
   /// Chyme, the assistant.
   static const AceIcon chyme = HugeIcons.strokeRoundedAiBrain01;
   /// Writing with Chyme.

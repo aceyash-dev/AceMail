@@ -89,6 +89,19 @@ after the `+` is the Android version code.
   over the first, and enforced once more in the sending service.
 
 ### Changed
+- **The app bar's folder name is gone, and the search bar is in its place.** The
+  name is not lost: the greeting above the list says which folder you are in and
+  what is waiting in it, which is where a person looks anyway. The room it gave
+  up is the search bar's, which is the thing people reach for far more often —
+  and beside it sit the sort button and Chyme.
+- **The search bar has a microphone.** It hands the listening to the device's own
+  speech app — on a phone with Google services, Google's recogniser — and what
+  comes back is text in the field with the search already run. The audio never
+  reaches Ace Mail, and the app never asks for the microphone permission, because
+  it never records anything itself.
+- **A greeting before the mail.** "Good morning · Inbox · 3 unread", above the
+  list, from the clock rather than a setting.
+
 - **The compose button wears the accent**, and shortens to a circle once the
   list has been scrolled — the label is there to teach the button, and by the
   time you have scrolled you have learned it.
@@ -180,6 +193,13 @@ after the `+` is the Android version code.
   per-order sort icons were being ignored too; the sort sheet uses them now.
 
 ### Faster
+- The microphone pulses while the device is listening, and the search bar's
+  outline takes the accent — the speech app is a separate window, so on the way
+  back this is the only thing that says the app is still waiting.
+- The greeting arrives rather than appearing, the search bar's clear button
+  animates in and out, and the composer's attach row and the settings rows keep
+  their spring.
+
 - The message list passes its density down instead of every row watching the
   preferences for itself, so a settings change rebuilds the list once rather
   than once per row.
