@@ -198,15 +198,23 @@ abstract final class GoogleDesktopAuth {
     final List<String> parts = idToken.split('.');
     if (parts.length != 3) return null;
     try {
-      final Object? claims = jsonDecode(
-        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
-      );
+      final Object? claims = jsonDecode(utf8.decode(_decodeSegment(parts[1])));
       if (claims is! Map<String, dynamic>) return null;
       final Object? value = claims[claim];
       return value is String && value.trim().isNotEmpty ? value.trim() : null;
     } on FormatException {
       return null;
     }
+  }
+
+  /// A JWT segment is base64url without its padding, which `base64Url.decode`
+  /// needs put back.
+  static List<int> _decodeSegment(String segment) {
+    final StringBuffer padded = StringBuffer(segment);
+    while (padded.length % 4 != 0) {
+      padded.write('=');
+    }
+    return base64Url.decode(padded.toString());
   }
 
   // ---------------------------------------------------------------------------
@@ -223,6 +231,10 @@ abstract final class GoogleDesktopAuth {
         await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final String redirectUri = 'http://127.0.0.1:${server.port}/';
     final Completer<String> answer = Completer<String>();
+    // A browser that reports an error can finish the answer before anyone is
+    // waiting on it. Marking the future handled keeps that from being reported
+    // as an uncaught error; the wait below still receives the outcome.
+    answer.future.ignore();
 
     final StreamSubscription<HttpRequest> subscription = server.listen(
       (HttpRequest request) => _answerBrowser(request, state, answer),

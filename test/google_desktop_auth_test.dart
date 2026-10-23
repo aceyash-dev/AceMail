@@ -107,7 +107,7 @@ void main() {
         () async {
       // The tests run without --dart-define, so no client is configured.
       expect(GoogleDesktopAuth.configured, isFalse);
-      expect(
+      await expectLater(
         GoogleDesktopAuth.signIn(),
         throwsA(isA<GoogleAuthException>()),
       );
