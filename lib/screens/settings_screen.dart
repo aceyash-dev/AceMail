@@ -14,6 +14,7 @@ import '../services/app_lock.dart';
 import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
+import '../state/mail_controller.dart';
 import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
@@ -69,10 +70,15 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'No mail provider lets an app change your picture. '
                       'Gravatar is the one that shows everywhere — pick one '
                       'here and it is yours on this device only.',
-                  value: LocalAvatars.has(controller.account?.email ?? '')
+                  value: LocalAvatars.has(
+                    context.watch<MailController>().account?.email ?? '',
+                  )
                       ? 'Changed here'
                       : 'From Gravatar',
-                  onTap: () => _choosePicture(context, controller),
+                  onTap: () => _choosePicture(
+                    context,
+                    context.read<MailController>().account?.email ?? '',
+                  ),
                 ),
                 SettingsSwitchRow(
                   icon: AceIcons.reconnect,
@@ -1047,8 +1053,7 @@ String _chymeKeyHint(ChymeTemplate template) {
 /// other clients read, and it is a different service with its own account. A
 /// row that offered only "change" would be promising something the app cannot
 /// do.
-Future<void> _choosePicture(BuildContext context, MailController controller) async {
-  final String email = controller.account?.email ?? '';
+Future<void> _choosePicture(BuildContext context, String email) async {
   if (email.isEmpty) return;
 
   final bool has = LocalAvatars.has(email);
