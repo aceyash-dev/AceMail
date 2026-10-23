@@ -75,21 +75,26 @@ class MailSession extends ChangeNotifier {
 
   /// The secret for a handshake: a password, or a fresh Google token.
   ///
-  /// Fetched at the moment it is needed rather than kept, because a token lives
-  /// about an hour and a mailbox that reconnects in the afternoon needs one
-  /// that is valid now. Throws with [GoogleAuthException.needsSignIn] when
-  /// Google wants the user back, which the screen turns into an offer to sign
-  /// in rather than an error.
-  Future<String> _secret() async {
-    if (!account.isGoogle) return password;
-    final String? token = await GoogleAuth.token();
-    if (token == null) {
-      throw const GoogleAuthException(
-        'Sign in to Google again to reach this mailbox.',
-        needsSignIn: true,
-      );
-    }
-    return token;
+  /// A password is returned synchronously — it is already here, and making the
+  /// caller wait a turn of the event loop for something that cannot change is
+  /// latency added to every connection for nothing.
+  ///
+  /// A Google token is fetched at the moment it is needed rather than kept,
+  /// because it lives about an hour and a mailbox that reconnects in the
+  /// afternoon needs one that is valid now. Throws with
+  /// [GoogleAuthException.needsSignIn] when Google wants the user back, which
+  /// the screen turns into an offer to sign in rather than an error.
+  Future<String> _secret() {
+    if (!account.isGoogle) return Future<String>.value(password);
+    return GoogleAuth.token().then((String? token) {
+      if (token == null) {
+        throw const GoogleAuthException(
+          'Sign in to Google again to reach this mailbox.',
+          needsSignIn: true,
+        );
+      }
+      return token;
+    });
   }
 
   bool connecting = false;
@@ -243,7 +248,10 @@ class MailSession extends ChangeNotifier {
     _notify();
 
     try {
-      final List<MailFolder> loaded = await _transport.connect(await _secret());
+      // The password path is untouched by the await: `_secret` is only
+      // asynchronous for an account that has a token to fetch.
+      final String secret = account.isGoogle ? await _secret() : password;
+      final List<MailFolder> loaded = await _transport.connect(secret);
 
       // The session may have been abandoned while we were connecting; do not
       // leave a live connection behind for a screen that no longer exists.

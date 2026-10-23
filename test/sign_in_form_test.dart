@@ -61,14 +61,28 @@ void main() {
     });
 
     test('rejects an empty password', () {
+      // A password provider, because Gmail no longer is one: it signs in
+      // through Google, and that path has no password field to leave empty.
+      final SignInFormModel form = SignInFormModel();
+      form.username.text = 'someone';
+      form.domain = 'yahoo.com';
+      form.applyProvider();
+
+      final SignInOutcome outcome = form.build();
+      expect(outcome.isReady, isFalse);
+      expect(outcome.error, contains('password'));
+      form.dispose();
+    });
+
+    test('does not ask a Google address for one', () {
       final SignInFormModel form = SignInFormModel();
       form.username.text = 'someone';
       form.domain = 'gmail.com';
       form.applyProvider();
 
       final SignInOutcome outcome = form.build();
-      expect(outcome.isReady, isFalse);
-      expect(outcome.error, contains('password'));
+      expect(outcome.isReady, isTrue);
+      expect(outcome.account!.isGoogle, isTrue);
       form.dispose();
     });
 
