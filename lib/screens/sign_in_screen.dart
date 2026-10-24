@@ -221,9 +221,13 @@ class _SignInScreenState extends State<SignInScreen> {
             ),
           ),
           child: SafeArea(
-            child: Center(
+            // Anchored to the bottom, not centred: the form is a sheet that
+            // arrives over the page rather than a card that sits on it, and a
+            // sheet that floats in the middle is a dialog.
+            child: Align(
+              alignment: Alignment.bottomCenter,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AstryxSpace.s5),
+                padding: EdgeInsets.zero,
                 child: TweenAnimationBuilder<double>(
                   tween: Tween<double>(begin: 0, end: 1),
                   duration: const Duration(milliseconds: 320),
@@ -237,10 +241,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: AceSurface(
-                      radius: AstryxRadius.page,
-                      padding: const EdgeInsets.all(AstryxSpace.s7),
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: _SignInSheet(
                       child: AutofillGroup(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1130,6 +1132,62 @@ class _GoogleButton extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// The sign-in form, as a sheet.
+///
+/// Rounded at the top only, because that is the edge you can see: the other
+/// three are against the screen. A handle at the top is the whole of what makes
+/// something read as a sheet — it is a grip that says "this came up, and it can
+/// go back down" without a word or a button.
+///
+/// The material is the app's own, so on a device that blurs, the gradient
+/// behind shows through it; on one that cannot, it is the same sheet in the
+/// same colour.
+class _SignInSheet extends StatelessWidget {
+  const _SignInSheet({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    const BorderRadius shape = BorderRadius.vertical(
+      top: Radius.circular(AstryxRadius.page),
+    );
+
+    return AceGlass.material(
+      context,
+      radius: shape,
+      bordered: false,
+      opacity: 0.94,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(
+              top: AstryxSpace.s3,
+              bottom: AstryxSpace.s1,
+            ),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: c.border,
+                borderRadius: BorderRadius.circular(AstryxRadius.full),
+              ),
+            ),
+          ),
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.all(AstryxSpace.s6),
+              child: child,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -50,7 +50,7 @@ abstract final class GoogleAuth {
   /// registered against the package name and the signing certificate instead —
   /// see the README.
   static const String clientId =
-      '919591212641-i8ugliojp1j16esai9jh3f5e5foiucoj.apps.googleusercontent.com';
+      '919591212641-7m696qr165fh1ir4uo6d761jn7nnk4kg.apps.googleusercontent.com';
 
   /// IMAP and SMTP, read and send.
   static const List<String> scopes = <String>['https://mail.google.com/'];
