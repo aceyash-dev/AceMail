@@ -44,7 +44,7 @@ class ScheduledSend {
     if (raw is! Map) return null;
     final Object? id = raw['id'];
     final Object? account = raw['account'];
-    final Object? at = DateTime.tryParse(raw['at'] as String? ?? '');
+    final DateTime? at = DateTime.tryParse(raw['at'] as String? ?? '');
     final Object? to = raw['to'];
     if (id is! String || account is! String || at == null || to is! String) {
       return null;

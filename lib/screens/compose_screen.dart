@@ -920,8 +920,6 @@ class _FromChoice {
   const _FromChoice(this.email);
 
   final String? email;
-}
-
   /// Queues this message instead of sending it now.
   ///
   /// What is stored is everything needed to send it *without this screen*: the
@@ -1003,3 +1001,5 @@ class _FromChoice {
       ),
     );
   }
+}
+
