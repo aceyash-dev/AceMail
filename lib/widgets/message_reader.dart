@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,6 +16,7 @@ import '../util/addresses.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
 import '../services/translate.dart';
+import '../util/ace_snack.dart';
 import '../util/links.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
@@ -782,7 +785,7 @@ Future<void> _translate(BuildContext context, FullMessage message) async {
   }
 
   final AstryxColors c = context.astryx;
-  showModalBottomSheet<void>(
+  unawaited(showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
@@ -817,7 +820,7 @@ Future<void> _translate(BuildContext context, FullMessage message) async {
         ),
       ),
     ),
-  );
+  ));
 
   try {
     final String translated = await Translate.text(
