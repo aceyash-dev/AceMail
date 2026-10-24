@@ -808,7 +808,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
   /// "Tomorrow morning" is a decision somebody can make in a second; a calendar
   /// and a time wheel is a decision they make twice.
   Future<DateTime?> _pickMoment(DateTime now) {
-    DateTime tomorrowMorning = DateTime(now.year, now.month, now.day + 1, 8);
+    final DateTime tomorrowMorning = DateTime(now.year, now.month, now.day + 1, 8);
     final int daysToMonday = (DateTime.monday - now.weekday + 7) % 7;
     final DateTime nextMonday = DateTime(
       now.year,
