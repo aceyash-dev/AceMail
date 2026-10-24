@@ -55,9 +55,16 @@ void main() {
   test('every connection is secure', () {
     final String service =
         File('lib/services/mail_service.dart').readAsStringSync();
-    // IMAP: secure from the first byte. SMTP: implicit TLS on 465, STARTTLS
-    // otherwise — both branches present.
-    expect(service, contains('isSecure: true'));
-    expect(service, contains('startTls()'));
+    // Neither transport is secure from the first byte on every port: 993 and
+    // 465 speak TLS immediately, and everything else starts plain and is
+    // upgraded with STARTTLS before a password is sent. What has to hold is that
+    // both decide by the port and both upgrade — and that no branch leaves a
+    // plain connection with credentials going into it.
+    expect(service, contains('final bool implicitTls = account.imapPort == 993'));
+    expect(service, contains('final bool implicitTls = account.smtpPort == 465'));
+    expect(RegExp('isSecure: implicitTls').allMatches(service).length, 2);
+    expect(RegExp(r'startTls\(\)').allMatches(service).length, 2);
+    // The one thing that would make all of it pointless.
+    expect(service, isNot(contains('badCertificateCallback')));
   });
 }

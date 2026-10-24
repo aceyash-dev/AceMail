@@ -88,15 +88,36 @@ class MailService implements MailTransport {
     // `LOGIN` command in full, password included. It stays off in every build.
     final ImapClient client = ImapClient(isLogEnabled: false);
     try {
-      // `isSecure: true`, always, with the library's own certificate
-      // validation. There is no `badCertificateCallback` anywhere in this app
-      // and a test fails the build if one appears — see
-      // test/transport_security_test.dart.
+      // 993 speaks TLS from the first byte; anything else starts plain and is
+      // upgraded with STARTTLS before the password is sent — the same shape the
+      // SMTP connection below already uses for 465 against everything else.
+      //
+      // This was `isSecure: true` unconditionally, which is right for 993 and
+      // wrong for 143: the server is waiting for STARTTLS, gets a TLS handshake
+      // instead, and the sign-in fails with something that says nothing about
+      // the port. A provider that offers IMAP only on 143 could not be reached
+      // at all.
+      //
+      // The certificate is still validated by the library in both modes. There
+      // is no `badCertificateCallback` anywhere in this app and a test fails the
+      // build if one appears — see test/transport_security_test.dart.
+      final bool implicitTls = account.imapPort == 993;
       await client.connectToServer(
         account.imapHost,
         account.imapPort,
-        isSecure: true,
+        isSecure: implicitTls,
       );
+      if (!implicitTls) {
+        if (!client.serverInfo.supportsStartTls) {
+          // Refused, not downgraded. A server that will not encrypt is a server
+          // the password does not go to, and there is no path around this.
+          throw const MailConnectionException(
+            'This server does not offer a secure connection, so the password '
+            'was not sent.',
+          );
+        }
+        await client.startTls();
+      }
       if (account.isGoogle) {
         // XOAUTH2: the token is the credential. Gmail has not accepted a
         // password over IMAP since 2022.
