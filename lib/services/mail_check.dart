@@ -44,9 +44,20 @@ Future<List<String>> checkAllAccounts() async {
     return withNews;
   }
 
+  // Preferences performs multiple secure-storage reads. Load one snapshot for
+  // this background pass instead of repeating the platform calls per account.
+  Preferences? sharedPreferences;
+  try {
+    sharedPreferences = Preferences();
+    await sharedPreferences.load();
+  } catch (error) {
+    debugPrint('Ace Mail: could not load preferences (${Redact.safe(error)})');
+    sharedPreferences = null;
+  }
+
   for (final StoredAccount stored in loaded.accounts) {
     try {
-      final bool has = await checkOne(stored);
+      final bool has = await checkOne(stored, preferences: sharedPreferences);
       if (has) withNews.add(stored.account.email);
     } catch (error) {
       // One account failing must not stop the others, and must not crash a
@@ -61,7 +72,7 @@ Future<List<String>> checkAllAccounts() async {
 }
 
 /// Checks one account. Returns true when it found something new.
-Future<bool> checkOne(StoredAccount stored) async {
+Future<bool> checkOne(StoredAccount stored, {Preferences? preferences}) async {
   // A Google account has no stored password: it is reached with a token, and
   // one that expires in about an hour. This used to hand `stored.password` —
   // an empty string — to a Gmail account, so the check failed for every Gmail
@@ -70,8 +81,8 @@ Future<bool> checkOne(StoredAccount stored) async {
     stored.account,
     tokenProvider: stored.account.isGoogle ? GoogleAuth.token : null,
   );
-  final Preferences prefs = Preferences();
-  await prefs.load();
+  final Preferences prefs = preferences ?? Preferences();
+  if (preferences == null) await prefs.load();
 
   try {
     final String? secret = stored.account.isGoogle
