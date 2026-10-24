@@ -210,7 +210,8 @@ class _ChymeSheetState extends State<ChymeSheet> {
     final AstryxColors c = context.astryx;
     final Preferences prefs = context.watch<Preferences>();
     final bool configured =
-        prefs.chymeEndpoint.trim().isNotEmpty && prefs.chymeModel.trim().isNotEmpty;
+        prefs.chymeEndpoint.trim().isNotEmpty &&
+        prefs.chymeModel.trim().isNotEmpty;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -247,15 +248,15 @@ class _ChymeSheetState extends State<ChymeSheet> {
                           const Duration(milliseconds: 520),
                         ),
                         curve: Curves.easeOutBack,
-                        builder: (
-                          BuildContext context,
-                          double t,
-                          Widget? child,
-                        ) =>
-                            Transform.rotate(
-                          angle: (1 - t) * -0.6,
-                          child: Transform.scale(scale: 0.5 + t * 0.5, child: child),
-                        ),
+                        builder:
+                            (BuildContext context, double t, Widget? child) =>
+                                Transform.rotate(
+                                  angle: (1 - t) * -0.6,
+                                  child: Transform.scale(
+                                    scale: 0.5 + t * 0.5,
+                                    child: child,
+                                  ),
+                                ),
                         child: ChymeMark(size: 20, color: c.onAccentMuted),
                       ),
                     ),
@@ -265,7 +266,10 @@ class _ChymeSheetState extends State<ChymeSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('Chyme', style: AstryxText.heading3(c.textPrimary)),
+                        Text(
+                          'Chyme',
+                          style: AstryxText.heading3(c.textPrimary),
+                        ),
                         Text(
                           prefs.chymeModel.isEmpty
                               ? 'Not set up yet'
@@ -333,8 +337,9 @@ class _ChymeSheetState extends State<ChymeSheet> {
                           hintText: 'Ask about your mail, or ask it to write',
                           isDense: true,
                           border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AstryxRadius.full),
+                            borderRadius: BorderRadius.circular(
+                              AstryxRadius.full,
+                            ),
                           ),
                         ),
                       ),
@@ -374,10 +379,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ),
         const SizedBox(height: AstryxSpace.s4),
         for (final String prompt in prompts) ...<Widget>[
-          AceChip(
-            label: prompt,
-            onTap: () => _send(prompt),
-          ),
+          AceChip(label: prompt, onTap: () => _send(prompt)),
           const SizedBox(height: AstryxSpace.s2),
         ],
       ],
@@ -408,14 +410,16 @@ class _Bubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final bool mine = turn.role == 'user';
-    final String text =
-        mine ? turn.content : Chyme.withoutSearchLine(turn.content);
+    final String text = mine
+        ? turn.content
+        : Chyme.withoutSearchLine(turn.content);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AstryxSpace.s3),
       child: Column(
-        crossAxisAlignment:
-            mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: mine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: <Widget>[
           // What Chyme wrote is the useful part, and there are only ever two
           // things anybody wants to do with it: keep it, or start a message with
@@ -440,36 +444,35 @@ class _Bubble extends StatelessWidget {
               ],
             ),
           Row(
-            mainAxisAlignment:
-                mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisAlignment: mine
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
             children: <Widget>[
               Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AstryxSpace.s4,
-                vertical: AstryxSpace.s3,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AstryxSpace.s4,
+                    vertical: AstryxSpace.s3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: mine ? c.accent : c.backgroundMuted,
+                    borderRadius: BorderRadius.circular(AstryxRadius.container),
+                  ),
+                  // What Chyme writes is Markdown, and it reads as Markdown when it
+                  // is rendered as Markdown. What the person types is not, and is
+                  // shown exactly as typed.
+                  child: mine
+                      ? SelectableText(text, style: AstryxText.body(c.onAccent))
+                      : MarkdownView(
+                          source: text,
+                          onLink: (String url) =>
+                              openMarkdownLink(context, url),
+                        ),
+                ),
               ),
-              decoration: BoxDecoration(
-                color: mine ? c.accent : c.backgroundMuted,
-                borderRadius: BorderRadius.circular(AstryxRadius.container),
-              ),
-              // What Chyme writes is Markdown, and it reads as Markdown when it
-              // is rendered as Markdown. What the person types is not, and is
-              // shown exactly as typed.
-              child: mine
-                  ? SelectableText(
-                      text,
-                      style: AstryxText.body(c.onAccent),
-                    )
-                  : MarkdownView(
-                      source: text,
-                      onLink: (String url) =>
-                          openMarkdownLink(context, url),
-                    ),
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -497,7 +500,11 @@ class _SearchOffer extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            AceIconView(icon: AceIcons.search, size: 18, color: c.textSecondary),
+            AceIconView(
+              icon: AceIcons.search,
+              size: 18,
+              color: c.textSecondary,
+            ),
             const SizedBox(width: AstryxSpace.s3),
             Expanded(
               child: Text(
