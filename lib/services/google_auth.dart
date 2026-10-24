@@ -134,35 +134,26 @@ abstract final class GoogleAuth {
 
   /// Asks the user to choose an account and consent, and returns a token.
   ///
-  /// **Two sheets, and the plugin decides which.** Under Credential Manager:
+  /// **This is the sheet people recognise**: Credential Manager's bottom sheet
+  /// with "Sign in with Google" on it. Underneath it is
+  /// `GetSignInWithGoogleOption`, which the plugin sends when `useButtonFlow`
+  /// is true — and `authenticate` is the method that sends it.
   ///
-  /// * `attemptLightweightAuthentication` sends `useButtonFlow: false`, which
-  ///   the plugin turns into `GetGoogleIdOption` — the Credential Manager
-  ///   picker. It lists the accounts *and the passkeys* on the device, which is
-  ///   the sheet the rest of the system shows for signing in.
-  /// * `authenticate` sends `useButtonFlow: true`, which becomes
-  ///   `GetSignInWithGoogleOption` — Google's own branded "Sign in with Google"
-  ///   sheet.
+  /// It was briefly preceded by `attemptLightweightAuthentication`, on the
+  /// theory that the passkey picker was the modern one. That call sends
+  /// `useButtonFlow: false` and gets `GetGoogleIdOption` instead: the generic
+  /// credential chooser, which lists whatever credentials the device happens to
+  /// hold and is not the Google sign-in experience at all. Asking for it first
+  /// meant the wrong sheet appeared, and then the right one on top of it.
   ///
-  /// The picker is asked for first, because it is the one that can use a
-  /// passkey and the one that looks like every other sign-in on the device. The
-  /// branded sheet is the fallback, and it is not a downgrade: it is the only
-  /// one of the two that can *add* an account, so a device with no Google
-  /// account on it needs it.
-  ///
-  /// A cancel and an empty device are indistinguishable from here — both come
-  /// back null — so the fallback runs on either, and a cancelled picker is
-  /// followed by the branded sheet. That is the cost of the fallback, and it is
-  /// the smaller of the two annoyances: the alternative is a phone with no
-  /// account on it that can never sign in.
+  /// One sheet, and it is Google's.
   static Future<GoogleCredential> signIn() async {
     if (_desktop) return GoogleDesktopAuth.signIn();
     try {
       await _prepare();
 
-      final GoogleSignInAccount? picked = await _lightweight();
       final GoogleSignInAccount account =
-          picked ?? await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+          await GoogleSignIn.instance.authenticate(scopeHint: scopes);
       // Kept, so the greeting and the account row never have to ask the plugin
       // anything — asking is what can prompt.
       await _write(_keyEmail, account.email);
