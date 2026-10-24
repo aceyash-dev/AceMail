@@ -70,8 +70,8 @@ void _obfuscationCases() {
       // A tab is whitespace to the pattern, so the link stops at it. What must
       // never happen is a link that spans the character and points somewhere
       // other than it appears to.
-      expect(found('https://example.com\\t/evil'), <String>['https://example.com']);
-      expect(found('https://exa\\nmple.com'), <String>['https://exa']);
+      expect(found('https://example.com\t/evil'), <String>['https://example.com']);
+      expect(found('https://exa\nmple.com'), <String>['https://exa']);
     });
 
     test('a scheme is matched however it is written', () {
