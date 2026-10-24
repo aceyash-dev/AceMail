@@ -765,9 +765,6 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
   }
 
-}
-
-/// Which account the message goes from, when there is more than one.
   /// Queues this message instead of sending it now.
   ///
   /// What is stored is everything needed to send it *without this screen*: the
@@ -850,6 +847,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
   }
 
+}
+
+/// Which account the message goes from, when there is more than one.
 class _FromRow extends StatelessWidget {
   const _FromRow({
     required this.accounts,
