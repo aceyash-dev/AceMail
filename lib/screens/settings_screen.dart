@@ -560,7 +560,10 @@ class SettingsScreen extends StatelessWidget {
                   // Drawn in the row's own icon colour. The artwork is white
                   // with transparency, so left untinted it is white on a light
                   // row — a mark that is not there.
-                  leading: ChymeMark(size: 22, color: c.iconSecondary),
+                  // 20, to match the 20px icon every other row in this card
+                  // leads with — the mark corrects its own optical weight, so
+                  // the same nominal size is the same drawn size.
+                  leading: ChymeMark(size: 20, color: c.iconSecondary),
                   title: 'Chyme',
                   subtitle: 'An experimental assistant that reads the mail — '
                       'summarises a message, finds one, drafts a reply. Pick a '

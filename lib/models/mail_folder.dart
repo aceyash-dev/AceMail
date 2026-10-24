@@ -11,12 +11,21 @@ class MailFolder {
     required this.role,
     required this.unseen,
     this.uidValidity,
+    this.placeholder = false,
   });
 
   final String name;
   final String path;
   final FolderRole role;
   final int unseen;
+
+  /// One of the standard six the rail shows whether or not the server has
+  /// offered it yet. See [kStandardFolders].
+  ///
+  /// A placeholder is a shape saying "this folder will be here", not a folder
+  /// with anything behind it: it has no real path, so the rail draws it muted
+  /// and does not open it.
+  final bool placeholder;
 
   /// The server's UIDVALIDITY for this mailbox, when it told us.
   ///
@@ -96,12 +105,91 @@ class MailFolder {
         FolderRole.folder => 6,
       };
 
+  /// The record the encrypted store keeps, so the rail can be rebuilt before a
+  /// connection is made — and so the app opens onto a mailbox offline.
+  Map<String, Object?> toCache() => <String, Object?>{
+        'name': name,
+        'path': path,
+        'role': role.name,
+        'unseen': unseen,
+        'uidValidity': uidValidity,
+      };
+
+  /// Rebuilds a folder [toCache] wrote, or null when the record is not one.
+  static MailFolder? fromCache(Map<String, Object?> record) {
+    final Object? path = record['path'];
+    if (path is! String || path.isEmpty) return null;
+    final Object? role = record['role'];
+    return MailFolder(
+      name: record['name'] as String? ?? path,
+      path: path,
+      role: FolderRole.values.firstWhere(
+        (FolderRole value) => value.name == role,
+        orElse: () => FolderRole.folder,
+      ),
+      unseen: record['unseen'] as int? ?? 0,
+      uidValidity: record['uidValidity'] as int?,
+    );
+  }
+
   @override
   bool operator ==(Object other) => other is MailFolder && other.path == path;
 
   @override
   int get hashCode => path.hashCode;
 }
+
+/// The folders every account's rail shows, in order.
+///
+/// The rail used to be exactly what the server returned, so an account that had
+/// not finished connecting — or one whose server does not publish, say, an
+/// Archive — showed a different rail from every other account. These are the six
+/// the app is built around. The rail renders them always; a role the server does
+/// supply replaces its placeholder with the real folder, and its real path.
+const List<MailFolder> kStandardFolders = <MailFolder>[
+  MailFolder(
+    name: 'Inbox',
+    path: 'INBOX',
+    role: FolderRole.inbox,
+    unseen: 0,
+    placeholder: true,
+  ),
+  MailFolder(
+    name: 'Sent',
+    path: 'Sent',
+    role: FolderRole.sent,
+    unseen: 0,
+    placeholder: true,
+  ),
+  MailFolder(
+    name: 'Drafts',
+    path: 'Drafts',
+    role: FolderRole.drafts,
+    unseen: 0,
+    placeholder: true,
+  ),
+  MailFolder(
+    name: 'Archive',
+    path: 'Archive',
+    role: FolderRole.archive,
+    unseen: 0,
+    placeholder: true,
+  ),
+  MailFolder(
+    name: 'Spam',
+    path: 'Junk',
+    role: FolderRole.junk,
+    unseen: 0,
+    placeholder: true,
+  ),
+  MailFolder(
+    name: 'Trash',
+    path: 'Trash',
+    role: FolderRole.trash,
+    unseen: 0,
+    placeholder: true,
+  ),
+];
 
 /// Whether a cached page and a mailbox are from the same generation.
 ///

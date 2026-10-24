@@ -62,7 +62,9 @@ class MessageListPanel extends StatelessWidget {
         ),
         slivers: <Widget>[
           CupertinoSliverRefreshControl(
-            onRefresh: () => context.read<MailController>().refreshMessages(),
+            // Every account, not just the one in front: the pull means "get me up
+            // to date", and the account behind the tab has new mail too.
+            onRefresh: () => context.read<MailController>().refreshAll(),
             refreshTriggerPullDistance: 110,
             refreshIndicatorExtent: 58,
             builder: _refreshIndicator,

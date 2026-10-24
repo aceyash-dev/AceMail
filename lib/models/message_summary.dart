@@ -83,4 +83,38 @@ class MessageSummary {
 
   /// Two letters for the avatar chip, derived from the display name.
   String get initials => initialsFor(fromName, fromEmail);
+
+  /// The record the encrypted store keeps, so a folder can be shown from last
+  /// time before — or without — a fetch.
+  Map<String, Object?> toCache() => <String, Object?>{
+        'uid': uid,
+        'seq': sequenceId,
+        'subject': subject,
+        'fromName': fromName,
+        'fromEmail': fromEmail,
+        'date': date?.millisecondsSinceEpoch,
+        'seen': isSeen,
+        'flagged': isFlagged,
+        'attachments': hasAttachments,
+        'otp': otp,
+      };
+
+  /// Rebuilds a row [toCache] wrote, or null when the record is not one.
+  static MessageSummary? fromCache(Map<String, Object?> record) {
+    final Object? uid = record['uid'];
+    if (uid is! int) return null;
+    final Object? date = record['date'];
+    return MessageSummary(
+      uid: uid,
+      sequenceId: record['seq'] as int? ?? 0,
+      subject: record['subject'] as String? ?? '(no subject)',
+      fromName: record['fromName'] as String? ?? '',
+      fromEmail: record['fromEmail'] as String? ?? '',
+      date: date is int ? DateTime.fromMillisecondsSinceEpoch(date) : null,
+      isSeen: record['seen'] as bool? ?? false,
+      isFlagged: record['flagged'] as bool? ?? false,
+      hasAttachments: record['attachments'] as bool? ?? false,
+      otp: record['otp'] as String?,
+    );
+  }
 }

@@ -278,6 +278,15 @@ class MailSession extends ChangeNotifier {
   }
 
   Future<bool> _connect() async {
+    // Before the network: the folders and the page from last time, out of the
+    // encrypted store. The rail is then the real one from the first frame, and
+    // the app opens onto a usable mailbox even when the connection below never
+    // lands — which is what makes the app work offline.
+    //
+    // Guarded rather than unconditional: with no store there is nothing to read,
+    // and the extra suspension would push the connection off the current turn.
+    if (_store != null) await _restoreFromCache();
+
     connecting = true;
     errorMessage = null;
     _notify();
@@ -298,6 +307,7 @@ class MailSession extends ChangeNotifier {
       folders = loaded;
       _connected = true;
       needsGoogleSignIn = false;
+      unawaited(_persistFolders());
     // Opening the app is seeing the mail: whatever the background check put in
     // the shade for this account is no longer news.
     unawaited(AceNotifications.clear(account.email));
@@ -364,8 +374,6 @@ class MailSession extends ChangeNotifier {
   }
 
   Future<void> openFolder(MailFolder folder, {bool refresh = false}) async {
-    if (!_connected) return;
-
     final int token = ++_folderToken;
     final bool sameFolder = selectedFolder?.path == folder.path;
     // Reloading the folder already on screen keeps its contents until the new
@@ -385,28 +393,61 @@ class MailSession extends ChangeNotifier {
     selected.clear();
 
     if (keepContents) {
-      refreshing = true;
+      refreshing = _connected;
+      _notify();
     } else {
-      // A cached page, when there is one: the folder appears immediately and
-      // the fetch below replaces it. This is the difference between a folder
-      // that opens and a folder that loads.
-      final List<MessageSummary>? cached = _pageCache[folder.path];
-      final int? cachedUnder = _cacheValidity[folder.path];
-      final bool sameGeneration =
-          sameMailboxGeneration(cachedUnder, folder.uidValidity);
-      if (cached != null && cached.isNotEmpty && sameGeneration) {
-        messages = List<MessageSummary>.of(cached);
-        refreshing = true;
+      // A cached page, when there is one: the folder appears immediately and the
+      // fetch below replaces it. This is the difference between a folder that
+      // opens and a folder that loads — and, offline, between a folder that
+      // opens and one that does not.
+      //
+      // Memory first, and synchronously, so a folder already opened this session
+      // is on screen before the frame ends. Then the encrypted store, which is
+      // what carries a page across a restart.
+      final List<MessageSummary>? memory = _pageCache[folder.path];
+      final bool memoryFresh = memory != null &&
+          memory.isNotEmpty &&
+          sameMailboxGeneration(
+              _cacheValidity[folder.path], folder.uidValidity);
+
+      if (memoryFresh) {
+        messages = List<MessageSummary>.of(memory);
+        _uids = <int>[for (final MessageSummary row in memory) row.uid];
+        refreshing = _connected;
+        loadingMessages = false;
       } else {
         // A cache from a generation that has gone, or one nobody can vouch for.
         _pageCache.remove(folder.path);
         _cacheValidity.remove(folder.path);
         messages = <MessageSummary>[];
         _uids = <int>[];
-        loadingMessages = true;
+        loadingMessages = _connected;
+      }
+      _notify();
+
+      if (!memoryFresh) {
+        final List<MessageSummary>? stored = await _cachedListFor(folder);
+        if (token != _folderToken) return; // a newer folder won while we read
+        if (stored != null && stored.isNotEmpty) {
+          messages = List<MessageSummary>.of(stored);
+          _uids = <int>[for (final MessageSummary row in stored) row.uid];
+          _pageCache[folder.path] = List<MessageSummary>.of(stored);
+          _cacheValidity[folder.path] = folder.uidValidity;
+          refreshing = _connected;
+          loadingMessages = false;
+          _notify();
+        }
       }
     }
-    _notify();
+
+    // Offline: the cached page above is the whole answer. There is nothing to
+    // fetch, and a spinner over it would only be a lie.
+    if (!_connected) {
+      loadingMessages = false;
+      refreshing = false;
+      _notify();
+      return;
+    }
 
     try {
       final List<int> uids = await _transport.listMessageUids(folder);
@@ -426,6 +467,7 @@ class MailSession extends ChangeNotifier {
       }
       _pageCache[folder.path] = List<MessageSummary>.of(page);
       _cacheValidity[folder.path] = folder.uidValidity;
+      unawaited(_persistList(folder, page));
       unawaited(_detectCodes());
     } catch (error) {
       if (token != _folderToken) return;
@@ -548,6 +590,147 @@ class MailSession extends ChangeNotifier {
         _notify();
       }
     }
+  }
+
+  /// What the rail shows for this account: the standard six folders always,
+  /// with the server's own folder standing in for each role it actually has.
+  ///
+  /// The rail is the same shape for every account at every moment — before the
+  /// first connection, while one is in flight, and after it lands. A role the
+  /// server does not publish keeps its placeholder, which the rail draws muted
+  /// and does not open.
+  List<MailFolder> get railFolders {
+    final Map<FolderRole, MailFolder> byRole = <FolderRole, MailFolder>{};
+    final List<MailFolder> extra = <MailFolder>[];
+    for (final MailFolder folder in folders) {
+      if (folder.role == FolderRole.folder) {
+        extra.add(folder);
+      } else {
+        byRole[folder.role] = folder;
+      }
+    }
+    return <MailFolder>[
+      for (final MailFolder standard in kStandardFolders)
+        byRole[standard.role] ?? standard,
+      ...extra,
+    ];
+  }
+
+  /// Reloads this account from the server: the folder list first, so the unread
+  /// counts are right, then the folder that is open.
+  ///
+  /// Distinct from [refreshMessages], which reloads the open folder alone. A
+  /// pull-to-refresh over the whole app runs this on every account.
+  Future<void> refresh() async {
+    if (!_connected) {
+      await connect();
+      return;
+    }
+
+    try {
+      final List<MailFolder> loaded = await _transport.listFolders();
+      if (_disposed) return;
+      folders = loaded;
+      unawaited(_persistFolders());
+      // Keep the selection pointed at the server's own copy of the folder, so a
+      // reload does not lose where you were.
+      final String? openPath = selectedFolder?.path;
+      if (openPath != null) {
+        for (final MailFolder folder in folders) {
+          if (folder.path == openPath) {
+            selectedFolder = folder;
+            break;
+          }
+        }
+      }
+      _notify();
+    } catch (error) {
+      if (_disposed) return;
+      errorMessage = error.toString();
+      _notify();
+      return;
+    }
+
+    await refreshMessages();
+  }
+
+  /// Rebuilds the rail — and the page you were looking at — out of the store,
+  /// before the first connection is attempted.
+  ///
+  /// Best effort throughout: no store, no record, or an unreadable one all mean
+  /// the same thing, which is that the app starts exactly as it did before this
+  /// existed.
+  Future<void> _restoreFromCache() async {
+    final LocalStore? store = _store;
+    if (store == null) return;
+
+    if (folders.isEmpty) {
+      final List<Map<String, Object?>> saved =
+          await store.loadFolders(account.email);
+      if (_disposed) return;
+      final List<MailFolder> restored = <MailFolder>[
+        for (final Map<String, Object?> row in saved)
+          if (MailFolder.fromCache(row) case final MailFolder folder) folder,
+      ];
+      if (restored.isNotEmpty) {
+        folders = restored;
+        _notify();
+      }
+    }
+
+    if (selectedFolder == null && folders.isNotEmpty) {
+      final MailFolder inbox = _firstWhereOrNull(
+            folders,
+            (MailFolder folder) => folder.role == FolderRole.inbox,
+          ) ??
+          folders.first;
+      await openFolder(inbox);
+    }
+  }
+
+  /// The page kept in the encrypted store for [folder], when there is one and it
+  /// still belongs to this generation of the mailbox. Null means "nothing worth
+  /// showing".
+  Future<List<MessageSummary>?> _cachedListFor(MailFolder folder) async {
+    final LocalStore? store = _store;
+    if (store == null) return null;
+    final ({int? uidValidity, List<Map<String, Object?>> messages})? record =
+        await store.loadList(folder.path);
+    if (record == null) return null;
+    if (!sameMailboxGeneration(record.uidValidity, folder.uidValidity)) {
+      // The server renumbered the mailbox: the rows point somewhere else now.
+      unawaited(store.dropList(folder.path));
+      return null;
+    }
+    final List<MessageSummary> restored = <MessageSummary>[
+      for (final Map<String, Object?> row in record.messages)
+        if (MessageSummary.fromCache(row) case final MessageSummary summary)
+          summary,
+    ];
+    return restored.isEmpty ? null : restored;
+  }
+
+  Future<void> _persistList(MailFolder folder, List<MessageSummary> page) async {
+    final LocalStore? store = _store;
+    if (store == null || page.isEmpty) return;
+    await store.saveList(
+      folder.path,
+      folder.uidValidity,
+      <Map<String, Object?>>[
+        for (final MessageSummary row in page) row.toCache(),
+      ],
+    );
+  }
+
+  Future<void> _persistFolders() async {
+    final LocalStore? store = _store;
+    if (store == null || folders.isEmpty) return;
+    await store.saveFolders(
+      account.email,
+      <Map<String, Object?>>[
+        for (final MailFolder folder in folders) folder.toCache(),
+      ],
+    );
   }
 
   Future<void> refreshMessages() async {

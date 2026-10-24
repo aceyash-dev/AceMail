@@ -13,6 +13,7 @@ import '../services/local_avatars.dart';
 import '../services/bimi.dart';
 import '../util/initials.dart';
 import 'astryx_widgets.dart';
+import 'provider_mark.dart';
 
 /// A sender's picture.
 ///
@@ -116,12 +117,7 @@ class _MailAvatarState extends State<MailAvatar> {
     final String domain = address.substring(at + 1).toLowerCase();
     for (final MailProvider provider in kProviderChoices) {
       if (!provider.domains.contains(domain)) continue;
-      return SvgPicture.asset(
-        provider.logo,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-      );
+      return ProviderMark(provider: provider, size: widget.size);
     }
     return null;
   }

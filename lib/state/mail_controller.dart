@@ -126,6 +126,11 @@ class MailController extends ChangeNotifier {
 
   // --- proxies onto the active session -----------------------------------
   List<MailFolder> get folders => active?.folders ?? const <MailFolder>[];
+
+  /// The rail's folders: the standard six for every account, with the server's
+  /// own folders standing in for the roles it has. See [MailSession.railFolders].
+  List<MailFolder> get railFolders =>
+      active?.railFolders ?? kStandardFolders;
   MailFolder? get selectedFolder => active?.selectedFolder;
   List<MessageSummary> get messages =>
       active?.messages ?? const <MessageSummary>[];
@@ -340,6 +345,18 @@ class MailController extends ChangeNotifier {
       active?.openFolder(folder);
 
   Future<void> refreshMessages() async => active?.refreshMessages();
+
+  /// Refreshes **every** signed-in account, not just the one in front.
+  ///
+  /// A pull is "get me up to date", and an account sitting behind a tab is still
+  /// an account whose unread counts and new mail are stale. The accounts refresh
+  /// together — they are separate connections, so one slow server does not hold
+  /// up the others.
+  Future<void> refreshAll() async {
+    await Future.wait<void>(<Future<void>>[
+      for (final MailSession session in _sessions) session.refresh(),
+    ]);
+  }
 
   /// Connects the active account, if it is not connected.
   ///

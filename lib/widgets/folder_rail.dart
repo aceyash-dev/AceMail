@@ -35,6 +35,10 @@ class FolderRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final MailController controller = context.watch<MailController>();
+    // The standard six always, with the server's own folders in place of the
+    // ones it has. The rail is then the same shape for every account, whether or
+    // not it has finished connecting.
+    final List<MailFolder> folders = controller.railFolders;
 
     return Container(
       width: 236,
@@ -57,12 +61,16 @@ class FolderRail extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
-                itemCount: controller.folders.length,
+                itemCount: folders.length,
                 itemBuilder: (BuildContext context, int index) {
-                  final MailFolder folder = controller.folders[index];
+                  final MailFolder folder = folders[index];
                   return _FolderTile(
                     folder: folder,
                     selected: controller.selectedFolder == folder,
+                    // A role the server has not published yet is drawn — so the
+                    // rail keeps its shape — but there is nothing behind it to
+                    // open, so it is not tappable.
+                    enabled: !folder.placeholder,
                     // Read where it is used. The "Unread counts on folders"
                     // switch used to change nothing but its own state.
                     showCounts: context.watch<Preferences>().showFolderCounts,
@@ -264,11 +272,16 @@ class _FolderTile extends StatelessWidget {
   const _FolderTile({
     required this.folder,
     required this.selected,
+    required this.enabled,
     required this.showCounts,
   });
 
   final MailFolder folder;
   final bool selected;
+
+  /// Whether the folder can be opened. False for a standard folder the server
+  /// has not offered yet — it is drawn, but it has no path behind it.
+  final bool enabled;
 
   /// Whether to draw the unread badge. Off is the "Unread counts on folders"
   /// switch; the rail still shows the folders, just without the counts.
@@ -280,15 +293,19 @@ class _FolderTile extends StatelessWidget {
     // Selected fills with the accent and inverts what sits on it. The hugeicons
     // set is stroke-only, so there is no filled glyph to swap in — a shape that
     // fills is how this app says "this one is current".
-    final Color foreground = selected ? c.onAccent : c.textSecondary;
+    final Color foreground = selected
+        ? c.onAccent
+        : (enabled ? c.textSecondary : c.textDisabled);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
       child: AceSpringy(
-        onTap: () {
-          context.read<MailController>().openFolder(folder);
-          _closeDrawerIfOpen(context);
-        },
+        onTap: enabled
+            ? () {
+                context.read<MailController>().openFolder(folder);
+                _closeDrawerIfOpen(context);
+              }
+            : null,
         builder: (BuildContext context, double press, bool hover) {
           final double t = press.clamp(0.0, 1.0);
           return Transform.scale(
@@ -321,7 +338,9 @@ class _FolderTile extends StatelessWidget {
                     child: AceIconView(
                       icon: AceIcons.forFolder(folder.label),
                       size: 18,
-                      color: selected ? c.onAccent : c.iconSecondary,
+                      color: selected
+                          ? c.onAccent
+                          : (enabled ? c.iconSecondary : c.iconDisabled),
                     ),
                   ),
                   const SizedBox(width: AstryxSpace.s3),

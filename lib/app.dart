@@ -11,6 +11,7 @@ import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
 import 'theme/astryx_tokens.dart';
 import 'widgets/app_lock_gate.dart';
+import 'widgets/launch_splash.dart';
 import 'widgets/whats_new.dart';
 import 'util/haptics.dart';
 
@@ -104,9 +105,14 @@ class AceMailApp extends StatelessWidget {
           ),
         );
       },
-      home: _AnnounceOnFirstFrame(
-        onReady: _maybeAnnounceUpdate,
-        child: _home(controller),
+      // The splash wraps the home rather than sitting beside it, so the app is
+      // built underneath and is ready the instant the splash leaves. The release
+      // notes wait for it, rather than appearing over it.
+      home: Builder(
+        builder: (BuildContext homeContext) => LaunchSplash(
+          onFinished: () => _maybeAnnounceUpdate(homeContext),
+          child: _home(controller),
+        ),
       ),
         );
         return app;
@@ -130,29 +136,3 @@ extension on AceMailApp {
   }
 }
 
-/// Runs [onReady] once, after the first frame has been laid out.
-///
-/// The release notes are a sheet, and a sheet needs a Navigator — which does
-/// not exist until there is a tree to hang it from.
-class _AnnounceOnFirstFrame extends StatefulWidget {
-  const _AnnounceOnFirstFrame({required this.onReady, required this.child});
-
-  final void Function(BuildContext context) onReady;
-  final Widget child;
-
-  @override
-  State<_AnnounceOnFirstFrame> createState() => _AnnounceOnFirstFrameState();
-}
-
-class _AnnounceOnFirstFrameState extends State<_AnnounceOnFirstFrame> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onReady(context);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
-}
