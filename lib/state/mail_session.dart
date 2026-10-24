@@ -216,9 +216,14 @@ class MailSession extends ChangeNotifier {
   List<MessageSummary> get visibleMessages {
     // One reading of the clock for the whole pass, not one per message.
     final DateTime now = DateTime.now();
+    // Blocked senders are dropped first, and always: a block that only applied
+    // to some views would be a block that leaked.
+    final List<MessageSummary> allowed = messages
+        .where((MessageSummary m) => !Contacts.isBlocked(m.fromEmail))
+        .toList();
     final List<MessageSummary> matching = filter == MessageFilter.all
-        ? messages
-        : messages
+        ? allowed
+        : allowed
             .where((MessageSummary m) => filter.matches(m, now: now))
             .toList();
     return sort.apply(matching);

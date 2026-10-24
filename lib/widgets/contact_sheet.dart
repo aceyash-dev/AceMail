@@ -51,6 +51,20 @@ class _ContactSheetState extends State<ContactSheet> {
     AceSnack.show(context, 'Address copied');
   }
 
+  /// Blocks or unblocks this address, and closes: the sheet is about one
+  /// person, and the answer is now a different one.
+  Future<void> _toggleBlock() async {
+    final String email = widget.contact.email;
+    if (Contacts.isBlocked(email)) {
+      await Contacts.unblock(email);
+    } else {
+      await Contacts.block(email);
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    setState(() {});
+  }
+
   Future<void> _send() async {
     unawaited(AceHaptics.tap());
     // The sheet closes first: the composer is a sheet of its own, and stacking
@@ -117,6 +131,18 @@ class _ContactSheetState extends State<ContactSheet> {
                   icon: AceIcons.copy,
                   tooltip: 'Copy the address',
                   onPressed: _copy,
+                ),
+                const SizedBox(width: AstryxSpace.s2),
+                // Blocking is a filter, not a rule on the server: nothing is
+                // moved, deleted or reported, and unblocking brings the mail
+                // straight back. A block that destroyed things would be a block
+                // nobody dared use, so the label says which way it goes.
+                AceIconButton(
+                  icon: AceIcons.filterOff,
+                  tooltip: Contacts.isBlocked(widget.contact.email)
+                      ? 'Unblock'
+                      : 'Block',
+                  onPressed: _toggleBlock,
                 ),
                 AceIconButton(
                   icon: _contact.saved ? AceIcons.star : AceIcons.starOff,

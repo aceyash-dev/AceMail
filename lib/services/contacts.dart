@@ -28,6 +28,15 @@ abstract final class Contacts {
   static const int limit = 600;
 
   static final Map<String, Contact> _byEmail = <String, Contact>{};
+
+  /// Addresses whose mail is kept out of the list.
+  ///
+  /// Blocking is a *filter*, not a rule on the server: nothing is moved, deleted
+  /// or reported anywhere, and unblocking brings the mail straight back. A block
+  /// that destroyed things would be a block nobody dared use.
+  static final Set<String> _blocked = <String>{};
+  static bool _blockedLoaded = false;
+  static File? _blockedFile;
   static bool _loaded = false;
   static File? _file;
 
@@ -52,6 +61,55 @@ abstract final class Contacts {
         return y.compareTo(x);
       });
     return contacts;
+  }
+
+  /// Whether [email] is blocked. Case-insensitive, because an address is.
+  static bool isBlocked(String email) =>
+      _blocked.contains(email.trim().toLowerCase());
+
+  /// Every blocked address, in order.
+  static List<String> get blocked => _blocked.toList()..sort();
+
+  /// Keeps [email]'s mail out of the list, from now on.
+  static Future<void> block(String email) async {
+    await _ensureBlocked();
+    final String key = email.trim().toLowerCase();
+    if (key.isEmpty || !_blocked.add(key)) return;
+    await _persistBlocked();
+  }
+
+  /// Lets it back in. Everything it sent is still there.
+  static Future<void> unblock(String email) async {
+    await _ensureBlocked();
+    if (!_blocked.remove(email.trim().toLowerCase())) return;
+    await _persistBlocked();
+  }
+
+  static Future<void> _ensureBlocked() async {
+    if (_blockedLoaded) return;
+    _blockedLoaded = true;
+    try {
+      await _ensureFile();
+      _blockedFile = File('${_file!.parent.path}/blocked.json');
+      if (!await _blockedFile!.exists()) return;
+      final Object? decoded = jsonDecode(await _blockedFile!.readAsString());
+      if (decoded is! List) return;
+      _blocked
+        ..clear()
+        ..addAll(decoded.whereType<String>().map((String s) => s.toLowerCase()));
+    } catch (_) {
+      // A file that will not read is an empty blocklist, not a crash.
+    }
+  }
+
+  static Future<void> _persistBlocked() async {
+    try {
+      await _ensureBlocked();
+      await _blockedFile!.writeAsString(jsonEncode(blocked), flush: true);
+    } catch (_) {
+      // Losing the file loses the blocklist. Nothing else is affected, and
+      // nothing has been destroyed on the server either way.
+    }
   }
 
   /// The ones worth showing for [query]. Empty query means everyone.
