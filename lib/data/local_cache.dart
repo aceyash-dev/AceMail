@@ -177,13 +177,17 @@ class LocalCache {
       keep -= 1;
     }
 
-    for (final File file in byAge.take(byAge.length - keep)) {
+    // When the entry-count limit forces eviction but the byte limit does not,
+    // the byte loop above never accounts for those deleted files. Subtract
+    // every eviction here so the running total matches the files that survive.
+    final List<File> evicted = byAge.take(byAge.length - keep).toList();
+    for (final File file in evicted) {
+      total -= file.lengthSync();
       await file.delete();
     }
 
     // The trim already worked these out; keep them rather than walking again.
     _bytes = total;
-    _known = keep;
     _known = keep;
   }
 
