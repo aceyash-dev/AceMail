@@ -133,7 +133,7 @@ class _WebmailHomeState extends State<WebmailHome> {
   Future<String> _idToken() async {
     final user = _user;
     if (user == null) throw Exception('Sign in to continue.');
-    final token = (await user.authentication).idToken;
+    final token = user.authentication.idToken;
     if (token == null || token.isEmpty) throw Exception('Google did not return an ID token. Check your Web OAuth client.');
     return token;
   }
@@ -419,7 +419,7 @@ class _WebmailHomeState extends State<WebmailHome> {
           FilledButton.icon(onPressed: _busy ? null : () => _showCompose(), icon: const Icon(Icons.edit_outlined), label: const Text('Compose'), style: FilledButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 15))),
           const SizedBox(height: 18),
           DropdownButtonFormField<String>(
-            value: _accountId, isExpanded: true, decoration: const InputDecoration(labelText: 'Mailbox', prefixIcon: Icon(Icons.alternate_email)),
+            initialValue: _accountId, isExpanded: true, decoration: const InputDecoration(labelText: 'Mailbox', prefixIcon: Icon(Icons.alternate_email)),
             items: _accounts.map((a) => DropdownMenuItem(value: a['id']?.toString(), child: Text(a['email']?.toString() ?? 'Mailbox', overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (value) async { setState(() { _accountId = value; _folders = []; _messages = []; _selectedMessage = null; }); await _loadFolders(); },
           ),
@@ -463,7 +463,7 @@ class _WebmailHomeState extends State<WebmailHome> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         child: Row(children: [
           Expanded(child: DropdownButtonFormField<String>(
-            value: _accountId, isExpanded: true, decoration: const InputDecoration(labelText: 'Mailbox', prefixIcon: Icon(Icons.alternate_email)),
+            initialValue: _accountId, isExpanded: true, decoration: const InputDecoration(labelText: 'Mailbox', prefixIcon: Icon(Icons.alternate_email)),
             items: _accounts.map((a) => DropdownMenuItem(value: a['id']?.toString(), child: Text(a['email']?.toString() ?? 'Mailbox', overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (value) async { setState(() { _accountId = value; _folders = []; _messages = []; }); await _loadFolders(); },
           )),

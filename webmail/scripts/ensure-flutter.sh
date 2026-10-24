@@ -22,8 +22,8 @@ curl --fail --location --retry 3 --silent --show-error \
 ARCHIVE="$(python3 - "$RELEASES_JSON" <<'PY'
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
-version = data["current_release"]["stable"]
-release = next(item for item in data["releases"] if item["version"] == version and item["channel"] == "stable")
+release_hash = data["current_release"]["stable"]
+release = next(item for item in data["releases"] if item["hash"] == release_hash and item["channel"] == "stable")
 print("https://storage.googleapis.com/flutter_infra_release/releases/" + release["archive"])
 PY
 )"
