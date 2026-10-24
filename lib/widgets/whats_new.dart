@@ -8,6 +8,7 @@ import '../data/preferences.dart';
 import '../theme/astryx_tokens.dart';
 import '../theme/astryx_theme.dart';
 import 'astryx_widgets.dart';
+import 'markdown_view.dart';
 
 /// The release notes for the version that is running.
 ///
@@ -120,7 +121,10 @@ class WhatsNewSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AstryxSpace.s4),
-              Text(notes, style: AstryxText.body(c.textPrimary)),
+              // Rendered, not printed. The changelog is markdown and this
+              // handed it to a Text, so `### Added` and `**bold**` arrived on
+              // screen exactly as written — the release notes read like a diff.
+              MarkdownView(source: notes),
               const SizedBox(height: AstryxSpace.s5),
               SizedBox(
                 width: double.infinity,

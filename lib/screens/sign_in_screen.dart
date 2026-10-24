@@ -222,13 +222,13 @@ class _SignInScreenState extends State<SignInScreen> {
             ),
           ),
           child: SafeArea(
-            // Anchored to the bottom, not centred: the form is a sheet that
-            // arrives over the page rather than a card that sits on it, and a
-            // sheet that floats in the middle is a dialog.
-            child: Align(
-              alignment: Alignment.bottomCenter,
+            // Centred, not anchored to the bottom. It was briefly a sheet —
+            // rounded at the top with a drag handle — and a sign-in screen is
+            // not a thing that arrives over anything: there is no page behind
+            // it to come up from. The material stays; the sheet framing goes.
+            child: Center(
               child: SingleChildScrollView(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.all(AstryxSpace.s5),
                 child: TweenAnimationBuilder<double>(
                   tween: Tween<double>(begin: 0, end: 1),
                   duration: const Duration(milliseconds: 320),
@@ -1210,33 +1210,14 @@ class _SignInSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-    const BorderRadius shape = BorderRadius.vertical(
-      top: Radius.circular(AstryxRadius.page),
-    );
-
     return AceGlass.material(
       context,
-      radius: shape,
+      radius: BorderRadius.circular(AstryxRadius.page),
       bordered: false,
       opacity: 0.94,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(
-              top: AstryxSpace.s3,
-              bottom: AstryxSpace.s1,
-            ),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: c.border,
-                borderRadius: BorderRadius.circular(AstryxRadius.full),
-              ),
-            ),
-          ),
           Flexible(
             child: Padding(
               padding: const EdgeInsets.all(AstryxSpace.s6),
