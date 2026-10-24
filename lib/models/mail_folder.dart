@@ -47,6 +47,19 @@ class MailFolder {
 
   static FolderRole _roleOf(Mailbox mailbox) {
     if (mailbox.isInbox) return FolderRole.inbox;
+
+    // The server's own flags first. RFC 6154 exists for exactly this: a mailbox
+    // says `\Trash` whatever it is called, and guessing from the name misses a
+    // folder called "Papierkorb" or "Bin" or "Wastebasket". Missing the trash is
+    // not a cosmetic problem — the app refuses to delete anything at all when it
+    // cannot find one, because the alternative is guessing where to put mail.
+    if (mailbox.isSent) return FolderRole.sent;
+    if (mailbox.isDrafts) return FolderRole.drafts;
+    if (mailbox.isTrash) return FolderRole.trash;
+    if (mailbox.isJunk) return FolderRole.junk;
+    if (mailbox.isArchive) return FolderRole.archive;
+
+    // Names only when the server said nothing, which is what older ones do.
     final String n = mailbox.name.toLowerCase();
     if (n.contains('sent')) return FolderRole.sent;
     if (n.contains('draft')) return FolderRole.drafts;

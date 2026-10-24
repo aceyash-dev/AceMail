@@ -725,8 +725,14 @@ class MessageTile extends StatelessWidget {
                                 ),
                                 const SizedBox(height: AstryxSpace.s0_5),
                                 Text(
+                                  // Two lines, not one. There is no snippet to
+                                  // scan — the summaries are header-only on
+                                  // purpose — so the subject is the only thing
+                                  // saying what the message is about, and one
+                                  // line cut "[acestheticsx/surf] Run failed:
+                                  // Build Surf A…" before it said anything.
                                   summary.subject,
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: unread
                                       ? AstryxText.body(c.textPrimary)

@@ -296,9 +296,15 @@ class _AceSwipeTileState extends State<AceSwipeTile>
                 ],
               );
             },
-            child: _shred.value > 0
-                ? _shredded(widget.child)
-                : widget.child,
+            // Clipped, because the chip behind the row is as tall as the row
+            // and the row can be shorter than the chip's own padding — which
+            // left "Trash" hanging out under the card, outside the thing it
+            // belongs to.
+            child: ClipRect(
+              child: _shred.value > 0
+                  ? _shredded(widget.child)
+                  : widget.child,
+            ),
           ),
         );
       },

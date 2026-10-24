@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
+import '../data/mail_providers.dart';
 import '../data/preferences.dart';
 import '../services/local_avatars.dart';
 import '../services/bimi.dart';
@@ -108,14 +109,38 @@ class _MailAvatarState extends State<MailAvatar> {
     setState(() => _logoUrl = url);
   }
 
+  /// The mark of the provider this address belongs to, if it is one we know.
+  Widget? _providerMark(String address) {
+    final int at = address.lastIndexOf('@');
+    if (at < 0) return null;
+    final String domain = address.substring(at + 1).toLowerCase();
+    for (final MailProvider provider in kProviderChoices) {
+      if (!provider.domains.contains(domain)) continue;
+      return SvgPicture.asset(
+        provider.logo,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+      );
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final String address = widget.email.trim();
-    final Widget fallback = InitialsAvatar(
-      initials: initialsFor(widget.name, widget.email),
-      seed: address.isEmpty ? widget.name : address,
-      size: widget.size,
-    );
+    // Your own address with nothing published for it: the provider's own mark.
+    //
+    // Your face would be better, and initials are a worse answer than either —
+    // the mark at least says *which account* this is, which is the other thing
+    // an avatar is for. Only for your own address: a sender's provider mark is
+    // noise, and there are forty of them in a list.
+    final Widget fallback = (widget.isSelf ? _providerMark(address) : null) ??
+        InitialsAvatar(
+          initials: initialsFor(widget.name, widget.email),
+          seed: address.isEmpty ? widget.name : address,
+          size: widget.size,
+        );
 
     if (address.isEmpty || !address.contains('@')) return fallback;
 
