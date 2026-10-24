@@ -11,6 +11,7 @@ import '../../util/haptics.dart';
 import '../shape_morph.dart';
 import '../ace_icon_view.dart';
 import 'ace_press_helpers.dart';
+import 'ace_springy.dart';
 
 /// The expressive FAB: a pill that springs, and collapses to an icon when
 /// there is not room for its label.

@@ -20,15 +20,18 @@ class AceSurface extends StatelessWidget {
     this.padding,
     this.color,
     this.border = true,
-    this.radius = AstryxRadius.container,
+    double? radius,
     this.squircle = false,
-  });
+  }) : radius = radius ?? AstryxRadius.container,
+       _squircleRadius = radius;
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final Color? color;
   final bool border;
   final double radius;
+  // Null preserves AstryxShape.squircle's size-relative default.
+  final double? _squircleRadius;
 
   /// Continuous corners, for the large surfaces expressive M3 softens.
   final bool squircle;
@@ -52,11 +55,12 @@ class AceSurface extends StatelessWidget {
     }
 
     return ClipPath(
-      clipper: const AceSquircleClipper(),
+      clipper: AceSquircleClipper(radius: _squircleRadius),
       child: CustomPaint(
         painter: _SquircleSurface(
           color: color ?? c.backgroundSurface,
           border: border ? c.border : null,
+          radius: _squircleRadius,
         ),
         child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
       ),
@@ -66,36 +70,41 @@ class AceSurface extends StatelessWidget {
 
 /// Clips to a continuous corner. Shared by every surface that wants the shape.
 class AceSquircleClipper extends CustomClipper<Path> {
-  const AceSquircleClipper({this.exponent = 4});
+  const AceSquircleClipper({this.exponent = 4, this.radius});
 
   final double exponent;
+  final double? radius;
 
   @override
-  Path getClip(Size size) =>
-      AstryxShape.squircle(Offset.zero & size, exponent: exponent);
+  Path getClip(Size size) => AstryxShape.squircle(
+        Offset.zero & size,
+        radius: radius,
+        exponent: exponent,
+      );
 
   @override
   bool shouldReclip(covariant AceSquircleClipper oldClipper) =>
-      oldClipper.exponent != exponent;
+      oldClipper.exponent != exponent || oldClipper.radius != radius;
 }
 
 class _SquircleSurface extends CustomPainter {
-  const _SquircleSurface({required this.color, required this.border});
+  const _SquircleSurface({required this.color, required this.border, this.radius});
 
   final Color color;
   final Color? border;
+  final double? radius;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
     canvas.drawPath(
-      AstryxShape.squircle(rect),
+      AstryxShape.squircle(rect, radius: radius),
       Paint()..color = color,
     );
     if (border != null) {
       // Inset by a full pixel so the clip does not shave the stroke.
       canvas.drawPath(
-        AstryxShape.squircle(rect.deflate(1)),
+        AstryxShape.squircle(rect.deflate(1), radius: radius),
         Paint()
           ..color = border!
           ..style = PaintingStyle.stroke
@@ -106,6 +115,6 @@ class _SquircleSurface extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SquircleSurface old) =>
-      old.color != color || old.border != border;
+      old.color != color || old.border != border || old.radius != radius;
 }
 

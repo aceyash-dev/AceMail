@@ -11,6 +11,7 @@ import '../../util/haptics.dart';
 import '../shape_morph.dart';
 import '../ace_icon_view.dart';
 import 'ace_press_helpers.dart';
+import 'ace_springy.dart';
 
 /// An expressive list row: springs on press, morphs its corners, and lifts to a
 /// tonal surface when selected.

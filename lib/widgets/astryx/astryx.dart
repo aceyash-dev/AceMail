@@ -1,5 +1,6 @@
-// ignore_for_file: unused_import
 // Public barrel for the AceMail Astryx design system.
+import 'ace_brand_mark.dart' show AceBrandMark;
+import 'ace_initials_avatar.dart' show AceInitialsAvatar;
 export 'ace_springy.dart';
 export 'ace_surface.dart';
 export 'ace_button.dart';
@@ -13,8 +14,6 @@ export 'ace_loader.dart';
 export 'ace_initials_avatar.dart';
 export 'ace_switch.dart';
 
-export 'ace_brand_mark.dart' show AceBrandMark;
-export 'ace_initials_avatar.dart' show AceInitialsAvatar;
 
 typedef BrandMark = AceBrandMark;
 typedef InitialsAvatar = AceInitialsAvatar;
