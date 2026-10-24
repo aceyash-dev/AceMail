@@ -388,35 +388,46 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          // One above the other, not side by
-                                          // side. The two fields were sharing
-                                          // the width and the domain lost:
-                                          // `@gmail.com` came out as
-                                          // `@gmail.c`, cut off mid-word, with
-                                          // no ellipsis to say so. The field's
-                                          // text is not small, and no split of
-                                          // a phone's width fits ten characters
-                                          // of it.
-                                          AceFormField(
-                                            label: 'Username',
-                                            controller: _form.username,
-                                            hint: 'you',
-                                            keyboard:
-                                                TextInputType.emailAddress,
-                                            autofillHints: const <String>[
-                                              AutofillHints.username,
-                                              AutofillHints.email,
+                                          // Side by side, and the second one
+                                          // is the provider's own mark rather
+                                          // than its domain written out.
+                                          //
+                                          // It was a text field showing
+                                          // `@gmail.com`, sharing the width
+                                          // with the username, and it lost:
+                                          // the text came out `@gmail.c`, cut
+                                          // off mid-word with no ellipsis to
+                                          // say so. A mark is a fixed size and
+                                          // cannot be cut off — and it says
+                                          // which provider you picked better
+                                          // than the domain does, because you
+                                          // picked it by its mark a screen
+                                          // ago.
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: AceFormField(
+                                                  label: 'Username',
+                                                  controller: _form.username,
+                                                  hint: 'you',
+                                                  keyboard: TextInputType
+                                                      .emailAddress,
+                                                  autofillHints: const <String>[
+                                                    AutofillHints.username,
+                                                    AutofillHints.email,
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                  width: AstryxSpace.s3),
+                                              _DomainField(
+                                                form: _form,
+                                                onChanged: () =>
+                                                    setState(() {}),
+                                              ),
                                             ],
-                                          ),
-                                          const SizedBox(
-                                              height: AstryxSpace.s3),
-                                          // The provider was chosen on the
-                                          // previous screen, so this is the
-                                          // domain it hands out — shown in
-                                          // full, and changeable.
-                                          _DomainField(
-                                            form: _form,
-                                            onChanged: () => setState(() {}),
                                           ),
                                           const SizedBox(height: AstryxSpace.s5),
                                           AceButton(
@@ -729,26 +740,9 @@ class _DomainField extends StatefulWidget {
 }
 
 class _DomainFieldState extends State<_DomainField> {
-  /// Mirrors the picked domain.
-  ///
-  /// A controller built inside `build` would be a new one on every frame and
-  /// would never be disposed — a slow leak, and a field whose cursor resets
-  /// under the reader. One held here is disposed with the field.
-  late final TextEditingController _shown =
-      TextEditingController(text: '@${widget.form.domain}');
-
-  @override
-  void didUpdateWidget(covariant _DomainField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final String want = '@${widget.form.domain}';
-    if (_shown.text != want) _shown.text = want;
-  }
-
-  @override
-  void dispose() {
-    _shown.dispose();
-    super.dispose();
-  }
+  // The controller that used to live here rendered the domain as text in the
+  // field this widget no longer has — it draws the provider's mark instead, so
+  // there is nothing for a controller to hold.
 
   @override
   Widget build(BuildContext context) {
@@ -767,21 +761,52 @@ class _DomainFieldState extends State<_DomainField> {
     }
 
     final AstryxColors c = context.astryx;
+    final MailProvider? known = _knownProvider;
 
-    return AceFormField(
-      label: 'Domain',
-      controller: _shown,
-      readOnly: true,
-      onTap: () => _pick(context),
-      trailing: AceIconButton(
-        icon: AceIcons.expandMore,
-        tooltip: 'Choose a domain',
-        onPressed: () => _pick(context),
+    // The provider's own mark, at a fixed size, instead of its domain written
+    // out. A mark cannot be cut off, and it answers the question the row is
+    // asking better than the text did — this is the provider that was picked,
+    // by the same picture that was used to pick it.
+    return Semantics(
+      button: true,
+      label: known == null ? 'Choose a provider' : 'Change provider',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text('Provider', style: AstryxText.supporting(c.textSecondary)),
+          const SizedBox(height: AstryxSpace.s1),
+          InkWell(
+            onTap: () => _pick(context),
+            borderRadius: BorderRadius.circular(AstryxRadius.inner),
+            child: Container(
+              width: 48,
+              height: 48,
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: c.backgroundMuted,
+                borderRadius: BorderRadius.circular(AstryxRadius.inner),
+                border: Border.all(color: c.border),
+              ),
+              child: known == null
+                  ? AceIconView(
+                      icon: AceIcons.at,
+                      size: 20,
+                      color: c.textSecondary,
+                    )
+                  : SvgPicture.asset(known.logo, fit: BoxFit.contain),
+            ),
+          ),
+        ],
       ),
-      hint: '',
-      keyboard: TextInputType.none,
-      background: c.backgroundMuted,
     );
+  }
+
+  /// The provider whose domain this is, if it is one we know.
+  MailProvider? get _knownProvider {
+    for (final MailProvider provider in kProviderChoices) {
+      if (provider.domains.contains(widget.form.domain)) return provider;
+    }
+    return null;
   }
 
   Future<void> _pick(BuildContext context) async {

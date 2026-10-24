@@ -48,8 +48,11 @@ after the `+` is the Android version code.
   an empty vault, both minted key version 1, and the second replaced the key the
   first had already sealed with. One mint at a time now.
 - **The domain field clipped its text.** `@gmail.com` came out as `@gmail.c`,
-  cut off with no ellipsis to say so. The two fields shared the width and the
-  domain lost; they are one above the other now.
+  cut off mid-word with no ellipsis to say so, because the field was sharing the
+  width with the username and the text is not small. The provider's own mark is
+  there now, at a fixed size: a mark cannot be cut off, and it says which
+  provider you picked better than the domain did — it is the same picture you
+  picked it by, one screen earlier.
 - **A background check that could not ask is no longer reported as one that
   found nothing.** The worker returned success unconditionally, so a device that
   lost its network mid-check never triggered a retry. Failures are separated
