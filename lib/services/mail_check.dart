@@ -8,6 +8,7 @@ import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import 'mail_service.dart';
 import '../util/redact.dart';
+import 'mail_errors.dart';
 import 'mail_watcher.dart';
 import 'notifications.dart';
 
@@ -24,8 +25,16 @@ void mailCheckDispatcher() {
   Workmanager().executeTask((String task, Map<String, dynamic>? input) async {
     if (task != kMailCheckTask) return true;
     await AceNotifications.initialise();
-    await checkAllAccounts();
-    return true;
+
+    // WorkManager retries a task that reports failure, on its own schedule.
+    // That is what a dropped connection deserves. It is *not* what a wrong
+    // password deserves: that would be retried forever and never succeed, so
+    // only a connection failure is passed up as one.
+    bool worthRetrying = false;
+    await checkAllAccounts(
+      onTransientFailure: () => worthRetrying = true,
+    );
+    return !worthRetrying;
   });
 }
 
@@ -33,13 +42,21 @@ void mailCheckDispatcher() {
 ///
 /// Returns the accounts that had news, which is what the tests assert on and
 /// what a foreground caller can show.
-Future<List<String>> checkAllAccounts() async {
+///
+/// [onTransientFailure] is called once for each account whose check failed in a
+/// way worth trying again — a connection that dropped, a server that did not
+/// answer. A rejected password is not one of those and is not reported here.
+/// Without it the caller cannot tell "nothing new" from "could not ask", which
+/// is how a worker reports success while discovering no mail at all.
+Future<List<String>> checkAllAccounts({void Function()? onTransientFailure}) async {
   final List<String> withNews = <String>[];
 
   final AccountLoad loaded;
   try {
     loaded = await AccountStore().loadAll();
   } catch (error) {
+    // A keychain that will not open yet is temporary, and worth another run.
+    onTransientFailure?.call();
     debugPrint('Ace Mail: could not read accounts (${Redact.safe(error)})');
     return withNews;
   }
@@ -51,6 +68,9 @@ Future<List<String>> checkAllAccounts() async {
     } catch (error) {
       // One account failing must not stop the others, and must not crash a
       // background isolate where nobody would see it.
+      if (MailErrors.classify(error, fallback: '') is MailConnectionException) {
+        onTransientFailure?.call();
+      }
       debugPrint(
         'Ace Mail: check failed for ${Redact.address(stored.account.email)} '
         '(${Redact.safe(error)})',
