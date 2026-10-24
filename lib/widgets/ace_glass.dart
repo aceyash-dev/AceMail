@@ -8,6 +8,8 @@ import '../data/preferences.dart';
 import '../models/glass_mode.dart';
 import '../theme/astryx_tokens.dart';
 
+import '../services/platform_caps.dart';
+
 abstract final class AceGlass {
   /// The Android API level, or null when this is not Android.
   ///

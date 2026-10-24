@@ -113,8 +113,6 @@ abstract final class GoogleAuth {
   /// device with two Google accounts is every time. A sheet that appears while
   /// somebody is opening a folder is a sheet they did not ask for.
   static const Duration _tokenLife = Duration(minutes: 50);
-  static String? _accessToken;
-  static DateTime? _accessTokenAt;
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static Future<String?> _read(String key) async {
