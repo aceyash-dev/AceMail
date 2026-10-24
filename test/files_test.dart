@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ace_mail/data/limits.dart';
 import 'package:ace_mail/util/files.dart';
 import 'package:ace_mail/util/file_names.dart';
+import 'package:ace_mail/util/text.dart';
 import 'package:ace_mail/models/contact.dart';
 import 'package:ace_mail/models/message_summary.dart';
 import 'package:file_selector/file_selector.dart';
@@ -111,6 +112,16 @@ void main() {
       final Contact original = Contact(email: 'someone@example.com', lastSeen: seen);
       expect(original.copyWith().lastSeen, seen);
       expect(original.copyWith(lastSeen: null).lastSeen, isNull);
+    });
+  });
+
+
+  group('truncateUtf8BytesSafely', () {
+    test('measures UTF-8 bytes and keeps multibyte characters whole', () {
+      expect(truncateUtf8BytesSafely('a€b', 4), 'a€');
+      expect(truncateUtf8BytesSafely('a€b', 3), 'a');
+      expect(truncateUtf8BytesSafely('😀x', 3), '');
+      expect(truncateUtf8BytesSafely('😀x', 4), '😀');
     });
   });
 }
