@@ -606,6 +606,9 @@ class MailSession extends ChangeNotifier {
   }
 
   Future<void> open(MessageSummary summary) async {
+    if (summary.folderPath != null && summary.folderPath != selectedFolder?.path) {
+      return;
+    }
     clearSelection();
     if (!_connected) return;
 
@@ -861,6 +864,9 @@ class MailSession extends ChangeNotifier {
   }) async {
     if (!_connected) return;
     final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
+    if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) {
+      return;
+    }
     try {
       await action();
       // A queued operation may finish after the user switched folders. Its UID
@@ -892,6 +898,7 @@ class MailSession extends ChangeNotifier {
     final MessageSummary? summary = openSummary;
     if (summary == null) return;
     final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
+    if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
     try {
       await _transport.markUnread(summary);
       if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
@@ -908,6 +915,7 @@ class MailSession extends ChangeNotifier {
     if (summary == null) return;
     final bool next = !summary.isFlagged;
     final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
+    if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
     try {
       await _transport.setFlagged(summary, next);
       if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
