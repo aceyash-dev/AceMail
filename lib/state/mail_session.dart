@@ -367,6 +367,7 @@ class MailSession extends ChangeNotifier {
     if (!_connected) return;
 
     final int token = ++_folderToken;
+    _messageToken++; // a body fetch from the previous folder is now stale
     final bool sameFolder = selectedFolder?.path == folder.path;
     // Reloading the folder already on screen keeps its contents until the new
     // ones arrive; switching folders starts clean, because the old rows belong
@@ -605,9 +606,13 @@ class MailSession extends ChangeNotifier {
   }
 
   Future<void> open(MessageSummary summary) async {
+    if (summary.folderPath != null && summary.folderPath != selectedFolder?.path) {
+      return;
+    }
     clearSelection();
     if (!_connected) return;
 
+    final String? folderPath = summary.folderPath ?? selectedFolder?.path;
     final int token = ++_messageToken;
     openSummary = summary;
     openMessage = null;
@@ -617,14 +622,14 @@ class MailSession extends ChangeNotifier {
     try {
       // The cache first, when it is on. A message read once opens without the
       // network, and the copy it opens from came off an encrypted disk.
-      final FullMessage? cached = await _cachedBody(summary);
+      final FullMessage? cached = await _cachedBody(summary, folderPath);
       final FullMessage loaded = cached ?? await _transport.fetchMessage(summary);
       if (token != _messageToken) return; // a newer message won
       openMessage = loaded;
       // The only place the recipients of a message appear: a list row carries
       // the sender and nothing else.
       Contacts.observeRecipients(loaded);
-      if (cached == null) unawaited(_rememberBody(summary, loaded));
+      if (cached == null) unawaited(_rememberBody(summary, loaded, folderPath));
       if (_markAsRead) {
         _replace(summary.uid, summary.copyWith(isSeen: true));
         // Set \Seen deliberately rather than as a side effect of reading, so
@@ -644,14 +649,16 @@ class MailSession extends ChangeNotifier {
   }
 
   /// The cached body for [summary], when caching is on and there is one.
-  Future<FullMessage?> _cachedBody(MessageSummary summary) async {
+  Future<FullMessage?> _cachedBody(
+    MessageSummary summary,
+    String? folderPath,
+  ) async {
     final LocalStore? store = _store;
-    final MailFolder? folder = selectedFolder;
-    if (store == null || folder == null) return null;
+    if (store == null || folderPath == null) return null;
     if (!(_preferences?.cacheMessages ?? true)) return null;
     try {
       final Map<String, Object?>? record =
-          await store.message(folder.path, summary.uid);
+          await store.message(folderPath, summary.uid);
       return record == null ? null : FullMessage.fromCache(record);
     } catch (_) {
       // An unreadable cache is an absent one; fetch it instead.
@@ -663,14 +670,17 @@ class MailSession extends ChangeNotifier {
   ///
   /// Best effort, and skipped for anything the cache cannot hand back whole: a
   /// message with attachments is left out rather than cached without them.
-  Future<void> _rememberBody(MessageSummary summary, FullMessage message) async {
+  Future<void> _rememberBody(
+    MessageSummary summary,
+    FullMessage message,
+    String? folderPath,
+  ) async {
     final LocalStore? store = _store;
-    final MailFolder? folder = selectedFolder;
-    if (store == null || folder == null) return;
+    if (store == null || folderPath == null) return;
     if (!(_preferences?.cacheMessages ?? true)) return;
     if (!message.isCacheable) return;
     try {
-      await store.saveMessage(folder.path, summary.uid, message.toCache());
+      await store.saveMessage(folderPath, summary.uid, message.toCache());
     } catch (_) {
       // The message is on screen either way.
     }
@@ -853,8 +863,17 @@ class MailSession extends ChangeNotifier {
     bool remove = false,
   }) async {
     if (!_connected) return;
+    final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
+    if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) {
+      return;
+    }
     try {
       await action();
+      // A queued operation may finish after the user switched folders. Its UID
+      // belongs to the old mailbox and must not mutate a same-numbered row here.
+      if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) {
+        return;
+      }
       if (remove) {
         messages =
             messages.where((MessageSummary m) => m.uid != summary.uid).toList();
@@ -878,8 +897,11 @@ class MailSession extends ChangeNotifier {
   Future<void> markOpenUnread() async {
     final MessageSummary? summary = openSummary;
     if (summary == null) return;
+    final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
+    if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
     try {
       await _transport.markUnread(summary);
+      if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
       _replace(summary.uid, summary.copyWith(isSeen: false));
       _notify();
     } catch (error) {
@@ -892,8 +914,11 @@ class MailSession extends ChangeNotifier {
     final MessageSummary? summary = openSummary;
     if (summary == null) return;
     final bool next = !summary.isFlagged;
+    final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
+    if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
     try {
       await _transport.setFlagged(summary, next);
+      if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
       _replace(summary.uid, summary.copyWith(isFlagged: next));
       openSummary = summary.copyWith(isFlagged: next);
       _notify();

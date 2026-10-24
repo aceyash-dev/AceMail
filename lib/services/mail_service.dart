@@ -198,6 +198,16 @@ class MailService implements MailTransport {
   Future<void> _selectRaw(MailFolder folder) =>
       _client.selectMailboxByPath(folder.path);
 
+  /// A UID is scoped to its mailbox. Reselect the owning folder inside the same
+  /// queue slot as the operation, rather than trusting whichever folder a
+  /// previous asynchronous UI action happened to leave selected.
+  Future<void> _selectSummaryFolder(MessageSummary summary) async {
+    final String? path = summary.folderPath;
+    if (path != null && path.isNotEmpty) {
+      await _client.selectMailboxByPath(path);
+    }
+  }
+
   /// One cheap SEARCH, newest first, capped. A folder with two hundred thousand
   /// messages should not become a two-hundred-thousand element list in memory.
   @override
@@ -226,7 +236,7 @@ class MailService implements MailTransport {
           () async {
             if (uids.isEmpty) return <MessageSummary>[];
             await _selectRaw(folder);
-            return _fetchSummariesRaw(uids);
+            return _fetchSummariesRaw(uids, folderPath: folder.path);
           },
           fallback: 'Could not load messages.',
         ),
@@ -234,7 +244,10 @@ class MailService implements MailTransport {
 
   /// Assumes the mailbox is already selected. Not queued, so queued callers can
   /// use it without waiting on themselves.
-  Future<List<MessageSummary>> _fetchSummariesRaw(List<int> uids) async {
+  Future<List<MessageSummary>> _fetchSummariesRaw(
+    List<int> uids, {
+    required String folderPath,
+  }) async {
     // Only the fields the list actually shows. A full header block is several
     // times this size, and a page of forty of them is the bulk of what the
     // client downloads to draw a list.
@@ -248,7 +261,10 @@ class MailService implements MailTransport {
     final Map<int, int> requested = <int, int>{
       for (int i = 0; i < uids.length; i++) uids[i]: i,
     };
-    return result.messages.map(MessageSummary.fromMime).toList()
+    return result.messages
+        .map((MimeMessage message) =>
+            MessageSummary.fromMime(message, folderPath: folderPath))
+        .toList()
       ..sort(
         (MessageSummary a, MessageSummary b) =>
             (requested[a.uid] ?? 1 << 30).compareTo(requested[b.uid] ?? 1 << 30),
@@ -276,6 +292,7 @@ class MailService implements MailTransport {
             if (matches == null || matches.isEmpty) return <MessageSummary>[];
             final List<MessageSummary> found = await _fetchSummariesRaw(
               matches.toList().reversed.take(80).toList(),
+              folderPath: folder.path,
             );
 
             // `has:attachment` has no IMAP key, so it narrows the page here.
@@ -321,6 +338,7 @@ class MailService implements MailTransport {
   Future<FullMessage> fetchMessage(MessageSummary summary) => _queue.run(
         () => _guard(
           () async {
+            await _selectSummaryFolder(summary);
             final FetchImapResult result = await _client.uidFetchMessage(
               summary.uid,
               'BODY.PEEK[]',
@@ -347,6 +365,7 @@ class MailService implements MailTransport {
       _queue.run(
         () => _guard(
           () async {
+            await _selectSummaryFolder(summary);
             final FetchImapResult result = await _client.uidFetchMessage(
               summary.uid,
               'BODY.PEEK[TEXT]<0.$bytes>',
@@ -394,11 +413,14 @@ class MailService implements MailTransport {
   }) =>
       _queue.run(
         () => _guard(
-          () => _client.uidStore(
-            MessageSequence.fromId(summary.uid, isUid: true),
-            flags,
-            action: action,
-          ),
+          () async {
+            await _selectSummaryFolder(summary);
+            await _client.uidStore(
+              MessageSequence.fromId(summary.uid, isUid: true),
+              flags,
+              action: action,
+            );
+          },
           fallback: fallback,
         ),
       );
@@ -412,6 +434,7 @@ class MailService implements MailTransport {
       _queue.run(
         () => _guard(
           () async {
+            await _selectSummaryFolder(summary);
             final MessageSequence sequence =
                 MessageSequence.fromId(summary.uid, isUid: true);
             // The refusal comes first, before the copy. It used to come after,
@@ -442,6 +465,7 @@ class MailService implements MailTransport {
       _queue.run(
         () => _guard(
           () async {
+            await _selectSummaryFolder(summary);
             final MessageSequence sequence =
                 MessageSequence.fromId(summary.uid, isUid: true);
 
