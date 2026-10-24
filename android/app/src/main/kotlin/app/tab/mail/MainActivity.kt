@@ -33,8 +33,39 @@ import java.util.Locale
  * and it never asks for the microphone permission, because it never listens.
  */
 class MainActivity : FlutterActivity() {
+    /**
+     * A `mailto:` the app was opened with, waiting to be taken.
+     *
+     * Declaring the filter is half of being an email client: without this the
+     * app appears in the "Open with" sheet and then opens on the inbox, having
+     * thrown away the address somebody tapped. It is taken rather than pushed,
+     * because Flutter is not ready to hear about it until well after the intent
+     * arrives.
+     */
+    private var pendingMailto: String? = null
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // The app was already running, so this is the only chance to see it.
+        pendingMailto = intent.dataString
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        pendingMailto = intent?.dataString
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INTENT_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method != "takeMailto") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                result.success(pendingMailto)
+                // Taken once. A second tap on the same link is a second
+                // compose, not the same one reopened.
+                pendingMailto = null
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 if (call.method != "setLauncherAccent") {
@@ -174,7 +205,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "app.tab.mail/launcher"
-        private const val VOICE_CHANNEL = "app.tab.mail/voice"
+        private const val INTENT_CHANNEL = "app.tab.mail/intents"
+private const val VOICE_CHANNEL = "app.tab.mail/voice"
         private const val VOICE_REQUEST = 7301
         private const val PACKAGE = "app.tab.mail"
 

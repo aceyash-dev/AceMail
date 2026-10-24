@@ -24,6 +24,7 @@ import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
 import 'compose_screen.dart';
 import '../widgets/ace_icon_view.dart';
+import '../services/mailto.dart';
 
 /// The three-pane mailbox. Above [_wideBreakpoint] the folder rail, message
 /// list and reader sit side by side; below it the reader takes the screen and
@@ -122,6 +123,27 @@ class _MailboxScreenState extends State<MailboxScreen> {
     _searchFocus.addListener(() {
       if (mounted) setState(() {});
     });
+    // A mailto: this launch was opened with. After the first frame, because a
+    // sheet needs a context that is already in the tree.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_openPendingMailto());
+    });
+  }
+
+  /// Opens the composer for a `mailto:` the app was launched with.
+  ///
+  /// Declaring the filter in the manifest is half of being an email client. The
+  /// other half is this: without it the app appears in the "Open with" sheet and
+  /// then opens on the inbox, having thrown away the address somebody tapped.
+  Future<void> _openPendingMailto() async {
+    final MailtoLink? link = await Mailto.take();
+    if (link == null || !mounted) return;
+    await openComposeSheet(
+      context,
+      initialTo: link.to,
+      initialSubject: link.subject,
+      initialBody: link.body,
+    );
   }
 
   @override
