@@ -62,7 +62,10 @@ Future<void> _walkToCredentials(
   WidgetTester tester, {
   String username = 'someone',
 }) async {
-  await tester.tap(find.text('Get started'));
+  // The first screen is the provider question now: tapping the mark is what
+  // "Get started" used to be, and it answers the same question the next screen
+  // would have asked.
+  await tester.tap(find.text('Gmail'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).first, username);
   await tester.pumpAndSettle();
