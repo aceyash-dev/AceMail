@@ -1,3 +1,5 @@
+const Object _unsetContactField = Object();
+
 /// Somebody the app has seen in the mail, or somebody the person saved.
 class Contact {
   const Contact({
@@ -33,14 +35,14 @@ class Contact {
     String? name,
     bool? saved,
     int? count,
-    DateTime? lastSeen,
+    Object? lastSeen = _unsetContactField,
   }) =>
       Contact(
         email: email,
         name: name ?? this.name,
         saved: saved ?? this.saved,
         count: count ?? this.count,
-        lastSeen: lastSeen ?? this.lastSeen,
+        lastSeen: identical(lastSeen, _unsetContactField) ? this.lastSeen : lastSeen as DateTime?,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
