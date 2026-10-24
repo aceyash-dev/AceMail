@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:ace_mail/data/preferences.dart';
 import 'package:ace_mail/models/ace_account.dart';
 import 'package:ace_mail/screens/sign_in_screen.dart';
 import 'package:ace_mail/services/google_auth.dart';
@@ -33,8 +34,14 @@ Future<void> _pumpSignInScreen(
   required Future<GoogleCredential> Function() googleSignIn,
 }) async {
   await tester.pumpWidget(
-    ChangeNotifierProvider<MailController>.value(
-      value: controller,
+    MultiProvider(
+      providers: <SingleChildWidget>[
+        ChangeNotifierProvider<MailController>.value(value: controller),
+        // The sheet draws the app's material, and the material asks the
+        // preferences which kind. A real app always has one; a test has to say
+        // so.
+        ChangeNotifierProvider<Preferences>.value(value: Preferences()),
+      ],
       child: MaterialApp(
         theme: buildAstryxTheme(Brightness.light),
         home: SignInScreen(googleSignIn: googleSignIn),
