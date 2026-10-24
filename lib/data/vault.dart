@@ -90,8 +90,31 @@ class AceVault {
     return bytes;
   }
 
+  /// The version being minted right now, if one is.
+  ///
+  /// Two first writes can arrive together — a message body and its metadata,
+  /// say — and both find an empty vault. Both then mint version 1, and the
+  /// second write replaces the key the first has already sealed with. That
+  /// record can never be opened again. One in-flight mint, shared, is what
+  /// stops it; the same shape as the sign-in guard, for the same reason.
+  Future<int>? _minting;
+
   /// The key version new records are sealed with, minting one on first use.
   Future<int> currentVersion() async {
+    final int? version = int.tryParse(await _keys.read(_currentKey) ?? '');
+    if (version != null && await _keys.read(_keyName(version)) != null) {
+      return version;
+    }
+    // Cleared when it finishes, success or failure, so a keychain that refused
+    // once is asked again rather than being poisoned for the session.
+    return _minting ??= _mintFirst().whenComplete(() => _minting = null);
+  }
+
+  /// Mints version 1, unless somebody else got there first.
+  ///
+  /// Re-checked inside the guard: a caller that started before the winner
+  /// finished would otherwise mint over the key the winner is already using.
+  Future<int> _mintFirst() async {
     final int? version = int.tryParse(await _keys.read(_currentKey) ?? '');
     if (version != null && await _keys.read(_keyName(version)) != null) {
       return version;
