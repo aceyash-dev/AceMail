@@ -78,13 +78,10 @@ class AceHtml extends StatelessWidget {
     // The cap, before the parser sees it: a ten-megabyte HTML part is not a
     // message, it is an attack on the frame budget.
     //
-    // Through `truncateSafely`, because a raw `substring` on a boundary inside
-    // a surrogate pair leaves half a character, which renders as a replacement
-    // glyph at the end of the body. The limit is counted in UTF-16 code units
-    // rather than bytes — it is a guard against a part nobody meant to send, not
-    // a contract about size, and encoding the string to measure it would cost
-    // more than the cap saves.
-    final String source = truncateSafely(html, MailLimits.maxHtmlBytes);
+    // The cap is a byte limit, so measure the UTF-8 representation and stop
+    // only at a code-point boundary. This keeps multibyte characters intact
+    // while enforcing the actual parser input budget.
+    final String source = truncateUtf8BytesSafely(html, MailLimits.maxHtmlBytes);
 
     return HtmlWidget(
       source,
