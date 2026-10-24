@@ -768,6 +768,88 @@ class _ComposeScreenState extends State<ComposeScreen> {
 }
 
 /// Which account the message goes from, when there is more than one.
+  /// Queues this message instead of sending it now.
+  ///
+  /// What is stored is everything needed to send it *without this screen*: the
+  /// account, the addresses, the words and the moment. The queue outlives the
+  /// app — a message scheduled for tomorrow morning has to survive the phone
+  /// being closed and left alone overnight — so nothing here may depend on a
+  /// widget still existing.
+  Future<void> _sendLater() async {
+    final String to = _to.text.trim();
+    if (to.isEmpty) {
+      setState(() => _error = 'There is nobody to send this to yet.');
+      return;
+    }
+    final DateTime now = DateTime.now();
+    final DateTime? at = await _pickMoment(now);
+    if (at == null || !mounted) return;
+
+    await Scheduled.add(
+      ScheduledSend(
+        id: '${now.microsecondsSinceEpoch}',
+        account: _senderEmail,
+        at: at,
+        to: to,
+        cc: _cc.text.trim(),
+        subject: _subject.text.trim(),
+        body: _body.text,
+      ),
+    );
+
+    // The draft is done, the same as a send: leaving it would mean finding the
+    // same message twice.
+    _draftTimer?.cancel();
+    await _store?.clearDraft();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    AceSnack.show(context, 'Scheduled for ${formatListDate(at)}.');
+  }
+
+  /// A few moments people actually mean, rather than a full date picker.
+  ///
+  /// "Tomorrow morning" is a decision somebody can make in a second; a calendar
+  /// and a time wheel is a decision they make twice.
+  Future<DateTime?> _pickMoment(DateTime now) {
+    DateTime tomorrowMorning = DateTime(now.year, now.month, now.day + 1, 8);
+    final int daysToMonday = (DateTime.monday - now.weekday + 7) % 7;
+    final DateTime nextMonday = DateTime(
+      now.year,
+      now.month,
+      now.day + (daysToMonday == 0 ? 7 : daysToMonday),
+      8,
+    );
+
+    final List<MapEntry<String, DateTime>> choices = <MapEntry<String, DateTime>>[
+      MapEntry<String, DateTime>('In an hour', now.add(const Duration(hours: 1))),
+      MapEntry<String, DateTime>('This evening', DateTime(now.year, now.month, now.day, 19)),
+      MapEntry<String, DateTime>('Tomorrow morning', tomorrowMorning),
+      MapEntry<String, DateTime>('Next Monday', nextMonday),
+    ];
+
+    return showModalBottomSheet<DateTime>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final MapEntry<String, DateTime> choice in choices)
+              ListTile(
+                leading: const Icon(Icons.schedule),
+                title: Text(choice.key),
+                subtitle: Text(formatListDate(choice.value)),
+                // A moment already gone is not offered: "This evening" at ten at
+                // night would queue a message for a time in the past.
+                enabled: choice.value.isAfter(now),
+                onTap: () => Navigator.of(sheetContext).pop(choice.value),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
 class _FromRow extends StatelessWidget {
   const _FromRow({
     required this.accounts,
@@ -920,86 +1002,5 @@ class _FromChoice {
   const _FromChoice(this.email);
 
   final String? email;
-  /// Queues this message instead of sending it now.
-  ///
-  /// What is stored is everything needed to send it *without this screen*: the
-  /// account, the addresses, the words and the moment. The queue outlives the
-  /// app — a message scheduled for tomorrow morning has to survive the phone
-  /// being closed and left alone overnight — so nothing here may depend on a
-  /// widget still existing.
-  Future<void> _sendLater() async {
-    final String to = _to.text.trim();
-    if (to.isEmpty) {
-      setState(() => _error = 'There is nobody to send this to yet.');
-      return;
-    }
-    final DateTime now = DateTime.now();
-    final DateTime? at = await _pickMoment(now);
-    if (at == null || !mounted) return;
 
-    await Scheduled.add(
-      ScheduledSend(
-        id: '${now.microsecondsSinceEpoch}',
-        account: _senderEmail,
-        at: at,
-        to: to,
-        cc: _cc.text.trim(),
-        subject: _subject.text.trim(),
-        body: _body.text,
-      ),
-    );
-
-    // The draft is done, the same as a send: leaving it would mean finding the
-    // same message twice.
-    _draftTimer?.cancel();
-    await _store?.clearDraft();
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    AceSnack.show(context, 'Scheduled for ${formatListDate(at)}.');
-  }
-
-  /// A few moments people actually mean, rather than a full date picker.
-  ///
-  /// "Tomorrow morning" is a decision somebody can make in a second; a calendar
-  /// and a time wheel is a decision they make twice.
-  Future<DateTime?> _pickMoment(DateTime now) {
-    DateTime tomorrowMorning = DateTime(now.year, now.month, now.day + 1, 8);
-    final int daysToMonday = (DateTime.monday - now.weekday + 7) % 7;
-    final DateTime nextMonday = DateTime(
-      now.year,
-      now.month,
-      now.day + (daysToMonday == 0 ? 7 : daysToMonday),
-      8,
-    );
-
-    final List<MapEntry<String, DateTime>> choices = <MapEntry<String, DateTime>>[
-      MapEntry<String, DateTime>('In an hour', now.add(const Duration(hours: 1))),
-      MapEntry<String, DateTime>('This evening', DateTime(now.year, now.month, now.day, 19)),
-      MapEntry<String, DateTime>('Tomorrow morning', tomorrowMorning),
-      MapEntry<String, DateTime>('Next Monday', nextMonday),
-    ];
-
-    return showModalBottomSheet<DateTime>(
-      context: context,
-      showDragHandle: true,
-      builder: (BuildContext sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            for (final MapEntry<String, DateTime> choice in choices)
-              ListTile(
-                leading: const Icon(Icons.schedule),
-                title: Text(choice.key),
-                subtitle: Text(formatListDate(choice.value)),
-                // A moment already gone is not offered: "This evening" at ten at
-                // night would queue a message for a time in the past.
-                enabled: choice.value.isAfter(now),
-                onTap: () => Navigator.of(sheetContext).pop(choice.value),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
-

@@ -116,11 +116,18 @@ class _MailAvatarState extends State<MailAvatar> {
     final String domain = address.substring(at + 1).toLowerCase();
     for (final MailProvider provider in kProviderChoices) {
       if (!provider.domains.contains(domain)) continue;
-      return SvgPicture.asset(
-        provider.logo,
+      // FittedBox rather than width/height on the picture: some of these logos
+      // are wordmarks — Yahoo's is the width of the word — and a wordmark given
+      // a square box will take the whole of it and overflow the row. This scales
+      // whatever arrives down to the box instead of trusting its own idea of how
+      // big it is.
+      return SizedBox(
         width: widget.size,
         height: widget.size,
-        fit: BoxFit.contain,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: SvgPicture.asset(provider.logo),
+        ),
       );
     }
     return null;

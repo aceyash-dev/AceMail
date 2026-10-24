@@ -164,7 +164,12 @@ class MailService implements MailTransport {
           fallback: 'Could not list folders.'));
 
   Future<List<MailFolder>> _listFoldersOn(ImapClient client) async {
-    final List<Mailbox> mailboxes = await client.listMailboxes();
+    // Recursive, and that word is the whole bug. A plain LIST answers with the
+    // top level only, and every one of Gmail's folders — Sent, Drafts, Spam,
+    // Trash, All Mail — is a *child* of the "[Gmail]" container. So a Gmail
+    // account listed exactly one folder, Inbox, while Yahoo listed six: the
+    // difference was never the provider, it was the LIST.
+    final List<Mailbox> mailboxes = await client.listMailboxes(recursive: true);
     return mailboxes
         // Container folders such as Gmail's "[Gmail]" cannot be selected and
         // hold no messages of their own, so they never belong in the rail.

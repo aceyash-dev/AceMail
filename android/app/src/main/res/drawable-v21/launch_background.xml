@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Just the background colour.
+<!-- The app's mark, centred on the colour the app opens onto.
 
-     This used to draw the app's mark centred on the page, which is a splash
-     screen by another name: a second thing to look at before the app appears.
-     It is a plain fill now, in the colour the app opens onto, so the native
-     window and the first Flutter frame are the same surface. -->
+     This was a plain fill, on the reasoning that a mark here is a second thing
+     to look at before the app appears. It reads as a blank screen instead: the
+     native window is up for as long as the engine takes to start, and a blank
+     window is what a stuck app looks like. The mark says the app is coming.
+
+     Milk rather than the accent, because the accent is a *setting* and this file
+     is compiled — there is no way to know which one is chosen before the app can
+     run. Milk is neutral, so the accent arriving afterwards is a fill rather than
+     a change of colour. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ace_milk" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/ic_splash_mark" />
+    </item>
 </layer-list>
