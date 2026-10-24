@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:ace_mail/data/limits.dart';
 import 'package:ace_mail/util/files.dart';
 import 'package:ace_mail/util/file_names.dart';
+import 'package:ace_mail/models/contact.dart';
+import 'package:ace_mail/models/message_summary.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -92,5 +94,23 @@ void main() {
       expect(sanitizeFileName('$prefix😀x'), prefix);
     });
   });
-}
 
+
+  group('nullable model copyWith fields', () {
+    test('MessageSummary can explicitly clear an OTP', () {
+      const MessageSummary original = MessageSummary(
+        uid: 8, sequenceId: 8, subject: 'code', fromName: 'Name',
+        fromEmail: 'n@example.com', date: null, isSeen: true, isFlagged: false, otp: '123456',
+      );
+      expect(original.copyWith().otp, '123456');
+      expect(original.copyWith(otp: null).otp, isNull);
+    });
+
+    test('Contact can explicitly clear lastSeen', () {
+      final DateTime seen = DateTime.utc(2026, 10, 23);
+      final Contact original = Contact(email: 'someone@example.com', lastSeen: seen);
+      expect(original.copyWith().lastSeen, seen);
+      expect(original.copyWith(lastSeen: null).lastSeen, isNull);
+    });
+  });
+}
