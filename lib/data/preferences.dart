@@ -142,6 +142,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyTranslateEndpoint = 'ace.translateEndpoint';
   static const String _keyTranslateTo = 'ace.translateTo';
   static const String _keyTranslateKey = 'ace.translateKey';
+  static const String _keyAppLanguage = 'ace.appLanguage';
   static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
   static const String _keyCheckStatus = 'ace.checkStatus';
 
@@ -196,6 +197,7 @@ class Preferences extends ChangeNotifier {
     _keyTranslateEndpoint,
     _keyTranslateTo,
     _keyTranslateKey,
+    _keyAppLanguage,
   ];
 
   final FlutterSecureStorage _storage;
@@ -276,6 +278,11 @@ class Preferences extends ChangeNotifier {
   String _translateEndpoint = Translate.defaultEndpoint;
   String _translateTo = 'en';
   String _translateKey = '';
+
+  /// The language the app's own words are shown in. Empty is English, which is
+  /// what the app is written in — so the default costs nothing and needs no
+  /// network call at all.
+  String _appLanguage = '';
   Map<String, int> _lastSeen = <String, int>{};
 
   /// The UIDVALIDITY each saved UID was read under.
@@ -511,6 +518,11 @@ class Preferences extends ChangeNotifier {
   String get translateTo => _translateTo;
   String get translateKey => _translateKey;
 
+  String get appLanguage => _appLanguage;
+
+  Future<void> setAppLanguage(String value) =>
+      _write(_keyAppLanguage, value, () => _appLanguage = value);
+
   Future<void> setTranslateEndpoint(String value) => _write(
         _keyTranslateEndpoint,
         value.trim(),
@@ -673,6 +685,7 @@ class Preferences extends ChangeNotifier {
         raw[_keyTranslateEndpoint] ?? _translateEndpoint;
     _translateTo = raw[_keyTranslateTo] ?? _translateTo;
     _translateKey = raw[_keyTranslateKey] ?? _translateKey;
+    _appLanguage = raw[_keyAppLanguage] ?? _appLanguage;
     _launcherMark = _decodeEnum(
       raw[_keyLauncherMark],
       LauncherMark.values,

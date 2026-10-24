@@ -14,6 +14,7 @@ import '../services/app_lock.dart';
 import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
+import '../widgets/avatar.dart';
 import '../services/translate.dart';
 import '../state/mail_controller.dart';
 import '../services/notification_setup.dart';
@@ -63,6 +64,17 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 SettingsRow(
                   icon: AceIcons.image,
+                  // The picture itself, not an icon standing in for it. A row
+                  // called "Your picture" that shows a generic glyph is a row
+                  // that answers its own question wrong — and the whole point of
+                  // the row is to see whether the picture you set is the one
+                  // that came back.
+                  leading: MailAvatar(
+                    email: context.watch<MailController>().account?.email ?? '',
+                    name: context.watch<MailController>().account?.email ?? '',
+                    size: 34,
+                    isSelf: true,
+                  ),
                   title: 'Your picture',
                   // Named for where it comes from, because that is the question
                   // this row exists to answer: the app cannot set it at your
@@ -677,6 +689,29 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     );
                     if (chosen != null) await prefs.setTranslateTo(chosen);
+                  },
+                ),
+                SettingsRow(
+                  icon: AceIcons.textSize,
+                  title: 'App language',
+                  subtitle: 'The language the app\'s own words are shown in. '
+                      'Mail is translated by the Translate action instead.',
+                  value: prefs.appLanguage.isEmpty
+                      ? 'English'
+                      : Translate.nameFor(prefs.appLanguage),
+                  onTap: () async {
+                    final String? chosen = await showChoiceSheet<String>(
+                      context,
+                      title: 'App language',
+                      current: prefs.appLanguage,
+                      choices: <SettingsChoice<String>>[
+                        const SettingsChoice<String>('', 'English'),
+                        for (final MapEntry<String, String> e
+                            in Translate.languages.entries)
+                          SettingsChoice<String>(e.key, e.value),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setAppLanguage(chosen);
                   },
                 ),
                 SettingsRow(

@@ -27,12 +27,23 @@ class MailFolder {
   final int? uidValidity;
 
   factory MailFolder.fromMailbox(Mailbox mailbox) => MailFolder(
-        name: mailbox.name,
+        name: _cleanName(mailbox.name),
         path: mailbox.path,
         role: _roleOf(mailbox),
         unseen: mailbox.messagesUnseen,
         uidValidity: mailbox.uidValidity,
       );
+
+  /// The server's name, without the container it may be nested in.
+  ///
+  /// Gmail reports its system folders as `[Gmail]/All Mail` and `[Gmail]/Sent
+  /// Mail`. Most servers hand over the decoded leaf — enough_mail does — but not
+  /// all do, and a rail that reads "[Gmail]/All Mail" is a rail with a bug in
+  /// it. The bracket is the container, not the folder.
+  static String _cleanName(String name) {
+    final RegExp nested = RegExp(r'^\[[^\]]+\]/\s*');
+    return name.replaceFirst(nested, '').trim();
+  }
 
   static FolderRole _roleOf(Mailbox mailbox) {
     if (mailbox.isInbox) return FolderRole.inbox;
@@ -40,7 +51,12 @@ class MailFolder {
     if (n.contains('sent')) return FolderRole.sent;
     if (n.contains('draft')) return FolderRole.drafts;
     if (n.contains('trash') || n.contains('deleted')) return FolderRole.trash;
-    if (n.contains('junk') || n.contains('spam')) return FolderRole.junk;
+    // `bulk` is Yahoo's, and it is the same folder under a different word: a
+    // junk folder that shows up as a plain one is a folder nobody knows to
+    // check.
+    if (n.contains('junk') || n.contains('spam') || n.contains('bulk')) {
+      return FolderRole.junk;
+    }
     if (n.contains('archive') || n.contains('all mail')) {
       return FolderRole.archive;
     }
