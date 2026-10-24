@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if command -v flutter >/dev/null 2>&1; then
+SDK_ROOT="${FLUTTER_SDK_ROOT:-$HOME/.cache/ace-flutter}"
+if command -v flutter >/dev/null 2>&1 && [ ! -x "$SDK_ROOT/bin/flutter" ]; then
   flutter --version
   exit 0
 fi
-
-SDK_ROOT="${FLUTTER_SDK_ROOT:-$HOME/.cache/ace-flutter}"
 if [ -x "$SDK_ROOT/bin/flutter" ]; then
+  git config --global --add safe.directory "$SDK_ROOT" || true
   export PATH="$SDK_ROOT/bin:$PATH"
   flutter --version
   exit 0
@@ -29,5 +29,6 @@ PY
 )"
 mkdir -p "$SDK_ROOT"
 curl --fail --location --retry 3 --silent --show-error "$ARCHIVE" | tar -xJ -C "$SDK_ROOT" --strip-components=1
+git config --global --add safe.directory "$SDK_ROOT" || true
 export PATH="$SDK_ROOT/bin:$PATH"
 flutter --version
