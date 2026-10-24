@@ -1,10 +1,11 @@
 import 'package:ace_mail/util/links.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-void main() {
-  List<String> found(String text) =>
-      findLinks(text).map((LinkSpan l) => l.uri.toString()).toList();
+/// The addresses [findLinks] finds in [text], as strings.
+List<String> found(String text) =>
+    findLinks(text).map((LinkSpan l) => l.uri.toString()).toList();
 
+void main() {
   test('finds the obvious ones', () {
     expect(found('see https://example.com/a/b for more'),
         <String>['https://example.com/a/b']);

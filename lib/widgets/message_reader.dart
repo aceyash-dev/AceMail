@@ -587,28 +587,26 @@ Future<bool> _confirmLink(BuildContext context, Uri uri) async {
                   color: c.backgroundMuted,
                   borderRadius: BorderRadius.circular(AstryxRadius.element),
                 ),
-                child: Text(
-                  // The host, first and larger. It is the only part of a link
-                  // that says where you are going, and a long URL buries it —
-                  // which is exactly what a deceptive link is built to rely on.
-                  // The whole address is still here, underneath, because the
-                  // path is sometimes the thing you are checking.
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
+                // The host, first and larger. It is the only part of a link
+                // that says where you are going, and a long URL buries it —
+                // which is exactly what a deceptive link is built to rely on.
+                // The whole address is still here, underneath, because the
+                // path is sometimes the thing you are checking.
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      uri.host.isEmpty ? uri.toString() : uri.host,
+                      style: AstryxText.heading4(c.textPrimary),
+                    ),
+                    if (uri.host.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: AstryxSpace.s1),
                       Text(
-                        uri.host.isEmpty ? uri.toString() : uri.host,
-                        style: AstryxText.heading4(c.textPrimary),
+                        uri.toString(),
+                        style: AstryxText.supporting(c.textSecondary),
                       ),
-                      if (uri.host.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: AstryxSpace.s1),
-                        Text(
-                          uri.toString(),
-                          style: AstryxText.supporting(c.textSecondary),
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: AstryxSpace.s3),
