@@ -137,6 +137,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
   static const String _keyGlass = 'ace.glass';
   static const String _keyLauncherMonogram = 'ace.launcherMonogram';
+  static const String _keyLauncherBackground = 'ace.launcherBackground';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -184,6 +185,7 @@ class Preferences extends ChangeNotifier {
     _keyWarnMissingAttachment,
     _keyGlass,
     _keyLauncherMonogram,
+    _keyLauncherBackground,
   ];
 
   final FlutterSecureStorage _storage;
@@ -257,6 +259,13 @@ class Preferences extends ChangeNotifier {
   bool _warnMissingAttachment = true;
   GlassMode _glass = GlassMode.auto;
   bool _launcherMonogram = false;
+
+  /// The icon's background, or null to follow the app's accent.
+  ///
+  /// Separate from the accent on purpose. They were the same thing, which meant
+  /// changing how the app looked changed the icon whether you wanted it to or
+  /// not — and wanting a black icon on a blue app is not an exotic request.
+  AceAccent? _launcherBackground;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -469,6 +478,17 @@ class Preferences extends ChangeNotifier {
   /// of icon is something somebody opts into rather than discovers.
   bool get launcherMonogram => _launcherMonogram;
 
+  AceAccent? get launcherBackground => _launcherBackground;
+
+  /// The accent the icon should actually wear: its own choice, or the app's.
+  AceAccent get launcherIconBackground => _launcherBackground ?? _accent;
+
+  Future<void> setLauncherBackground(AceAccent? value) => _write(
+        _keyLauncherBackground,
+        value?.name ?? '',
+        () => _launcherBackground = value,
+      );
+
   Future<void> setLauncherMonogram(bool value) => _write(
         _keyLauncherMonogram,
         value.toString(),
@@ -567,6 +587,11 @@ class Preferences extends ChangeNotifier {
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
     _launcherMonogram =
         _decodeBool(raw[_keyLauncherMonogram], _launcherMonogram);
+    _launcherBackground = _decodeEnum(
+      raw[_keyLauncherBackground] ?? '',
+      AceAccent.values,
+      _launcherBackground,
+    );
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

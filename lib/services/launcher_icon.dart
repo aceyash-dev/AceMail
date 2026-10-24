@@ -16,15 +16,15 @@ import '../data/accents.dart';
 abstract final class LauncherIcon {
   static const MethodChannel _channel = MethodChannel('app.tab.mail/launcher');
 
-  /// Points the launcher entry at [accent]'s icon, wearing [monogram]'s mark.
+  /// Points the launcher entry at [background]'s icon, wearing [monogram]'s mark.
   ///
   /// Two marks, one set of backgrounds: the switch changes the foreground layer
   /// and nothing else, which is what makes the two icons the same app rather
   /// than two designs.
-  static Future<void> apply(AceAccent accent, {bool monogram = false}) async {
+  static Future<void> apply(AceAccent background, {bool monogram = false}) async {
     try {
       await _channel.invokeMethod<bool>('setLauncherAccent', <String, Object?>{
-        'accent': accent.name,
+        'accent': background.name,
         'monogram': monogram,
       });
     } catch (_) {

@@ -56,7 +56,7 @@ Future<void> main() async {
   // an install over the top of an old build.
   unawaited(
     LauncherIcon.apply(
-      preferences.accent,
+      preferences.launcherIconBackground,
       monogram: preferences.launcherMonogram,
     ),
   );

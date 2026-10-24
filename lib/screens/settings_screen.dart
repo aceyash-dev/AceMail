@@ -417,7 +417,48 @@ class SettingsScreen extends StatelessWidget {
                     await prefs.setLauncherMonogram(monogram);
                     // Applied straight away: an icon setting that needs a
                     // restart is a setting nobody believes took.
-                    await LauncherIcon.apply(prefs.accent, monogram: monogram);
+                    await LauncherIcon.apply(
+                      prefs.launcherIconBackground,
+                      monogram: monogram,
+                    );
+                  },
+                ),
+                SettingsRow(
+                  icon: AceIcons.palette,
+                  title: 'Icon colour',
+                  subtitle: 'The background the launcher icon sits on. The '
+                      'accent, or one of its own.',
+                  value: prefs.launcherBackground == null
+                      ? 'Same as the app'
+                      : prefs.launcherBackground!.label,
+                  trailing: _AccentSwatch(
+                    accent: prefs.launcherIconBackground,
+                  ),
+                  onTap: () async {
+                    final String? chosen = await showChoiceSheet<String>(
+                      context,
+                      title: 'Icon colour',
+                      current: prefs.launcherBackground?.name ?? 'auto',
+                      choices: <SettingsChoice<String>>[
+                        const SettingsChoice<String>(
+                          'auto',
+                          'Same as the app',
+                          description: 'Follows the accent, and changes with it.',
+                        ),
+                        for (final AceAccent accent in AceAccent.values)
+                          SettingsChoice<String>(accent.name, accent.label),
+                      ],
+                    );
+                    if (chosen == null) return;
+                    await prefs.setLauncherBackground(
+                      chosen == 'auto' ? null : AceAccent.values.firstWhere(
+                        (AceAccent a) => a.name == chosen,
+                      ),
+                    );
+                    await LauncherIcon.apply(
+                      prefs.launcherIconBackground,
+                      monogram: prefs.launcherMonogram,
+                    );
                   },
                 ),
                 SettingsRow(
@@ -890,7 +931,12 @@ class SettingsScreen extends StatelessWidget {
     // The launcher icon wears the accent, so it is repainted with it. Best
     // effort: a launcher that will not co-operate leaves the old icon, and
     // nothing else notices.
-    await LauncherIcon.apply(chosen, monogram: prefs.launcherMonogram);
+    // Re-applied: the icon may be following the accent, in which case changing
+    // the accent is changing the icon.
+    await LauncherIcon.apply(
+      prefs.launcherIconBackground,
+      monogram: prefs.launcherMonogram,
+    );
   }
 
   Future<void> _chooseSwipe(
