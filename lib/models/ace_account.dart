@@ -121,10 +121,12 @@ class AceAccount {
         // Written only when it differs from what the port implies, so an
         // account saved before this setting existed reads back identically —
         // and a record that never needed the setting never grows one.
+        // `!` because Dart will not promote a field through a null check, and
+        // the guard is the condition right here.
         if (imapSecurity != null && imapSecurity != MailSecurity.forPort(imapPort))
-          'imapSecurity': imapSecurity.name,
+          'imapSecurity': imapSecurity!.name,
         if (smtpSecurity != null && smtpSecurity != MailSecurity.forPort(smtpPort))
-          'smtpSecurity': smtpSecurity.name,
+          'smtpSecurity': smtpSecurity!.name,
       };
 
   factory AceAccount.fromJson(Map<String, dynamic> json) => AceAccount(
