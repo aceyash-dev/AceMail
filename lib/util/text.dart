@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Collapses runs of blank lines down to a single one.
 ///
 /// Plain-text mail that was laid out in columns arrives with whole screens of
@@ -34,4 +36,23 @@ String truncateSafely(String text, int maxCodeUnits) {
   // A high surrogate with nothing after it: drop it rather than keep half.
   if (last >= 0xD800 && last <= 0xDBFF) end -= 1;
   return text.substring(0, end);
+}
+
+
+/// Truncates [text] to at most [maxBytes] UTF-8 bytes without splitting a
+/// multibyte code point. Unlike [truncateSafely], the limit is measured in
+/// encoded bytes rather than Dart UTF-16 code units.
+String truncateUtf8BytesSafely(String text, int maxBytes) {
+  if (maxBytes <= 0) return '';
+  final List<int> bytes = utf8.encode(text);
+  if (bytes.length <= maxBytes) return text;
+
+  int end = maxBytes;
+  // If the first excluded byte is a continuation, the preceding code point
+  // crosses the byte boundary. Drop that whole code point.
+  while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
+    end--;
+  }
+  if (end < maxBytes) return utf8.decode(bytes.sublist(0, end));
+  return utf8.decode(bytes.sublist(0, maxBytes));
 }
