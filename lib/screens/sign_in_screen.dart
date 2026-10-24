@@ -534,6 +534,15 @@ class _SignInScreenState extends State<SignInScreen> {
   /// you sign into with an app password. The legal footer is here rather than
   /// buried in Settings: this is the screen where somebody decides to trust it
   /// with a credential.
+  /// Takes a provider's first domain and moves on to the address.
+  void _pickProvider(MailProvider provider) {
+    _form.domain = provider.domains.first;
+    // Fills the server fields, so the common case never opens the advanced
+    // panel — the same thing the domain picker on the next step does.
+    _form.applyProvider();
+    _getStarted();
+  }
+
   Widget _welcomePanel(AstryxColors c) {
     return Column(
       key: const ValueKey<int>(0),
@@ -551,18 +560,37 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
         const SizedBox(height: AstryxSpace.s6),
 
+        // The providers, first, as themselves.
+        //
+        // This used to be a "Get started" button, which asked for nothing and
+        // told you nothing: you pressed it to find out what the next screen
+        // wanted, and the next screen wanted to know where your mail is. Asking
+        // that question here is the same amount of work for somebody who knows
+        // the answer, and it answers itself for the majority who are about to
+        // type one of six addresses.
+        //
         // No Google button here. It lives on the credentials step, where the
         // address has been chosen and the app knows whether this is a Google
         // account — offering it in two places, one of them before the question
         // has been asked, is how you end up with two buttons that do the same
         // thing and an error message on a screen with nothing to fail.
-        AceButton(
-          label: 'Get started',
-          variant: AceButtonVariant.tonal,
-          size: AceButtonSize.large,
-          icon: AceIcons.chevronRight,
-          expand: true,
-          onPressed: _getStarted,
+        Text('Where is your mail?', style: AstryxText.title(c.textPrimary)),
+        const SizedBox(height: AstryxSpace.s4),
+        Wrap(
+          spacing: AstryxSpace.s2,
+          runSpacing: AstryxSpace.s2,
+          children: <Widget>[
+            for (final MailProvider provider in kMailProviders.values)
+              _ProviderChoice(
+                provider: provider,
+                // The first domain, not a question about which: Gmail hands out
+                // gmail.com and googlemail.com and this picks one. The next
+                // screen shows it and lets it be changed, so a wrong guess costs
+                // one edit rather than a wrong address.
+                onTap: () => _pickProvider(provider),
+              ),
+            _OtherProviderChoice(onTap: _getStarted),
+          ],
         ),
         const SizedBox(height: AstryxSpace.s6),
 
@@ -1189,6 +1217,81 @@ class _SignInSheet extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A provider, as a thing you can press.
+///
+/// The logo is the label. Six names in a list would be a form; six marks are a
+/// question with obvious answers, and nobody has to read "Gmail" to know which
+/// one is theirs.
+class _ProviderChoice extends StatelessWidget {
+  const _ProviderChoice({required this.provider, required this.onTap});
+
+  final MailProvider provider;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return Semantics(
+      button: true,
+      label: provider.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AstryxRadius.inner),
+        child: Padding(
+          padding: const EdgeInsets.all(AstryxSpace.s1),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _ProviderTile(provider: provider),
+              const SizedBox(height: AstryxSpace.s1),
+              Text(
+                provider.label,
+                style: AstryxText.supporting(c.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The way out for an address none of the marks cover.
+class _OtherProviderChoice extends StatelessWidget {
+  const _OtherProviderChoice({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AstryxRadius.inner),
+      child: Padding(
+        padding: const EdgeInsets.all(AstryxSpace.s1),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: c.backgroundMuted,
+                borderRadius: BorderRadius.circular(AstryxRadius.inner),
+                border: Border.all(color: c.border),
+              ),
+              child: Icon(AceIcons.globe, size: 18, color: c.textSecondary),
+            ),
+            const SizedBox(height: AstryxSpace.s1),
+            Text('Other', style: AstryxText.supporting(c.textSecondary)),
+          ],
+        ),
       ),
     );
   }
