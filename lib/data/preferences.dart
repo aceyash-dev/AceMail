@@ -138,6 +138,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyGlass = 'ace.glass';
   static const String _keyLauncherMonogram = 'ace.launcherMonogram';
   static const String _keyLauncherBackground = 'ace.launcherBackground';
+  static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -163,6 +164,7 @@ class Preferences extends ChangeNotifier {
     _keyWarnExternalLinks,
     _keyNotifyNewMail,
     _keyLastSeen,
+    _keyLastSeenValidity,
     _keyHaptics,
     _keyOled,
     _keyReduceMotion,
@@ -267,6 +269,14 @@ class Preferences extends ChangeNotifier {
   /// not — and wanting a black icon on a blue app is not an exotic request.
   AceAccent? _launcherBackground;
   Map<String, int> _lastSeen = <String, int>{};
+
+  /// The UIDVALIDITY each saved UID was read under.
+  ///
+  /// IMAP UIDs are only meaningful inside one mailbox namespace, and a provider
+  /// that recreates a mailbox starts numbering again from one. A marker from the
+  /// old namespace then sits above every new message, so nothing ever looks new
+  /// again — silently, and until the UIDs climb back past it.
+  Map<String, int> _lastSeenValidity = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -512,9 +522,15 @@ class Preferences extends ChangeNotifier {
   /// account, and a background isolate can read it the same way the app does.
   int lastSeenUid(String email) => _lastSeen[email.toLowerCase()] ?? 0;
 
-  Future<void> setLastSeenUid(String email, int uid) async {
+  /// The namespace [lastSeenUid] was recorded in. Zero means "not known".
+  int lastSeenUidValidity(String email) =>
+      _lastSeenValidity[email.toLowerCase()] ?? 0;
+
+  Future<void> setLastSeenUid(String email, int uid, {int? validity}) async {
     _lastSeen[email.toLowerCase()] = uid;
+    if (validity != null) _lastSeenValidity[email.toLowerCase()] = validity;
     await _write(_keyLastSeen, jsonEncode(_lastSeen), () {});
+    await _write(_keyLastSeenValidity, jsonEncode(_lastSeenValidity), () {});
   }
 
   Future<void> load() async {
@@ -558,6 +574,7 @@ class Preferences extends ChangeNotifier {
         _decodeBool(raw[_keyWarnExternalLinks], _warnExternalLinks);
     _notifyNewMail = _decodeBool(raw[_keyNotifyNewMail], _notifyNewMail);
     _lastSeen = _decodeLastSeen(raw[_keyLastSeen]);
+    _lastSeenValidity = _decodeLastSeen(raw[_keyLastSeenValidity]);
     _haptics = _decodeBool(raw[_keyHaptics], _haptics);
     _oled = _decodeBool(raw[_keyOled], _oled);
     _reduceMotion = _decodeBool(raw[_keyReduceMotion], _reduceMotion);

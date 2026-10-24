@@ -86,6 +86,27 @@ Future<bool> checkOne(StoredAccount stored) async {
     );
 
     final List<int> uids = await service.listMessageUids(inbox);
+
+    // A UID is only meaningful inside one mailbox namespace. A provider that
+    // recreates a mailbox starts numbering again from one, and a marker saved
+    // from the old namespace then sits above every new message — so nothing
+    // ever looks new again, silently, until the numbers climb back past it.
+    //
+    // When the namespace has changed the marker is moved to the top of the new
+    // one and this check announces nothing. Announcing everything would be
+    // five thousand notifications for a mailbox that already existed, which is
+    // not a notification, it is an alarm.
+    final int validity = inbox.uidValidity;
+    final int storedValidity = prefs.lastSeenUidValidity(stored.account.email);
+    if (validity != 0 && storedValidity != 0 && validity != storedValidity) {
+      await prefs.setLastSeenUid(
+        stored.account.email,
+        uids.isEmpty ? 0 : uids.reduce((int a, int b) => a > b ? a : b),
+        validity: validity,
+      );
+      return false;
+    }
+
     final int highestSeen = prefs.lastSeenUid(stored.account.email);
     final List<int> previous = highestSeen == 0 ? <int>[] : <int>[highestSeen];
 
@@ -108,7 +129,13 @@ Future<bool> checkOne(StoredAccount stored) async {
 
     if (uids.isNotEmpty) {
       final int highest = uids.reduce((int a, int b) => a > b ? a : b);
-      await prefs.setLastSeenUid(stored.account.email, highest);
+      // Saved with the namespace it was read in, so the next check can tell
+      // whether it is still talking about the same mailbox.
+      await prefs.setLastSeenUid(
+        stored.account.email,
+        highest,
+        validity: validity,
+      );
     }
 
     if (result.hasNews) {
