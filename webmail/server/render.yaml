@@ -3,7 +3,7 @@ services:
     name: ace-mail-web-api
     runtime: node
     rootDir: webmail/server
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
     disk:
