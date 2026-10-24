@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../services/launcher_icon.dart';
 import 'accents.dart';
 import '../models/glass_mode.dart';
 import '../models/message_sort.dart';
@@ -136,8 +137,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyChymeReadsMail = 'ace.chymeReadsMail';
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
   static const String _keyGlass = 'ace.glass';
-  static const String _keyLauncherMonogram = 'ace.launcherMonogram';
-  static const String _keyLauncherBackground = 'ace.launcherBackground';
+  static const String _keyLauncherMark = 'ace.launcherMark';
   static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
   static const String _keyCheckStatus = 'ace.checkStatus';
 
@@ -188,8 +188,7 @@ class Preferences extends ChangeNotifier {
     _keyChymeReadsMail,
     _keyWarnMissingAttachment,
     _keyGlass,
-    _keyLauncherMonogram,
-    _keyLauncherBackground,
+    _keyLauncherMark,
   ];
 
   final FlutterSecureStorage _storage;
@@ -262,14 +261,7 @@ class Preferences extends ChangeNotifier {
   bool _chymeReadsMail = true;
   bool _warnMissingAttachment = true;
   GlassMode _glass = GlassMode.auto;
-  bool _launcherMonogram = false;
-
-  /// The icon's background, or null to follow the app's accent.
-  ///
-  /// Separate from the accent on purpose. They were the same thing, which meant
-  /// changing how the app looked changed the icon whether you wanted it to or
-  /// not — and wanting a black icon on a blue app is not an exotic request.
-  AceAccent? _launcherBackground;
+  LauncherMark _launcherMark = LauncherMark.envelope;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// The UIDVALIDITY each saved UID was read under.
@@ -494,27 +486,17 @@ class Preferences extends ChangeNotifier {
   Future<void> setChymeReadsMail(bool value) =>
       _write(_keyChymeReadsMail, '$value', () => _chymeReadsMail = value);
 
-  /// Whether the launcher icon wears the monogram rather than the envelope.
+  /// Which mark the launcher icon wears.
   ///
   /// The envelope is the default: it is the mark the app has worn, and a change
-  /// of icon is something somebody opts into rather than discovers.
-  bool get launcherMonogram => _launcherMonogram;
+  /// of icon is something somebody opts into rather than discovers. The
+  /// background is not a setting — it is the accent, and it follows it.
+  LauncherMark get launcherMark => _launcherMark;
 
-  AceAccent? get launcherBackground => _launcherBackground;
-
-  /// The accent the icon should actually wear: its own choice, or the app's.
-  AceAccent get launcherIconBackground => _launcherBackground ?? _accent;
-
-  Future<void> setLauncherBackground(AceAccent? value) => _write(
-        _keyLauncherBackground,
-        value?.name ?? '',
-        () => _launcherBackground = value,
-      );
-
-  Future<void> setLauncherMonogram(bool value) => _write(
-        _keyLauncherMonogram,
-        value.toString(),
-        () => _launcherMonogram = value,
+  Future<void> setLauncherMark(LauncherMark value) => _write(
+        _keyLauncherMark,
+        value.name,
+        () => _launcherMark = value,
       );
 
   Future<void> setGlass(GlassMode value) =>
@@ -657,19 +639,11 @@ class Preferences extends ChangeNotifier {
       _warnMissingAttachment,
     );
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
-    _launcherMonogram =
-        _decodeBool(raw[_keyLauncherMonogram], _launcherMonogram);
-    // Parsed rather than decoded: `_decodeEnum` falls back to a value, and
-    // "follow the accent" is the absence of one. An empty string is what the
-    // setting writes for it.
-    final String storedBackground = raw[_keyLauncherBackground] ?? '';
-    _launcherBackground = null;
-    for (final AceAccent accent in AceAccent.values) {
-      if (accent.name == storedBackground) {
-        _launcherBackground = accent;
-        break;
-      }
-    }
+    _launcherMark = _decodeEnum(
+      raw[_keyLauncherMark],
+      LauncherMark.values,
+      _launcherMark,
+    );
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

@@ -55,10 +55,7 @@ Future<void> main() async {
   // when the setting changes, because the alias that carries it can be reset by
   // an install over the top of an old build.
   unawaited(
-    LauncherIcon.apply(
-      preferences.launcherIconBackground,
-      monogram: preferences.launcherMonogram,
-    ),
+    LauncherIcon.apply(preferences.accent, mark: preferences.launcherMark),
   );
 
   // Registered before the first frame, so a scheduled check that fires while

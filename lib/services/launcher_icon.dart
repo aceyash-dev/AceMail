@@ -13,19 +13,39 @@ import '../data/accents.dart';
 /// the change, a channel that is not there: the icon stays as it was and nothing
 /// else in the app is affected. An icon is the least important thing here and
 /// must never be the reason something fails.
+/// The mark the launcher icon wears.
+///
+/// The suffix is what the Kotlin appends to an alias name, and the label is
+/// what the setting calls it. They are kept together because a mark that is
+/// named one thing in the picker and another in the manifest is a mark that
+/// silently does nothing.
+enum LauncherMark {
+  envelope('', 'Envelope'),
+  letterA('A', 'A'),
+  open('Open', 'Open envelope');
+
+  const LauncherMark(this.suffix, this.label);
+
+  final String suffix;
+  final String label;
+}
+
 abstract final class LauncherIcon {
   static const MethodChannel _channel = MethodChannel('app.tab.mail/launcher');
 
-  /// Points the launcher entry at [background]'s icon, wearing [monogram]'s mark.
+  /// Points the launcher entry at [accent]'s icon, wearing [mark].
   ///
-  /// Two marks, one set of backgrounds: the switch changes the foreground layer
-  /// and nothing else, which is what makes the two icons the same app rather
-  /// than two designs.
-  static Future<void> apply(AceAccent background, {bool monogram = false}) async {
+  /// The background is the accent, always: there is no setting for it, because
+  /// an icon a different colour from the app it opens is not a choice anybody
+  /// asked for. What is a choice is the mark.
+  static Future<void> apply(
+    AceAccent accent, {
+    LauncherMark mark = LauncherMark.envelope,
+  }) async {
     try {
       await _channel.invokeMethod<bool>('setLauncherAccent', <String, Object?>{
-        'accent': background.name,
-        'monogram': monogram,
+        'accent': accent.name,
+        'mark': mark.suffix,
       });
     } catch (_) {
       // Not Android, or a build without the aliases. The icon keeps the colour

@@ -31,7 +31,7 @@ import '../widgets/legal_sheet.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
 import '../widgets/settings_group.dart';
-import 'tutorial_screen.dart';
+
 import '../widgets/ace_icon_view.dart';
 
 /// The app's settings. Every row here changes something real.
@@ -400,65 +400,24 @@ class SettingsScreen extends StatelessWidget {
                 SettingsRow(
                   icon: AceIcons.image,
                   title: 'Launcher icon',
-                  subtitle: 'The envelope it has always worn, or the monogram. '
-                      'The accent colour stays either way.',
-                  value: prefs.launcherMonogram ? 'Monogram' : 'Envelope',
+                  subtitle: 'Which mark it wears. The background is the accent, '
+                      'and follows it.',
+                  value: prefs.launcherMark.label,
                   onTap: () async {
-                    final bool? monogram = await showChoiceSheet<bool>(
+                    final LauncherMark? mark = await showChoiceSheet<LauncherMark>(
                       context,
                       title: 'Launcher icon',
-                      current: prefs.launcherMonogram,
-                      choices: const <SettingsChoice<bool>>[
-                        SettingsChoice<bool>(false, 'Envelope'),
-                        SettingsChoice<bool>(true, 'Monogram'),
+                      current: prefs.launcherMark,
+                      choices: <SettingsChoice<LauncherMark>>[
+                        for (final LauncherMark m in LauncherMark.values)
+                          SettingsChoice<LauncherMark>(m, m.label),
                       ],
                     );
-                    if (monogram == null) return;
-                    await prefs.setLauncherMonogram(monogram);
+                    if (mark == null) return;
+                    await prefs.setLauncherMark(mark);
                     // Applied straight away: an icon setting that needs a
                     // restart is a setting nobody believes took.
-                    await LauncherIcon.apply(
-                      prefs.launcherIconBackground,
-                      monogram: monogram,
-                    );
-                  },
-                ),
-                SettingsRow(
-                  icon: AceIcons.palette,
-                  title: 'Icon colour',
-                  subtitle: 'The background the launcher icon sits on. The '
-                      'accent, or one of its own.',
-                  value: prefs.launcherBackground == null
-                      ? 'Same as the app'
-                      : prefs.launcherBackground!.label,
-                  trailing: _AccentSwatch(
-                    accent: prefs.launcherIconBackground,
-                  ),
-                  onTap: () async {
-                    final String? chosen = await showChoiceSheet<String>(
-                      context,
-                      title: 'Icon colour',
-                      current: prefs.launcherBackground?.name ?? 'auto',
-                      choices: <SettingsChoice<String>>[
-                        const SettingsChoice<String>(
-                          'auto',
-                          'Same as the app',
-                          description: 'Follows the accent, and changes with it.',
-                        ),
-                        for (final AceAccent accent in AceAccent.values)
-                          SettingsChoice<String>(accent.name, accent.label),
-                      ],
-                    );
-                    if (chosen == null) return;
-                    await prefs.setLauncherBackground(
-                      chosen == 'auto' ? null : AceAccent.values.firstWhere(
-                        (AceAccent a) => a.name == chosen,
-                      ),
-                    );
-                    await LauncherIcon.apply(
-                      prefs.launcherIconBackground,
-                      monogram: prefs.launcherMonogram,
-                    );
+                    await LauncherIcon.apply(prefs.accent, mark: mark);
                   },
                 ),
                 SettingsRow(
@@ -703,11 +662,12 @@ class SettingsScreen extends StatelessWidget {
               children: <Widget>[
                 SettingsRow(
                   icon: AceIcons.help,
-                  title: 'How to sign in',
-                  subtitle: 'Step-by-step, including app passwords',
-                  onTap: () => Navigator.of(context).push(
-                    aceRoute(const TutorialScreen()),
-                  ),
+                  title: 'Help & Feedback',
+                  subtitle: 'hello@ace-base.cc',
+                  // Opens the mail app rather than a form, because there is no
+                  // form: a person with a problem is better served by an address
+                  // that reaches somebody than by a screen that reaches nobody.
+                  onTap: () => _mailSupport(context),
                 ),
                 SettingsRow(
                   icon: AceIcons.password,
@@ -931,12 +891,9 @@ class SettingsScreen extends StatelessWidget {
     // The launcher icon wears the accent, so it is repainted with it. Best
     // effort: a launcher that will not co-operate leaves the old icon, and
     // nothing else notices.
-    // Re-applied: the icon may be following the accent, in which case changing
-    // the accent is changing the icon.
-    await LauncherIcon.apply(
-      prefs.launcherIconBackground,
-      monogram: prefs.launcherMonogram,
-    );
+    // Re-applied, because the icon's background *is* the accent: changing the
+    // accent is changing the icon, whether or not that was the intent.
+    await LauncherIcon.apply(chosen, mark: prefs.launcherMark);
   }
 
   Future<void> _chooseSwipe(
@@ -1183,5 +1140,19 @@ Future<void> _choosePicture(BuildContext context, String email) async {
       } catch (_) {
         // Nothing installed that can open a browser.
       }
+  }
+}
+
+/// Writes to the address in the row.
+Future<void> _mailSupport(BuildContext context) async {
+  final Uri uri = Uri(
+    scheme: 'mailto',
+    path: 'hello@ace-base.cc',
+    query: 'subject=Ace Mail feedback',
+  );
+  try {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (_) {
+    if (context.mounted) AceSnack.show(context, 'hello@ace-base.cc');
   }
 }

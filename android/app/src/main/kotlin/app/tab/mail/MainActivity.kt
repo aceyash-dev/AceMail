@@ -44,7 +44,7 @@ class MainActivity : FlutterActivity() {
                 result.success(
                     setLauncherAccent(
                         call.argument<String>("accent") ?: "",
-                        call.argument<Boolean>("monogram") ?: false,
+                        call.argument<String>("mark") ?: "",
                     )
                 )
             }
@@ -131,8 +131,8 @@ class MainActivity : FlutterActivity() {
      * the caller is free to ignore: an icon is the least important thing in the
      * app, and it must never be the reason the app misbehaves.
      */
-    private fun setLauncherAccent(accent: String, monogram: Boolean): Boolean {
-        val wanted = aliasFor(accent, monogram) ?: return false
+    private fun setLauncherAccent(accent: String, mark: String): Boolean {
+        val wanted = aliasFor(accent, mark) ?: return false
         return try {
             val pm = packageManager
             // Enabled first, disabled second. See the note on this class.
@@ -163,9 +163,13 @@ class MainActivity : FlutterActivity() {
      * line — so writing it out fifteen more times would be fifteen more chances
      * to be wrong about it.
      */
-    private fun aliasFor(accent: String, monogram: Boolean): String? {
+    private fun aliasFor(accent: String, mark: String): String? {
         val name = ACCENT_NAMES[accent] ?: return null
-        return "$PACKAGE.Launcher$name${if (monogram) "Monogram" else ""}"
+        // The suffix is the mark's, and the empty one is the envelope. Nothing
+        // here knows how many marks there are: adding one is a name and a
+        // resource, not a branch.
+        if (mark !in MARK_SUFFIXES) return null
+        return "$PACKAGE.Launcher$name$mark"
     }
 
     companion object {
@@ -201,8 +205,11 @@ class MainActivity : FlutterActivity() {
          * accent or a mark is one line here and the disabling loop cannot fall
          * out of step with it.
          */
+        /** The marks, as the suffix each one adds to an alias name. */
+        private val MARK_SUFFIXES = listOf("", "A", "Open")
+
         private val ALL_ALIASES = ACCENT_NAMES.values.flatMap { name ->
-            listOf("$PACKAGE.Launcher$name", "$PACKAGE.Launcher${name}Monogram")
+            MARK_SUFFIXES.map { suffix -> "$PACKAGE.Launcher$name$suffix" }
         }
     }
 }
