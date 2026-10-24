@@ -17,10 +17,15 @@ class MessageSummary {
     required this.isFlagged,
     this.hasAttachments = false,
     this.otp,
+    this.folderPath,
   });
 
   final int uid;
   final int sequenceId;
+
+  /// The mailbox that owns this UID. UIDs are only unique within a mailbox.
+  /// Nullable for older callers that construct summaries outside a folder load.
+  final String? folderPath;
   final String subject;
   final String fromName;
   final String fromEmail;
@@ -38,7 +43,10 @@ class MessageSummary {
   /// and only for the mail that needs it.
   final String? otp;
 
-  factory MessageSummary.fromMime(MimeMessage message) {
+  factory MessageSummary.fromMime(
+    MimeMessage message, {
+    String? folderPath,
+  }) {
     final MailAddress? from =
         (message.from != null && message.from!.isNotEmpty)
             ? message.from!.first
@@ -51,6 +59,7 @@ class MessageSummary {
     return MessageSummary(
       uid: message.uid ?? 0,
       sequenceId: message.sequenceId ?? 0,
+      folderPath: folderPath,
       subject: subject,
       fromName: from?.personalName ?? from?.email ?? '(unknown sender)',
       fromEmail: from?.email ?? '',
@@ -71,6 +80,7 @@ class MessageSummary {
       MessageSummary(
         uid: uid,
         sequenceId: sequenceId,
+        folderPath: this.folderPath,
         subject: subject,
         fromName: fromName,
         fromEmail: fromEmail,
