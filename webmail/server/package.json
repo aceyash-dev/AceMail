@@ -1,0 +1,20 @@
+{
+  "name": "ace-mail-web-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node src/server.js", "check": "node --check src/server.js && node --check src/security.js && node --check src/mail.js", "test": "node --test" },
+  "dependencies": {
+    "google-auth-library": "^9.15.1",
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "imapflow": "^1.0.181",
+    "ipaddr.js": "^2.2.0",
+    "mailparser": "^3.7.2",
+    "nodemailer": "^6.10.0"
+  }
+}

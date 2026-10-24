@@ -1,0 +1,51 @@
+name: AceMail Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webmail/**'
+      - '.github/workflows/webmail.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'webmail/**'
+      - '.github/workflows/webmail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ace-mail-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: webmail
+        run: flutter pub get
+      - name: Analyze Dart
+        working-directory: webmail
+        run: flutter analyze --fatal-infos
+      - name: Run tests
+        working-directory: webmail
+        run: flutter test
+      - name: Build Flutter Web
+        working-directory: webmail
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          ACEMAIL_API_BASE_URL: ${{ vars.ACEMAIL_API_BASE_URL }}
+        run: |
+          flutter build web --release \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID" \
+            --dart-define=ACEMAIL_API_BASE_URL="$ACEMAIL_API_BASE_URL"

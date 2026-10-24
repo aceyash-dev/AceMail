@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ace-mail-web-api
+    runtime: node
+    rootDir: webmail/server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: ace-mail-web-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: GOOGLE_WEB_CLIENT_ID
+        sync: false
+      - key: CREDENTIAL_ENCRYPTION_KEY
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/data/ace-mail-web.sqlite
