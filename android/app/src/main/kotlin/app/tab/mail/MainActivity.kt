@@ -41,7 +41,12 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
-                result.success(setLauncherAccent(call.argument<String>("accent") ?: ""))
+                result.success(
+                    setLauncherAccent(
+                        call.argument<String>("accent") ?: "",
+                        call.argument<Boolean>("monogram") ?: false,
+                    )
+                )
             }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VOICE_CHANNEL)
@@ -126,8 +131,8 @@ class MainActivity : FlutterActivity() {
      * the caller is free to ignore: an icon is the least important thing in the
      * app, and it must never be the reason the app misbehaves.
      */
-    private fun setLauncherAccent(accent: String): Boolean {
-        val wanted = aliasFor(accent) ?: return false
+    private fun setLauncherAccent(accent: String, monogram: Boolean): Boolean {
+        val wanted = aliasFor(accent, monogram) ?: return false
         return try {
             val pm = packageManager
             // Enabled first, disabled second. See the note on this class.
@@ -150,24 +155,18 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun aliasFor(accent: String): String? = when (accent) {
-            "orange" -> LauncherOrange
-            "red" -> LauncherRed
-            "pink" -> LauncherPink
-            "purple" -> LauncherPurple
-            "indigo" -> LauncherIndigo
-            "blue" -> LauncherBlue
-            "teal" -> LauncherTeal
-            "green" -> LauncherGreen
-            "amber" -> LauncherAmber
-            "brown" -> LauncherBrown
-            "cyan" -> LauncherCyan
-            "lime" -> LauncherLime
-            "slate" -> LauncherSlate
-            "deepPurple" -> LauncherDeepPurple
-            "deepOrange" -> LauncherDeepOrange
-            else -> null
-        }
+    /**
+     * The alias wearing [accent] and [monogram]'s mark.
+     *
+     * Built rather than listed. Thirty aliases is thirty constants that have to
+     * agree with thirty manifest entries, and the rule that connects them is one
+     * line — so writing it out fifteen more times would be fifteen more chances
+     * to be wrong about it.
+     */
+    private fun aliasFor(accent: String, monogram: Boolean): String? {
+        val name = ACCENT_NAMES[accent] ?: return null
+        return "$PACKAGE.Launcher$name${if (monogram) "Monogram" else ""}"
+    }
 
     companion object {
         private const val CHANNEL = "app.tab.mail/launcher"
@@ -175,38 +174,35 @@ class MainActivity : FlutterActivity() {
         private const val VOICE_REQUEST = 7301
         private const val PACKAGE = "app.tab.mail"
 
-        private const val LauncherOrange = "$PACKAGE.LauncherOrange"
-        private const val LauncherRed = "$PACKAGE.LauncherRed"
-        private const val LauncherPink = "$PACKAGE.LauncherPink"
-        private const val LauncherPurple = "$PACKAGE.LauncherPurple"
-        private const val LauncherIndigo = "$PACKAGE.LauncherIndigo"
-        private const val LauncherBlue = "$PACKAGE.LauncherBlue"
-        private const val LauncherTeal = "$PACKAGE.LauncherTeal"
-        private const val LauncherGreen = "$PACKAGE.LauncherGreen"
-        private const val LauncherAmber = "$PACKAGE.LauncherAmber"
-        private const val LauncherBrown = "$PACKAGE.LauncherBrown"
-        private const val LauncherCyan = "$PACKAGE.LauncherCyan"
-        private const val LauncherLime = "$PACKAGE.LauncherLime"
-        private const val LauncherSlate = "$PACKAGE.LauncherSlate"
-        private const val LauncherDeepPurple = "$PACKAGE.LauncherDeepPurple"
-        private const val LauncherDeepOrange = "$PACKAGE.LauncherDeepOrange"
 
-        private val ALL_ALIASES = listOf(
-            LauncherOrange,
-            LauncherRed,
-            LauncherPink,
-            LauncherPurple,
-            LauncherIndigo,
-            LauncherBlue,
-            LauncherTeal,
-            LauncherGreen,
-            LauncherAmber,
-            LauncherBrown,
-            LauncherCyan,
-            LauncherLime,
-            LauncherSlate,
-            LauncherDeepPurple,
-            LauncherDeepOrange,
+        /** Accent key, as the app names it, to the capitalised part of its alias. */
+        private val ACCENT_NAMES = mapOf(
+            "orange" to "Orange",
+            "red" to "Red",
+            "pink" to "Pink",
+            "purple" to "Purple",
+            "indigo" to "Indigo",
+            "blue" to "Blue",
+            "teal" to "Teal",
+            "green" to "Green",
+            "amber" to "Amber",
+            "brown" to "Brown",
+            "cyan" to "Cyan",
+            "lime" to "Lime",
+            "slate" to "Slate",
+            "deepPurple" to "DeepPurple",
+            "deepOrange" to "DeepOrange",
         )
+
+        /**
+         * Every alias this build ships: each accent with each mark.
+         *
+         * Derived from [ACCENT_NAMES] rather than written out, so adding an
+         * accent or a mark is one line here and the disabling loop cannot fall
+         * out of step with it.
+         */
+        private val ALL_ALIASES = ACCENT_NAMES.values.flatMap { name ->
+            listOf("$PACKAGE.Launcher$name", "$PACKAGE.Launcher${name}Monogram")
+        }
     }
 }

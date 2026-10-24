@@ -16,11 +16,16 @@ import '../data/accents.dart';
 abstract final class LauncherIcon {
   static const MethodChannel _channel = MethodChannel('app.tab.mail/launcher');
 
-  /// Points the launcher entry at [accent]'s icon.
-  static Future<void> apply(AceAccent accent) async {
+  /// Points the launcher entry at [accent]'s icon, wearing [monogram]'s mark.
+  ///
+  /// Two marks, one set of backgrounds: the switch changes the foreground layer
+  /// and nothing else, which is what makes the two icons the same app rather
+  /// than two designs.
+  static Future<void> apply(AceAccent accent, {bool monogram = false}) async {
     try {
       await _channel.invokeMethod<bool>('setLauncherAccent', <String, Object?>{
         'accent': accent.name,
+        'monogram': monogram,
       });
     } catch (_) {
       // Not Android, or a build without the aliases. The icon keeps the colour

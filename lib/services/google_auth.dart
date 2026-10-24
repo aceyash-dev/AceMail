@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'google_desktop_auth.dart';
@@ -77,15 +78,49 @@ abstract final class GoogleAuth {
     }
   }
 
+  /// Where the signed-in account's address and name are kept.
+  ///
+  /// The desktop path has always cached these; the mobile path asked the plugin
+  /// every time, and that call can **prompt**. `attemptLightweightAuthentication`
+  /// is documented as minimal-interaction, but its implementation falls through
+  /// to a second attempt with `autoSelectEnabled: false` when nothing can be
+  /// auto-selected — which shows the Credential Manager picker. So a lookup that
+  /// is supposed to be silent could put a sheet on screen when the app opened,
+  /// before anybody had touched anything.
+  ///
+  /// A cached answer cannot prompt, and it is the only answer needed: the
+  /// greeting wants the name of the account that is signed in, and if none is,
+  /// there is no name to want.
+  static const String _keyEmail = 'ace.google.email';
+  static const String _keyName = 'ace.google.name';
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
+  static Future<String?> _read(String key) async {
+    try {
+      final String? value = await _storage.read(key: key);
+      return (value == null || value.isEmpty) ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _write(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {
+      // A keychain that will not take it costs a greeting, not a sign-in.
+    }
+  }
+
   /// The account already signed in to this device, without showing anything.
   ///
-  /// Null is the ordinary answer, not a failure: it means nobody has signed in
-  /// yet, or the last grant was withdrawn.
+  /// Read from the cache, never from the plugin: see [_keyEmail]. Null is the
+  /// ordinary answer — nobody has signed in yet, or the last grant was
+  /// withdrawn — and it is a fine one, because a name is only knowable for an
+  /// account that is actually signed in.
   static Future<String?> knownEmail() async {
     if (_desktop) return GoogleDesktopAuth.knownEmail();
-    await _prepare();
-    final GoogleSignInAccount? account = await _lightweight();
-    return account?.email;
+    return _read(_keyEmail);
   }
 
   /// The name Google has for the signed-in account, if there is one.
@@ -94,10 +129,7 @@ abstract final class GoogleAuth {
   /// provider here that can say what to call somebody without being asked.
   static Future<String?> knownName() async {
     if (_desktop) return GoogleDesktopAuth.knownName();
-    await _prepare();
-    final GoogleSignInAccount? account = await _lightweight();
-    final String? name = account?.displayName?.trim();
-    return (name == null || name.isEmpty) ? null : name;
+    return _read(_keyName);
   }
 
   /// Asks the user to choose an account and consent, and returns a token.
@@ -131,6 +163,13 @@ abstract final class GoogleAuth {
       final GoogleSignInAccount? picked = await _lightweight();
       final GoogleSignInAccount account =
           picked ?? await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+      // Kept, so the greeting and the account row never have to ask the plugin
+      // anything — asking is what can prompt.
+      await _write(_keyEmail, account.email);
+      final String? display = account.displayName?.trim();
+      if (display != null && display.isNotEmpty) {
+        await _write(_keyName, display);
+      }
       final String token = await _tokenFor(account, allowPrompt: true);
       final String? name = account.displayName?.trim();
       return (
@@ -165,6 +204,14 @@ abstract final class GoogleAuth {
   static Future<void> forget() async {
     if (_desktop) return GoogleDesktopAuth.forget();
     await _prepare();
+    // Signed out is signed out: a cached name would outlive the account.
+    for (final String key in <String>[_keyEmail, _keyName]) {
+      try {
+        await _storage.delete(key: key);
+      } catch (_) {
+        // Nothing to do about it.
+      }
+    }
     try {
       await GoogleSignIn.instance.signOut();
     } on GoogleSignInException {

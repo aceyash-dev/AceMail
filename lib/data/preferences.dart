@@ -136,6 +136,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyChymeReadsMail = 'ace.chymeReadsMail';
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
   static const String _keyGlass = 'ace.glass';
+  static const String _keyLauncherMonogram = 'ace.launcherMonogram';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -182,6 +183,7 @@ class Preferences extends ChangeNotifier {
     _keyChymeReadsMail,
     _keyWarnMissingAttachment,
     _keyGlass,
+    _keyLauncherMonogram,
   ];
 
   final FlutterSecureStorage _storage;
@@ -254,6 +256,7 @@ class Preferences extends ChangeNotifier {
   bool _chymeReadsMail = true;
   bool _warnMissingAttachment = true;
   GlassMode _glass = GlassMode.auto;
+  bool _launcherMonogram = false;
   Map<String, int> _lastSeen = <String, int>{};
 
   /// Whether sender pictures are fetched from Gravatar.
@@ -460,6 +463,18 @@ class Preferences extends ChangeNotifier {
   Future<void> setChymeReadsMail(bool value) =>
       _write(_keyChymeReadsMail, '$value', () => _chymeReadsMail = value);
 
+  /// Whether the launcher icon wears the monogram rather than the envelope.
+  ///
+  /// The envelope is the default: it is the mark the app has worn, and a change
+  /// of icon is something somebody opts into rather than discovers.
+  bool get launcherMonogram => _launcherMonogram;
+
+  Future<void> setLauncherMonogram(bool value) => _write(
+        _keyLauncherMonogram,
+        value.toString(),
+        () => _launcherMonogram = value,
+      );
+
   Future<void> setGlass(GlassMode value) =>
       _write(_keyGlass, value.name, () => _glass = value);
 
@@ -550,6 +565,8 @@ class Preferences extends ChangeNotifier {
       _warnMissingAttachment,
     );
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
+    _launcherMonogram =
+        _decodeBool(raw[_keyLauncherMonogram], _launcherMonogram);
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 

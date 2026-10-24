@@ -398,6 +398,29 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => _chooseAccent(context, prefs),
                 ),
                 SettingsRow(
+                  icon: AceIcons.image,
+                  title: 'Launcher icon',
+                  subtitle: 'The envelope it has always worn, or the monogram. '
+                      'The accent colour stays either way.',
+                  value: prefs.launcherMonogram ? 'Monogram' : 'Envelope',
+                  onTap: () async {
+                    final bool? monogram = await showChoiceSheet<bool>(
+                      context,
+                      title: 'Launcher icon',
+                      current: prefs.launcherMonogram,
+                      choices: const <SettingsChoice<bool>>[
+                        SettingsChoice<bool>(false, 'Envelope'),
+                        SettingsChoice<bool>(true, 'Monogram'),
+                      ],
+                    );
+                    if (monogram == null) return;
+                    await prefs.setLauncherMonogram(monogram);
+                    // Applied straight away: an icon setting that needs a
+                    // restart is a setting nobody believes took.
+                    await LauncherIcon.apply(prefs.accent, monogram: monogram);
+                  },
+                ),
+                SettingsRow(
                   icon: AceIcons.blur,
                   title: 'See-through surfaces',
                   subtitle: AceGlass.limitation,
@@ -867,7 +890,7 @@ class SettingsScreen extends StatelessWidget {
     // The launcher icon wears the accent, so it is repainted with it. Best
     // effort: a launcher that will not co-operate leaves the old icon, and
     // nothing else notices.
-    await LauncherIcon.apply(chosen);
+    await LauncherIcon.apply(chosen, monogram: prefs.launcherMonogram);
   }
 
   Future<void> _chooseSwipe(

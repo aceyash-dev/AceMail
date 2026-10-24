@@ -54,7 +54,12 @@ Future<void> main() async {
   // The launcher icon wears the accent. Applied on every start rather than only
   // when the setting changes, because the alias that carries it can be reset by
   // an install over the top of an old build.
-  unawaited(LauncherIcon.apply(preferences.accent));
+  unawaited(
+    LauncherIcon.apply(
+      preferences.accent,
+      monogram: preferences.launcherMonogram,
+    ),
+  );
 
   // Registered before the first frame, so a scheduled check that fires while
   // the app is closed has somewhere to land. Nothing is scheduled unless the
