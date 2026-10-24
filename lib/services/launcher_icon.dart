@@ -21,6 +21,7 @@ import '../data/accents.dart';
 /// silently does nothing.
 enum LauncherMark {
   envelope('', 'Envelope'),
+  sealed('Sealed', 'Sealed'),
   letterA('A', 'A'),
   open('Open', 'Open envelope');
 

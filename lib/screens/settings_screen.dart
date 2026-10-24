@@ -14,6 +14,7 @@ import '../services/app_lock.dart';
 import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
+import '../services/translate.dart';
 import '../state/mail_controller.dart';
 import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
@@ -657,6 +658,57 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
             SettingsSection(
+              title: 'Translation',
+              children: <Widget>[
+                SettingsRow(
+                  icon: AceIcons.globe,
+                  title: 'Translate into',
+                  subtitle: 'The language the Translate action uses.',
+                  value: Translate.nameFor(prefs.translateTo),
+                  onTap: () async {
+                    final String? chosen = await showChoiceSheet<String>(
+                      context,
+                      title: 'Translate into',
+                      current: prefs.translateTo,
+                      choices: <SettingsChoice<String>>[
+                        for (final MapEntry<String, String> e
+                            in Translate.languages.entries)
+                          SettingsChoice<String>(e.key, e.value),
+                      ],
+                    );
+                    if (chosen != null) await prefs.setTranslateTo(chosen);
+                  },
+                ),
+                SettingsRow(
+                  icon: AceIcons.cloud,
+                  title: 'Translation service',
+                  subtitle: 'A LibreTranslate endpoint. The project\'s own is '
+                      'rate limited, so a server of your own is worth having.',
+                  value: prefs.translateEndpoint,
+                  onTap: () => _editText(
+                    context,
+                    title: 'Translation service',
+                    hint: 'https://libretranslate.com',
+                    value: prefs.translateEndpoint,
+                    onSave: prefs.setTranslateEndpoint,
+                  ),
+                ),
+                SettingsRow(
+                  icon: AceIcons.password,
+                  title: 'API key',
+                  subtitle: 'Only if the endpoint asks for one.',
+                  value: prefs.translateKey.isEmpty ? 'None' : 'Set',
+                  onTap: () => _editText(
+                    context,
+                    title: 'API key',
+                    hint: 'optional',
+                    value: prefs.translateKey,
+                    onSave: prefs.setTranslateKey,
+                  ),
+                ),
+              ],
+            ),
+            SettingsSection(
               title: 'Support',
               children: <Widget>[
                 SettingsRow(
@@ -1154,4 +1206,43 @@ Future<void> _mailSupport(BuildContext context) async {
   } catch (_) {
     if (context.mounted) AceSnack.show(context, 'hello@ace-base.cc');
   }
+}
+
+/// One line of text, in a dialog.
+///
+/// A dialog rather than a row that edits in place: these are addresses and keys,
+/// they are edited once, and a row that turns into a field is a row that has
+/// stopped being a row.
+Future<void> _editText(
+  BuildContext context, {
+  required String title,
+  required String hint,
+  required String value,
+  required Future<void> Function(String) onSave,
+}) async {
+  final TextEditingController controller = TextEditingController(text: value);
+  final String? saved = await showDialog<String>(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: InputDecoration(hintText: hint),
+        onSubmitted: (String text) => Navigator.of(dialogContext).pop(text),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (saved != null) await onSave(saved);
 }

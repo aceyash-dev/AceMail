@@ -206,7 +206,7 @@ class MainActivity : FlutterActivity() {
          * out of step with it.
          */
         /** The marks, as the suffix each one adds to an alias name. */
-        private val MARK_SUFFIXES = listOf("", "A", "Open")
+        private val MARK_SUFFIXES = listOf("", "Sealed", "A", "Open")
 
         private val ALL_ALIASES = ACCENT_NAMES.values.flatMap { name ->
             MARK_SUFFIXES.map { suffix -> "$PACKAGE.Launcher$name$suffix" }

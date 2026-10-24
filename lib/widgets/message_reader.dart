@@ -13,6 +13,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
+import '../services/translate.dart';
 import '../util/links.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
@@ -172,6 +173,11 @@ class _MessageReaderState extends State<MessageReader> {
 
     return AceToolbar(
       actions: <AceToolbarAction>[
+        AceToolbarAction(
+          icon: AceIcons.globe,
+          tooltip: 'Translate',
+          onPressed: () => _translate(context, message),
+        ),
         AceToolbarAction(
           icon: AceIcons.reply,
           tooltip: 'Reply',
@@ -760,4 +766,115 @@ class _PlainBodyState extends State<_PlainBody> {
       TextSpan(style: AstryxText.body(c.textPrimary), children: spans),
     );
   }
+}
+
+/// Asks the configured endpoint to put this message in the configured language.
+///
+/// Nothing is sent until somebody taps this. A mail client that forwarded
+/// message bodies to a third party in the background would be doing something
+/// its owner never agreed to.
+Future<void> _translate(BuildContext context, FullMessage message) async {
+  final Preferences prefs = context.read<Preferences>();
+  final String body = message.textBody.trim();
+  if (body.isEmpty) {
+    AceSnack.show(context, 'There is no text in this message to translate.');
+    return;
+  }
+
+  final AstryxColors c = context.astryx;
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AstryxSpace.s5,
+          0,
+          AstryxSpace.s5,
+          AstryxSpace.s5,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                AceIconView(icon: AceIcons.globe, size: 18, color: c.textAccent),
+                const SizedBox(width: AstryxSpace.s2),
+                Text(
+                  'Translating to ${Translate.nameFor(prefs.translateTo)}',
+                  style: AstryxText.heading4(c.textPrimary),
+                ),
+              ],
+            ),
+            const SizedBox(height: AstryxSpace.s3),
+            const SizedBox(
+              height: 120,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  try {
+    final String translated = await Translate.text(
+      body,
+      target: prefs.translateTo,
+      endpoint: prefs.translateEndpoint,
+      apiKey: prefs.translateKey,
+    );
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    await _showTranslation(context, translated, prefs.translateTo);
+  } on TranslateException catch (error) {
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    AceSnack.show(context, error.message);
+  }
+}
+
+/// The translation, in a sheet of its own, with the original one tap away.
+Future<void> _showTranslation(
+  BuildContext context,
+  String translated,
+  String language,
+) async {
+  final AstryxColors c = context.astryx;
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AstryxSpace.s5,
+          0,
+          AstryxSpace.s5,
+          AstryxSpace.s5,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              Translate.nameFor(language),
+              style: AstryxText.heading4(c.textPrimary),
+            ),
+            const SizedBox(height: AstryxSpace.s3),
+            Flexible(
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  translated,
+                  style: AstryxText.body(c.textPrimary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

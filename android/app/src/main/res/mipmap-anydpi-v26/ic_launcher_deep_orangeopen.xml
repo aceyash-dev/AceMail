@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ace Mail wearing deep_orange, with the open mark.
-
-     The background is the accent drawable and the mark is the foreground, so
-     the switch changes one layer and the accent stays what it is. -->
+<!-- Ace Mail wearing deep_orange, with the open mark. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_bg_deep_orange" />
     <foreground android:drawable="@drawable/ic_launcher_mark_open" />

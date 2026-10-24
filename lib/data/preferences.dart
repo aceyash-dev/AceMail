@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/launcher_icon.dart';
+import '../services/translate.dart';
 import 'accents.dart';
 import '../models/glass_mode.dart';
 import '../models/message_sort.dart';
@@ -138,6 +139,9 @@ class Preferences extends ChangeNotifier {
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
   static const String _keyGlass = 'ace.glass';
   static const String _keyLauncherMark = 'ace.launcherMark';
+  static const String _keyTranslateEndpoint = 'ace.translateEndpoint';
+  static const String _keyTranslateTo = 'ace.translateTo';
+  static const String _keyTranslateKey = 'ace.translateKey';
   static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
   static const String _keyCheckStatus = 'ace.checkStatus';
 
@@ -189,6 +193,9 @@ class Preferences extends ChangeNotifier {
     _keyWarnMissingAttachment,
     _keyGlass,
     _keyLauncherMark,
+    _keyTranslateEndpoint,
+    _keyTranslateTo,
+    _keyTranslateKey,
   ];
 
   final FlutterSecureStorage _storage;
@@ -262,6 +269,13 @@ class Preferences extends ChangeNotifier {
   bool _warnMissingAttachment = true;
   GlassMode _glass = GlassMode.auto;
   LauncherMark _launcherMark = LauncherMark.envelope;
+
+  /// Where translations are asked for. A setting, not a constant: there is no
+  /// single LibreTranslate instance, and the project's own is rate limited and
+  /// wants a key.
+  String _translateEndpoint = Translate.defaultEndpoint;
+  String _translateTo = 'en';
+  String _translateKey = '';
   Map<String, int> _lastSeen = <String, int>{};
 
   /// The UIDVALIDITY each saved UID was read under.
@@ -493,6 +507,22 @@ class Preferences extends ChangeNotifier {
   /// background is not a setting — it is the accent, and it follows it.
   LauncherMark get launcherMark => _launcherMark;
 
+  String get translateEndpoint => _translateEndpoint;
+  String get translateTo => _translateTo;
+  String get translateKey => _translateKey;
+
+  Future<void> setTranslateEndpoint(String value) => _write(
+        _keyTranslateEndpoint,
+        value.trim(),
+        () => _translateEndpoint = value.trim(),
+      );
+
+  Future<void> setTranslateTo(String value) =>
+      _write(_keyTranslateTo, value, () => _translateTo = value);
+
+  Future<void> setTranslateKey(String value) =>
+      _write(_keyTranslateKey, value.trim(), () => _translateKey = value.trim());
+
   Future<void> setLauncherMark(LauncherMark value) => _write(
         _keyLauncherMark,
         value.name,
@@ -639,6 +669,10 @@ class Preferences extends ChangeNotifier {
       _warnMissingAttachment,
     );
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
+    _translateEndpoint =
+        raw[_keyTranslateEndpoint] ?? _translateEndpoint;
+    _translateTo = raw[_keyTranslateTo] ?? _translateTo;
+    _translateKey = raw[_keyTranslateKey] ?? _translateKey;
     _launcherMark = _decodeEnum(
       raw[_keyLauncherMark],
       LauncherMark.values,
