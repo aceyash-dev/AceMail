@@ -51,7 +51,6 @@ class MailProvider {
   /// it is a claim the app cannot back.
   final String logo;
 
-  MailServer? get server => kMailProviders[domains.first];
 }
 
 /// The providers the picker offers.
