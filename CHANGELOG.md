@@ -2,6 +2,64 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
+## 0.5.3
+
+### Added
+- **Sign in with Google, in Credential Manager's own sheet.** The sign-in screen
+  asks for `GetSignInWithGoogleOption`, which is the bottom sheet with "Sign in
+  with Google" on it — the one the rest of the system shows. The account is also
+  remembered for the session, so refreshing a token on the reconnect path no
+  longer asks the plugin anything: that call tries quietly and then *prompts*,
+  so a sheet could appear while you were opening a folder.
+- **A launcher icon with both layers as settings.** The foreground is the
+  envelope or the monogram; the background is any of the fifteen accents or
+  "Same as the app", which is the default. They were one setting before, so
+  changing how the app looked changed the icon whether you wanted it to or not.
+- **An onboarding that asks where your mail is, on the first screen.** The six
+  providers are their own marks, with "Other" beside them, and tapping one fills
+  in the servers before the next screen opens. It used to be a "Get started"
+  button that asked for nothing and told you nothing — you pressed it to find
+  out what the next screen wanted. The form is a sheet now, and the three
+  reasons moved below the marks.
+- **Links in plain-text mail are tappable.** The formatted path already handed
+  URLs to the platform; the plain-text path drew them as text and did nothing.
+  `mailto:` and bare addresses count, because in a mail client "write to
+  hi@example.com" is how people give you an address.
+
+### Changed
+- **The link confirmation leads with the host.** It always showed the address
+  rather than the sender's words, so a deceptive label was handled — but a long
+  URL buries the host, and burying it is what a deceptive link relies on. The
+  whole address is still there underneath.
+- **Transport security is a setting.** IMAP and SMTP each carry a mode —
+  implicit TLS or STARTTLS — instead of inferring it from the port inline. A
+  server that will not encrypt is refused rather than downgraded, and the
+  certificate is validated either way.
+
+### Fixed
+- **A server that offers IMAP only on port 143 could not be reached at all.**
+  The connection was `isSecure: true` unconditionally: right for 993, wrong for
+  143, where the server waits for STARTTLS and gets a TLS handshake instead.
+- **New-mail notifications could go silent after a mailbox was recreated.** The
+  checker remembered the highest UID and compared against it, but a UID means
+  nothing outside its mailbox namespace — a provider that starts numbering again
+  from one left the marker above every new message, so nothing ever looked new.
+- **Two first writes to the cache could make a record unopenable.** Both found
+  an empty vault, both minted key version 1, and the second replaced the key the
+  first had already sealed with. One mint at a time now.
+- **The domain field clipped its text.** `@gmail.com` came out as `@gmail.c`,
+  cut off with no ellipsis to say so. The two fields shared the width and the
+  domain lost; they are one above the other now.
+- **A background check that could not ask is no longer reported as one that
+  found nothing.** The worker returned success unconditionally, so a device that
+  lost its network mid-check never triggered a retry. Failures are separated
+  into those worth retrying and those that are not.
+- **Caching a message no longer stats the whole cache.** The byte count walked
+  the directory and was checked on the way out of every write, so the cost grew
+  with the cache. It is a running total now.
+- **The star drew the same glyph starred and unstarred**, and a trash swipe now
+  shreds the row instead of removing it instantly.
+
 ## 0.5.2
 
 ### Added

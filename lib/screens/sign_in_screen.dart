@@ -388,33 +388,35 @@ class _SignInScreenState extends State<SignInScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
-                                          Row(
-                                            children: <Widget>[
-                                              Expanded(
-                                                flex: 3,
-                                                child: AceFormField(
-                                                  label: 'Username',
-                                                  controller: _form.username,
-                                                  hint: 'you',
-                                                  keyboard: TextInputType
-                                                      .emailAddress,
-                                                  autofillHints: const <String>[
-                                                    AutofillHints.username,
-                                                    AutofillHints.email,
-                                                  ],
-                                                ),
-                                              ),
-                                              const SizedBox(
-                                                  width: AstryxSpace.s3),
-                                              Expanded(
-                                                flex: 4,
-                                                child: _DomainField(
-                                                  form: _form,
-                                                  onChanged: () =>
-                                                      setState(() {}),
-                                                ),
-                                              ),
+                                          // One above the other, not side by
+                                          // side. The two fields were sharing
+                                          // the width and the domain lost:
+                                          // `@gmail.com` came out as
+                                          // `@gmail.c`, cut off mid-word, with
+                                          // no ellipsis to say so. The field's
+                                          // text is not small, and no split of
+                                          // a phone's width fits ten characters
+                                          // of it.
+                                          AceFormField(
+                                            label: 'Username',
+                                            controller: _form.username,
+                                            hint: 'you',
+                                            keyboard:
+                                                TextInputType.emailAddress,
+                                            autofillHints: const <String>[
+                                              AutofillHints.username,
+                                              AutofillHints.email,
                                             ],
+                                          ),
+                                          const SizedBox(
+                                              height: AstryxSpace.s3),
+                                          // The provider was chosen on the
+                                          // previous screen, so this is the
+                                          // domain it hands out — shown in
+                                          // full, and changeable.
+                                          _DomainField(
+                                            form: _form,
+                                            onChanged: () => setState(() {}),
                                           ),
                                           const SizedBox(height: AstryxSpace.s5),
                                           AceButton(
