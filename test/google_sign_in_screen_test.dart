@@ -35,7 +35,7 @@ Future<void> _pumpSignInScreen(
 }) async {
   await tester.pumpWidget(
     MultiProvider(
-      providers: <SingleChildWidget>[
+      providers: [
         ChangeNotifierProvider<MailController>.value(value: controller),
         // The sheet draws the app's material, and the material asks the
         // preferences which kind. A real app always has one; a test has to say
