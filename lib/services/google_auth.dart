@@ -101,12 +101,36 @@ abstract final class GoogleAuth {
   }
 
   /// Asks the user to choose an account and consent, and returns a token.
+  ///
+  /// **Two sheets, and the plugin decides which.** Under Credential Manager:
+  ///
+  /// * `attemptLightweightAuthentication` sends `useButtonFlow: false`, which
+  ///   the plugin turns into `GetGoogleIdOption` — the Credential Manager
+  ///   picker. It lists the accounts *and the passkeys* on the device, which is
+  ///   the sheet the rest of the system shows for signing in.
+  /// * `authenticate` sends `useButtonFlow: true`, which becomes
+  ///   `GetSignInWithGoogleOption` — Google's own branded "Sign in with Google"
+  ///   sheet.
+  ///
+  /// The picker is asked for first, because it is the one that can use a
+  /// passkey and the one that looks like every other sign-in on the device. The
+  /// branded sheet is the fallback, and it is not a downgrade: it is the only
+  /// one of the two that can *add* an account, so a device with no Google
+  /// account on it needs it.
+  ///
+  /// A cancel and an empty device are indistinguishable from here — both come
+  /// back null — so the fallback runs on either, and a cancelled picker is
+  /// followed by the branded sheet. That is the cost of the fallback, and it is
+  /// the smaller of the two annoyances: the alternative is a phone with no
+  /// account on it that can never sign in.
   static Future<GoogleCredential> signIn() async {
     if (_desktop) return GoogleDesktopAuth.signIn();
     try {
       await _prepare();
+
+      final GoogleSignInAccount? picked = await _lightweight();
       final GoogleSignInAccount account =
-          await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+          picked ?? await GoogleSignIn.instance.authenticate(scopeHint: scopes);
       final String token = await _tokenFor(account, allowPrompt: true);
       final String? name = account.displayName?.trim();
       return (
