@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
@@ -18,6 +19,7 @@ import 'chyme_mark.dart';
 import 'markdown_view.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
+import '../screens/compose_screen.dart';
 
 /// Chyme, as a sheet.
 ///
@@ -235,7 +237,27 @@ class _ChymeSheetState extends State<ChymeSheet> {
                       borderRadius: BorderRadius.circular(AstryxRadius.element),
                     ),
                     child: Center(
-                      child: ChymeMark(size: 20, color: c.onAccentMuted),
+                      // Chyme arrives rather than being there. A mark that is
+                      // simply present reads as an icon; one that lands reads as
+                      // something that just turned up, which is what opening
+                      // this sheet is.
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0, end: 1),
+                        duration: AstryxMotion.of(
+                          const Duration(milliseconds: 520),
+                        ),
+                        curve: Curves.easeOutBack,
+                        builder: (
+                          BuildContext context,
+                          double t,
+                          Widget? child,
+                        ) =>
+                            Transform.rotate(
+                          angle: (1 - t) * -0.6,
+                          child: Transform.scale(scale: 0.5 + t * 0.5, child: child),
+                        ),
+                        child: ChymeMark(size: 20, color: c.onAccentMuted),
+                      ),
                     ),
                   ),
                   const SizedBox(width: AstryxSpace.s3),
@@ -391,11 +413,37 @@ class _Bubble extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AstryxSpace.s3),
-      child: Row(
-        mainAxisAlignment:
-            mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment:
+            mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: <Widget>[
-          Flexible(
+          // What Chyme wrote is the useful part, and there are only ever two
+          // things anybody wants to do with it: keep it, or start a message with
+          // it. Both are one tap rather than a selection and a long press.
+          if (!mine)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                AceIconButton(
+                  icon: AceIcons.copy,
+                  tooltip: 'Copy',
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (context.mounted) AceSnack.show(context, 'Copied.');
+                  },
+                ),
+                AceIconButton(
+                  icon: AceIcons.edit,
+                  tooltip: 'Start a message with this',
+                  onPressed: () => openComposeSheet(context, initialBody: text),
+                ),
+              ],
+            ),
+          Row(
+            mainAxisAlignment:
+                mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: <Widget>[
+              Flexible(
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AstryxSpace.s4,
@@ -418,9 +466,10 @@ class _Bubble extends StatelessWidget {
                       onLink: (String url) =>
                           openMarkdownLink(context, url),
                     ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

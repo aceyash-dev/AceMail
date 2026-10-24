@@ -794,17 +794,22 @@ class InitialsAvatar extends StatelessWidget {
     final AstryxColors c = context.astryx;
     final Color background = tone ?? _toneFor(seed ?? initials, c);
 
-    return CustomPaint(
-      painter: _AvatarTile(color: background),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: Center(
-          child: Text(
-            initials,
-            style: AstryxText.bodyStrong(c.onAccentMuted).copyWith(
-              fontSize: size * 0.36,
-              color: c.onAccentMuted,
+    // Clipped round. The painter below draws the squircle, which is the app's
+    // own shape and reads well on a card — on an avatar it reads as an
+    // unfinished box, and the thing inside it is a person.
+    return ClipOval(
+      child: CustomPaint(
+        painter: _AvatarTile(color: background),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Text(
+              initials,
+              style: AstryxText.bodyStrong(c.onAccentMuted).copyWith(
+                fontSize: size * 0.36,
+                color: c.onAccentMuted,
+              ),
             ),
           ),
         ),

@@ -410,16 +410,43 @@ class _ComposeScreenState extends State<ComposeScreen> {
           ChymeTurn('system', Chyme.systemPrompt),
           ChymeTurn(
             'user',
-            'Write the body of an email. ${asked.trim()}'
+            // Asked for the shape as well as the words. A draft with no subject
+            // is a draft somebody has to finish before they can send it, and the
+            // subject is the one part a model is good at.
+            'Write an email. Reply with a line starting "Subject:" and then the '
+            'body, with a blank line between them. ${asked.trim()}'
             '${_to.text.trim().isEmpty ? '' : ' It is going to ${_to.text.trim()}.'}',
           ),
         ],
       );
       if (!mounted) return;
+
+      // The subject, when it gave one. A model that ignores the shape still
+      // produces a usable body, so a missing subject is not a failure — it is
+      // just the old behaviour.
+      String body = written;
+      String? subject;
+      final RegExpMatch? head = RegExp(
+        r'^\s*\**Subject\**:\s*(.+)$',
+        multiLine: true,
+        caseSensitive: false,
+      ).firstMatch(written);
+      if (head != null) {
+        subject = head.group(1)!.replaceAll('*', '').trim();
+        body = written.substring(head.end).trim();
+      }
+
       setState(() {
+        // Only when there is not one already: somebody who typed a subject has
+        // made a decision, and a draft is not allowed to overwrite it.
+        if (subject != null &&
+            subject.isNotEmpty &&
+            _subject.text.trim().isEmpty) {
+          _subject.text = subject;
+        }
         _body.text = _body.text.trim().isEmpty
-            ? written
-            : '${_body.text.trim()}\n\n$written';
+            ? body
+            : '${_body.text.trim()}\n\n$body';
         _sending = false;
       });
       AceSnack.show(context, 'Chyme wrote a draft — read it before sending.');

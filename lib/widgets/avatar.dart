@@ -218,12 +218,13 @@ class _MailAvatarState extends State<MailAvatar> {
 
   /// A continuous corner rather than a circle, to match the initials tile and
   /// the rest of the expressive shape language.
+  /// A circle, because a face is not a rounded square.
+  ///
+  /// The squircle was the app's own shape and it reads well for a *card*; on an
+  /// avatar it reads as an unfinished box, and the thing inside it is a person.
   Widget _clipped(Widget child) => SizedBox(
         width: widget.size,
         height: widget.size,
-        child: ClipPath(
-          clipper: const AceSquircleClipper(),
-          child: child,
-        ),
+        child: ClipOval(child: child),
       );
 }
