@@ -89,7 +89,7 @@ void main() {
   group('sanitizeFileName', () {
     test('does not split a surrogate pair at the filename cap', () {
       final String prefix = List<String>.filled(119, 'a').join();
-      expect(sanitizeFileName('${prefix}😀x'), prefix);
+      expect(sanitizeFileName('$prefix😀x'), prefix);
     });
   });
 }
