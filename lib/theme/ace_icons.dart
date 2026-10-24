@@ -56,6 +56,7 @@ abstract final class AceIcons {
   static const AceIcon chevronRight = HugeIcons.strokeRoundedChevronRight;
   static const AceIcon unfold = HugeIcons.strokeRoundedUnfoldMore;
   static const AceIcon list = HugeIcons.strokeRoundedLeftToRightListBullet;
+  static const AceIcon menu = HugeIcons.strokeRoundedMenu01;
 
   /// The drawer toggle. A hamburger says "a menu"; this says "the sidebar",
   /// which is what it opens.

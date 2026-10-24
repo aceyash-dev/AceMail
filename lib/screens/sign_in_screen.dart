@@ -574,13 +574,13 @@ class _SignInScreenState extends State<SignInScreen> {
         // account — offering it in two places, one of them before the question
         // has been asked, is how you end up with two buttons that do the same
         // thing and an error message on a screen with nothing to fail.
-        Text('Where is your mail?', style: AstryxText.title(c.textPrimary)),
+        Text('Where is your mail?', style: AstryxText.heading4(c.textPrimary)),
         const SizedBox(height: AstryxSpace.s4),
         Wrap(
           spacing: AstryxSpace.s2,
           runSpacing: AstryxSpace.s2,
           children: <Widget>[
-            for (final MailProvider provider in kMailProviders.values)
+            for (final MailProvider provider in kProviderChoices)
               _ProviderChoice(
                 provider: provider,
                 // The first domain, not a question about which: Gmail hands out
@@ -1286,7 +1286,11 @@ class _OtherProviderChoice extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AstryxRadius.inner),
                 border: Border.all(color: c.border),
               ),
-              child: Icon(AceIcons.globe, size: 18, color: c.textSecondary),
+              child: AceIconView(
+                icon: AceIcons.globe,
+                size: 18,
+                color: c.textSecondary,
+              ),
             ),
             const SizedBox(height: AstryxSpace.s1),
             Text('Other', style: AstryxText.supporting(c.textSecondary)),
