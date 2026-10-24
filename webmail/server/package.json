@@ -6,7 +6,7 @@
   "engines": { "node": ">=20" },
   "scripts": { "start": "node src/server.js", "check": "node --check src/server.js && node --check src/security.js && node --check src/mail.js", "test": "node --test" },
   "dependencies": {
-    "@google-auth-library/oauth2": "^9.15.1",
+    "google-auth-library": "^9.15.1",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",

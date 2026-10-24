@@ -3,8 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import Database from 'better-sqlite3';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
-import { encryptJson, decryptJson, assertPublicMailHost } from './security.js';
+import { encryptJson, assertPublicMailHost } from './security.js';
 import { listFolders, listMessages, readMessage, sendMessage } from './mail.js';
 
 const required = ['GOOGLE_WEB_CLIENT_ID', 'CREDENTIAL_ENCRYPTION_KEY', 'WEB_ORIGIN'];
@@ -12,7 +15,9 @@ for (const name of required) if (!process.env[name]) { console.error(`Missing re
 const port = Number(process.env.PORT || 8080);
 const origin = process.env.WEB_ORIGIN.replace(/\/$/, '');
 const google = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
-const db = new Database(process.env.DATABASE_PATH || './data/ace-mail-web.sqlite');
+const dbPath = process.env.DATABASE_PATH || './data/ace-mail-web.sqlite';
+mkdirSync(dirname(dbPath), { recursive: true });
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 db.exec(`CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, user_sub TEXT NOT NULL, email TEXT NOT NULL, encrypted_config TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_sub,email)); CREATE INDEX IF NOT EXISTS accounts_user_idx ON accounts(user_sub);`);
@@ -45,9 +50,7 @@ app.post('/api/auth/google', async (req, res) => {
     res.json({ ok: true, user: { email: p.email, name: p.name ?? '', picture: p.picture ?? null } });
   } catch { res.status(401).json({ error: 'Google identity token verification failed' }); }
 });
-app.get('/api/accounts', auth, (req, res) => {
-  res.json(db.prepare('SELECT id,email,created_at FROM accounts WHERE user_sub=? ORDER BY created_at').all(req.user.sub));
-});
+app.get('/api/accounts', auth, (req, res) => res.json(db.prepare('SELECT id,email,created_at FROM accounts WHERE user_sub=? ORDER BY created_at').all(req.user.sub)));
 app.post('/api/accounts', auth, async (req, res) => {
   const b = req.body ?? {};
   const email = String(b.email ?? '').trim().toLowerCase();
@@ -58,27 +61,20 @@ app.post('/api/accounts', auth, async (req, res) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 1 || password.length > 1024 || ![993,143].includes(imapPort) || ![465,587].includes(smtpPort)) return res.status(400).json({ error: 'Invalid account details or unsupported ports' });
   try {
     await Promise.all([assertPublicMailHost(imapHost), assertPublicMailHost(smtpHost)]);
-    // Only TLS-capable ports are supported. Port 143/587 are not accepted until explicit STARTTLS is implemented.
     if (imapPort !== 993 || smtpPort !== 465) return res.status(400).json({ error: 'This API currently supports implicit TLS only (IMAP 993 and SMTP 465).' });
-    const id = cryptoId();
     const config = { email, password, imapHost, imapPort, imapSecure: true, smtpHost, smtpPort, smtpSecure: true };
     const encrypted = encryptJson(config);
-    // Test IMAP credentials before saving them. No credentials are returned to the client.
     const { ImapFlow } = await import('imapflow');
     const client = new ImapFlow({ host: imapHost, port: imapPort, secure: true, auth: { user: email, pass: password }, logger: false, greetingTimeout: 12000, socketTimeout: 15000 });
     try { await client.connect(); await client.logout(); } catch { client.close(); return res.status(400).json({ error: 'Could not authenticate with IMAP. Check the host, address, and provider app password.' }); }
+    const id = randomUUID();
     db.prepare('INSERT INTO accounts(id,user_sub,email,encrypted_config) VALUES(?,?,?,?) ON CONFLICT(user_sub,email) DO UPDATE SET encrypted_config=excluded.encrypted_config').run(id, req.user.sub, email, encrypted);
-    res.status(201).json({ id, email });
+    const saved = db.prepare('SELECT id,email FROM accounts WHERE user_sub=? AND email=?').get(req.user.sub, email);
+    res.status(201).json(saved);
   } catch (e) { res.status(400).json({ error: safeMessage(e) }); }
 });
-function cryptoId() { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`; }
 function safeMessage(e) { const m = String(e?.message ?? 'Request failed'); return /hostname|public IP|resolve|credential|key/i.test(m) ? m : 'Could not complete the mail operation. Verify the settings and try again.'; }
-function accountFor(req, res) {
-  const id = String(req.params.accountId ?? '');
-  const row = db.prepare('SELECT id,email,encrypted_config FROM accounts WHERE id=? AND user_sub=?').get(id, req.user.sub);
-  if (!row) { res.status(404).json({ error: 'Mailbox not found' }); return null; }
-  return row;
-}
+function accountFor(req, res) { const row = db.prepare('SELECT id,email,encrypted_config FROM accounts WHERE id=? AND user_sub=?').get(String(req.params.accountId ?? ''), req.user.sub); if (!row) { res.status(404).json({ error: 'Mailbox not found' }); return null; } return row; }
 app.delete('/api/accounts/:accountId', auth, (req, res) => { const r = db.prepare('DELETE FROM accounts WHERE id=? AND user_sub=?').run(req.params.accountId, req.user.sub); res.status(r.changes ? 204 : 404).end(); });
 app.get('/api/accounts/:accountId/folders', auth, async (req, res) => { const a = accountFor(req,res); if (!a) return; try { res.json(await listFolders(a.encrypted_config)); } catch { res.status(502).json({ error: 'Could not connect to this mailbox.' }); } });
 app.get('/api/accounts/:accountId/messages', auth, async (req, res) => { const a = accountFor(req,res); if (!a) return; const folder = String(req.query.folder ?? 'INBOX'); if (folder.length > 255) return res.status(400).json({ error: 'Invalid folder' }); try { res.json(await listMessages(a.encrypted_config, folder, req.query.limit)); } catch { res.status(502).json({ error: 'Could not fetch messages from this mailbox.' }); } });
