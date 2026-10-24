@@ -64,7 +64,9 @@ void main() {
     expect(service, contains('final bool implicitTls = account.smtpPort == 465'));
     expect(RegExp('isSecure: implicitTls').allMatches(service).length, 2);
     expect(RegExp(r'startTls\(\)').allMatches(service).length, 2);
-    // The one thing that would make all of it pointless.
-    expect(service, isNot(contains('badCertificateCallback')));
+    // The certificate rule is checked above, across every file, with comments
+    // stripped — which is the only way it can be stated next to the code it
+    // governs. Repeating it here without stripping would fail on the sentence
+    // that explains it.
   });
 }
