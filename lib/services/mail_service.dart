@@ -101,7 +101,10 @@ class MailService implements MailTransport {
       // The certificate is still validated by the library in both modes. There
       // is no `badCertificateCallback` anywhere in this app and a test fails the
       // build if one appears — see test/transport_security_test.dart.
-      final bool implicitTls = account.imapPort == 993;
+      // The account's own setting, which is the port's word for it unless
+      // somebody said otherwise in the advanced panel.
+      final bool implicitTls =
+          account.imapTransport == MailSecurity.implicitTls;
       await client.connectToServer(
         account.imapHost,
         account.imapPort,
@@ -593,7 +596,8 @@ class MailService implements MailTransport {
       // upgraded with STARTTLS before the password is sent. Either way the
       // certificate is validated, and there is no path that sends credentials
       // over an unencrypted connection.
-      final bool implicitTls = account.smtpPort == 465;
+      final bool implicitTls =
+          account.smtpTransport == MailSecurity.implicitTls;
       await smtp.connectToServer(
         account.smtpHost,
         account.smtpPort,

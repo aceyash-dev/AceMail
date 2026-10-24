@@ -60,8 +60,8 @@ void main() {
     // upgraded with STARTTLS before a password is sent. What has to hold is that
     // both decide by the port and both upgrade — and that no branch leaves a
     // plain connection with credentials going into it.
-    expect(service, contains('final bool implicitTls = account.imapPort == 993'));
-    expect(service, contains('final bool implicitTls = account.smtpPort == 465'));
+    expect(service, contains('account.imapTransport == MailSecurity.implicitTls'));
+    expect(service, contains('account.smtpTransport == MailSecurity.implicitTls'));
     expect(RegExp('isSecure: implicitTls').allMatches(service).length, 2);
     expect(RegExp(r'startTls\(\)').allMatches(service).length, 2);
     // The certificate rule is checked above, across every file, with comments

@@ -6,6 +6,7 @@ import '../data/preferences.dart';
 import '../models/glass_mode.dart';
 import '../models/mail_folder.dart';
 import '../state/mail_controller.dart';
+import '../util/dates.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
@@ -79,6 +80,13 @@ class _Diagnostics extends StatelessWidget {
               label: 'Account',
               // The person's own address, on a screen they opened themselves.
               value: controller.account?.email ?? 'None',
+            ),
+            _Line(
+              label: 'Last check',
+              // What the background worker last did for this account. The
+              // category only — a server's error text can quote the command
+              // that failed, and the command can carry a password.
+              value: _lastCheckLine(context, controller),
             ),
             _Line(
               label: 'State',
@@ -217,4 +225,19 @@ class _Line extends StatelessWidget {
       ),
     );
   }
+}
+
+/// When this account was last checked, and what happened if it failed.
+///
+/// The two things the audit asked to be recorded, read back where somebody
+/// debugging a missing notification would look for them.
+String _lastCheckLine(BuildContext context, MailController controller) {
+  final String email = controller.account?.email ?? '';
+  if (email.isEmpty) return 'No account';
+  final Preferences prefs = context.watch<Preferences>();
+  final DateTime? at = prefs.lastCheck(email);
+  if (at == null) return 'Not yet run';
+  final String when = formatListDate(at);
+  final String? failure = prefs.lastCheckFailure(email);
+  return failure == null ? when : '$when — $failure';
 }

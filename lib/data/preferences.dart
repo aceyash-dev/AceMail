@@ -139,6 +139,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyLauncherMonogram = 'ace.launcherMonogram';
   static const String _keyLauncherBackground = 'ace.launcherBackground';
   static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
+  static const String _keyCheckStatus = 'ace.checkStatus';
 
   static const List<String> _keys = <String>[
     _keyAvatars,
@@ -165,6 +166,7 @@ class Preferences extends ChangeNotifier {
     _keyNotifyNewMail,
     _keyLastSeen,
     _keyLastSeenValidity,
+    _keyCheckStatus,
     _keyHaptics,
     _keyOled,
     _keyReduceMotion,
@@ -277,6 +279,16 @@ class Preferences extends ChangeNotifier {
   /// old namespace then sits above every new message, so nothing ever looks new
   /// again — silently, and until the UIDs climb back past it.
   Map<String, int> _lastSeenValidity = <String, int>{};
+
+  /// What the last background check of each account did.
+  ///
+  /// One short line per address — `<millisecondsSinceEpoch>:<category>` — where
+  /// the category is `ok`, `auth`, `connection` or `server`. Deliberately not
+  /// the error message: a server's text can quote the command that failed, and
+  /// the command can carry a password. A category is enough to tell somebody
+  /// "your password was refused" from "it could not reach the server", which is
+  /// the whole job.
+  Map<String, String> _checkStatus = <String, String>{};
 
   /// Whether sender pictures are fetched from Gravatar.
   ///
@@ -522,6 +534,48 @@ class Preferences extends ChangeNotifier {
   /// account, and a background isolate can read it the same way the app does.
   int lastSeenUid(String email) => _lastSeen[email.toLowerCase()] ?? 0;
 
+  /// Records what a check of [email] did. See [_checkStatus] for the format.
+  Future<void> recordCheck(String email, {required String category}) async {
+    _checkStatus[email.toLowerCase()] =
+        '${DateTime.now().millisecondsSinceEpoch}:$category';
+    await _write(_keyCheckStatus, jsonEncode(_checkStatus), () {});
+  }
+
+  /// When [email] was last checked successfully, or null if it never has been.
+  DateTime? lastGoodCheck(String email) {
+    final String? raw = _checkStatus[email.toLowerCase()];
+    if (raw == null) return null;
+    final List<String> parts = raw.split(':');
+    if (parts.length != 2 || parts[1] != 'ok') return null;
+    return _fromMillis(parts[0]);
+  }
+
+  /// What the last check of [email] said, as a word worth showing somebody.
+  /// Null when it has never been checked.
+  String? lastCheckFailure(String email) {
+    final String? raw = _checkStatus[email.toLowerCase()];
+    if (raw == null) return null;
+    final List<String> parts = raw.split(':');
+    if (parts.length != 2 || parts[1] == 'ok') return null;
+    return switch (parts[1]) {
+      'auth' => 'the password was refused',
+      'connection' => 'the server could not be reached',
+      _ => 'the server refused the check',
+    };
+  }
+
+  /// When [email] was last checked at all, whatever the answer.
+  DateTime? lastCheck(String email) {
+    final String? raw = _checkStatus[email.toLowerCase()];
+    if (raw == null) return null;
+    return _fromMillis(raw.split(':').first);
+  }
+
+  static DateTime? _fromMillis(String raw) {
+    final int? millis = int.tryParse(raw);
+    return millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis);
+  }
+
   /// The namespace [lastSeenUid] was recorded in. Zero means "not known".
   int lastSeenUidValidity(String email) =>
       _lastSeenValidity[email.toLowerCase()] ?? 0;
@@ -575,6 +629,7 @@ class Preferences extends ChangeNotifier {
     _notifyNewMail = _decodeBool(raw[_keyNotifyNewMail], _notifyNewMail);
     _lastSeen = _decodeLastSeen(raw[_keyLastSeen]);
     _lastSeenValidity = _decodeLastSeen(raw[_keyLastSeenValidity]);
+    _checkStatus = _decodeCheckStatus(raw[_keyCheckStatus]);
     _haptics = _decodeBool(raw[_keyHaptics], _haptics);
     _oled = _decodeBool(raw[_keyOled], _oled);
     _reduceMotion = _decodeBool(raw[_keyReduceMotion], _reduceMotion);
@@ -704,6 +759,20 @@ class Preferences extends ChangeNotifier {
 
   /// Best effort: a corrupt entry means no memory of what was seen, which costs
   /// one quiet check, not a crash.
+  static Map<String, String> _decodeCheckStatus(String? raw) {
+    if (raw == null || raw.isEmpty) return <String, String>{};
+    try {
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, String>{};
+      return <String, String>{
+        for (final MapEntry<Object?, Object?> e in decoded.entries)
+          if (e.value is String) '${e.key}': e.value! as String,
+      };
+    } catch (_) {
+      return <String, String>{};
+    }
+  }
+
   static Map<String, int> _decodeLastSeen(String? raw) {
     if (raw == null || raw.isEmpty) return <String, int>{};
     try {

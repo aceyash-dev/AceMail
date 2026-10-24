@@ -51,6 +51,11 @@ void mailCheckDispatcher() {
 Future<List<String>> checkAllAccounts({void Function()? onTransientFailure}) async {
   final List<String> withNews = <String>[];
 
+  // Its own handle, because this is where the outcome of each account is
+  // recorded and [checkOne] keeps its own.
+  final Preferences status = Preferences();
+  await status.load();
+
   final AccountLoad loaded;
   try {
     loaded = await AccountStore().loadAll();
@@ -65,12 +70,25 @@ Future<List<String>> checkAllAccounts({void Function()? onTransientFailure}) asy
     try {
       final bool has = await checkOne(stored);
       if (has) withNews.add(stored.account.email);
+      await status.recordCheck(stored.account.email, category: 'ok');
     } catch (error) {
       // One account failing must not stop the others, and must not crash a
       // background isolate where nobody would see it.
-      if (MailErrors.classify(error, fallback: '') is MailConnectionException) {
+      final MailException classified =
+          MailErrors.classify(error, fallback: '');
+      if (classified is MailConnectionException) {
         onTransientFailure?.call();
       }
+      // A category, never the message. A server's text can quote the command
+      // that failed, and the command can carry a password.
+      await status.recordCheck(
+        stored.account.email,
+        category: switch (classified) {
+          MailAuthException() => 'auth',
+          MailConnectionException() => 'connection',
+          _ => 'server',
+        },
+      );
       debugPrint(
         'Ace Mail: check failed for ${Redact.address(stored.account.email)} '
         '(${Redact.safe(error)})',
