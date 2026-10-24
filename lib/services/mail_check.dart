@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../data/account_store.dart';
 import '../data/preferences.dart';
+import '../data/scheduled.dart';
 import 'google_auth.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
@@ -34,6 +37,9 @@ void mailCheckDispatcher() {
     await checkAllAccounts(
       onTransientFailure: () => worthRetrying = true,
     );
+    // The same job from the person's point of view: something the app was going
+    // to do while they were not looking.
+    await sendDue(onTransientFailure: () => worthRetrying = true);
     return !worthRetrying;
   });
 }
@@ -187,5 +193,71 @@ Future<bool> checkOne(StoredAccount stored) async {
     return result.hasNews;
   } finally {
     await service.disconnect();
+  }
+}
+
+/// Sends anything whose moment has come.
+///
+/// Runs in the same worker as the mail check. A message that is due is sent and
+/// removed from the queue; one that fails is left where it is, so the next run
+/// tries again rather than losing it. Only a connection failure is worth
+/// retrying — a rejected password would be retried forever and never succeed.
+Future<void> sendDue({void Function()? onTransientFailure}) async {
+  await Scheduled.load();
+  final List<ScheduledSend> due = Scheduled.due(DateTime.now());
+  if (due.isEmpty) return;
+
+  final AccountLoad loaded;
+  try {
+    loaded = await AccountStore().loadAll();
+  } catch (error) {
+    onTransientFailure?.call();
+    debugPrint('Ace Mail: could not read accounts (${Redact.safe(error)})');
+    return;
+  }
+
+  for (final ScheduledSend message in due) {
+    // A loop rather than a collection extension: the app has no dependency for
+    // one, and a lookup that is written out cannot be the wrong helper.
+    StoredAccount? stored;
+    for (final StoredAccount candidate in loaded.accounts) {
+      if (candidate.account.email == message.account) {
+        stored = candidate;
+        break;
+      }
+    }
+    if (stored == null) {
+      // The account is gone. A message that can never be sent is not a queue,
+      // it is a stuck entry that shows up in a list forever.
+      await Scheduled.remove(message.id);
+      continue;
+    }
+
+    final MailService service = MailService(
+      stored.account,
+      tokenProvider: stored.account.isGoogle ? GoogleAuth.token : null,
+    );
+    try {
+      final String? secret = stored.account.isGoogle
+          ? await GoogleAuth.token()
+          : stored.password;
+      if (secret == null) {
+        // No token without asking somebody, so it waits for a run that can.
+        continue;
+      }
+      await service.connect(secret);
+      await service.send(
+        to: message.to,
+        cc: message.cc,
+        subject: message.subject,
+        body: message.body,
+        password: secret,
+      );
+      await Scheduled.remove(message.id);
+    } catch (error) {
+      debugPrint('Ace Mail: scheduled send failed (${Redact.safe(error)})');
+    } finally {
+      unawaited(service.disconnect());
+    }
   }
 }

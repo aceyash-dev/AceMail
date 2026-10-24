@@ -279,14 +279,24 @@ class MailService implements MailTransport {
             await _selectRaw(folder);
 
             final String? criteria = searchCriteriaFor(query);
-            if (criteria == null) return <MessageSummary>[];
+            final SearchQuery parsed = SearchQuery.parse(query);
+
+            // A query made only of locally-narrowed operators — `has:attachment`
+            // — has no server criteria at all. Returning early on that made the
+            // feature unreachable in its only useful form: finding attachments
+            // without already knowing a keyword. With nothing searchable on the
+            // server, the page is simply the newest messages and the narrowing
+            // does the work.
+            if (criteria == null && !parsed.narrowsLocally) {
+              return <MessageSummary>[];
+            }
 
             // UID SEARCH, not SEARCH. A plain SEARCH answers with *sequence
             // numbers*, which are positions in the mailbox — feeding those to a
             // UID fetch is how a search quietly returns the wrong messages, or
             // none at all.
             final SearchImapResult result = await _client.uidSearchMessages(
-              searchCriteria: criteria,
+              searchCriteria: criteria ?? 'ALL',
             );
             final MessageSequence? matches = result.matchingSequence;
             if (matches == null || matches.isEmpty) return <MessageSummary>[];
@@ -299,7 +309,6 @@ class MailService implements MailTransport {
             // The cost is that it filters what the server sent rather than the
             // whole mailbox, which is the honest limit of not downloading
             // everything to answer one question.
-            final SearchQuery parsed = SearchQuery.parse(query);
             return parsed.narrowsLocally
                 ? found.where(parsed.matches).toList()
                 : found;

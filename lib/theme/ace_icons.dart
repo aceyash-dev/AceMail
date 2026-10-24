@@ -27,6 +27,7 @@ abstract final class AceIcons {
   static const AceIcon reply = HugeIcons.strokeRoundedMailReply01;
   static const AceIcon replyAll = HugeIcons.strokeRoundedMailReplyAll01;
   static const AceIcon send = HugeIcons.strokeRoundedSend;
+  static const AceIcon schedule = HugeIcons.strokeRoundedClock01;
   static const AceIcon archive = HugeIcons.strokeRoundedArchive01;
   static const AceIcon trash = HugeIcons.strokeRoundedDelete02;
   static const AceIcon star = HugeIcons.strokeRoundedStar;
