@@ -96,7 +96,7 @@ Future<bool> checkOne(StoredAccount stored) async {
     // one and this check announces nothing. Announcing everything would be
     // five thousand notifications for a mailbox that already existed, which is
     // not a notification, it is an alarm.
-    final int validity = inbox.uidValidity;
+    final int validity = inbox.uidValidity ?? 0;
     final int storedValidity = prefs.lastSeenUidValidity(stored.account.email);
     if (validity != 0 && storedValidity != 0 && validity != storedValidity) {
       await prefs.setLastSeenUid(
