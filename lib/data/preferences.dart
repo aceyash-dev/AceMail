@@ -604,11 +604,17 @@ class Preferences extends ChangeNotifier {
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
     _launcherMonogram =
         _decodeBool(raw[_keyLauncherMonogram], _launcherMonogram);
-    _launcherBackground = _decodeEnum(
-      raw[_keyLauncherBackground] ?? '',
-      AceAccent.values,
-      _launcherBackground,
-    );
+    // Parsed rather than decoded: `_decodeEnum` falls back to a value, and
+    // "follow the accent" is the absence of one. An empty string is what the
+    // setting writes for it.
+    final String storedBackground = raw[_keyLauncherBackground] ?? '';
+    _launcherBackground = null;
+    for (final AceAccent accent in AceAccent.values) {
+      if (accent.name == storedBackground) {
+        _launcherBackground = accent;
+        break;
+      }
+    }
     final String? seen = raw[_keySeenVersion];
     _lastSeenVersion = (seen == null || seen.isEmpty) ? null : seen;
 
