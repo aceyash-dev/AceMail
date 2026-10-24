@@ -42,6 +42,9 @@ class LocalCache {
   /// until the first write, so opening the app does not list the directory.
   int? _known;
 
+  /// See [bytes]. Kept alongside [_known] and set together.
+  int _bytes = 0;
+
   /// What a record is bound to. The associated data is authenticated but not
   /// stored, so a record copied to another key will not open — which is what
   /// stops one message's body from being served as another's.
@@ -62,14 +65,23 @@ class LocalCache {
   ) async {
     final File file = _fileFor(namespace, key);
     await file.parent.create(recursive: true);
+
+    // What is being replaced, before it is replaced. A record written twice is
+    // one record, and the difference in size is the only thing the total has to
+    // know about it.
+    if (_known == null) recount();
+    final bool existed = file.existsSync();
+    final int before = existed ? file.lengthSync() : 0;
+
     final Uint8List sealed = await _vault.seal(
       Uint8List.fromList(utf8.encode(jsonEncode(value))),
       aad: _aad(namespace, key),
     );
     await file.writeAsBytes(sealed, flush: true);
 
-    _known = (_known ?? count()) + 1;
-    if (_known! > maxEntries || bytes() > maxBytes) await _trim();
+    _bytes += sealed.length - before;
+    if (!existed) _known = (_known ?? 0) + 1;
+    if ((_known ?? 0) > maxEntries || _bytes > maxBytes) await _trim();
   }
 
   /// The record, or null when there is none — including when there is one that
@@ -93,7 +105,11 @@ class LocalCache {
 
   Future<void> remove(String namespace, String key) async {
     final File file = _fileFor(namespace, key);
-    if (await file.exists()) await file.delete();
+    if (!await file.exists()) return;
+    if (_known == null) recount();
+    _bytes -= file.lengthSync();
+    _known = ((_known ?? 1) - 1).clamp(0, 1 << 30);
+    await file.delete();
   }
 
   /// Every record, gone. This is what "clear cached content" runs, and what a
@@ -103,17 +119,33 @@ class LocalCache {
       await file.delete();
     }
     _known = 0;
+    _bytes = 0;
   }
 
-  /// How many records are on disk.
-  int count() => _files().length;
+  /// How many records there are. Also a running total; see [bytes].
+  int count() => _known ?? recount();
 
-  /// How many bytes they take, so the setting can say what it costs.
-  int bytes() {
+  /// How many bytes they take.
+  ///
+  /// Kept as a running total rather than measured. It used to walk the
+  /// directory and stat every file, and it was called on the way out of *every
+  /// write* to check the limit — so caching one message cost a stat per cached
+  /// message, and the cost grew with the cache. The number is adjusted from the
+  /// size of the file being replaced, which is the only thing that changes it.
+  int bytes() => _bytes;
+
+  /// Walks the directory and sets both totals from what is actually there.
+  ///
+  /// For startup, and for after anything that removes files without going
+  /// through [remove] — the only way the running total can drift.
+  int recount() {
+    final List<File> files = _files();
     int total = 0;
-    for (final File file in _files()) {
+    for (final File file in files) {
       total += file.lengthSync();
     }
+    _bytes = total;
+    _known = files.length;
     return total;
   }
 
@@ -148,6 +180,10 @@ class LocalCache {
     for (final File file in byAge.take(byAge.length - keep)) {
       await file.delete();
     }
+
+    // The trim already worked these out; keep them rather than walking again.
+    _bytes = total;
+    _known = keep;
     _known = keep;
   }
 
