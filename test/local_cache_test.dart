@@ -121,6 +121,30 @@ void main() {
     expect(cache.bytes(), greaterThan(0));
   });
 
+  test('count-based trimming keeps byte accounting in sync', () async {
+    final LocalCache smallCache = LocalCache(
+      directory: dir,
+      vault: AceVault(keys: keys, random: Random(12)),
+      maxEntries: 2,
+      maxBytes: 1024 * 1024,
+    );
+
+    await smallCache.put('bodies', 'first', <String, Object?>{'text': 'first'});
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await smallCache.put('bodies', 'second', <String, Object?>{'text': 'second'});
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await smallCache.put('bodies', 'third', <String, Object?>{'text': 'third'});
+
+    final int actualBytes = files().fold<int>(
+      0,
+      (int total, File file) => total + file.lengthSync(),
+    );
+    expect(smallCache.count(), 2);
+    expect(files(), hasLength(2));
+    expect(smallCache.bytes(), actualBytes);
+    expect(await smallCache.get('bodies', 'third'), isNotNull);
+  });
+
   test('namespaces do not collide', () async {
     await cache.put('bodies', 'same', <String, Object?>{'kind': 'body'});
     await cache.put('drafts', 'same', <String, Object?>{'kind': 'draft'});
