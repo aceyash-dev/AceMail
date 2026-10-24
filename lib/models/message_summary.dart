@@ -80,7 +80,7 @@ class MessageSummary {
       MessageSummary(
         uid: uid,
         sequenceId: sequenceId,
-        folderPath: this.folderPath,
+        folderPath: folderPath,
         subject: subject,
         fromName: fromName,
         fromEmail: fromEmail,
