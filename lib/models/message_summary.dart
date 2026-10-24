@@ -3,6 +3,8 @@ import 'package:enough_mail/enough_mail.dart';
 import '../util/initials.dart';
 import '../util/otp.dart';
 
+const Object _unsetMessageSummaryField = Object();
+
 /// A lightweight row in the message list. Holds only what the list renders so
 /// listing a folder never downloads message bodies.
 class MessageSummary {
@@ -66,7 +68,7 @@ class MessageSummary {
     bool? isSeen,
     bool? isFlagged,
     bool? hasAttachments,
-    String? otp,
+    Object? otp = _unsetMessageSummaryField,
   }) =>
       MessageSummary(
         uid: uid,
@@ -78,7 +80,7 @@ class MessageSummary {
         isSeen: isSeen ?? this.isSeen,
         isFlagged: isFlagged ?? this.isFlagged,
         hasAttachments: hasAttachments ?? this.hasAttachments,
-        otp: otp ?? this.otp,
+        otp: identical(otp, _unsetMessageSummaryField) ? this.otp : otp as String?,
       );
 
   /// Two letters for the avatar chip, derived from the display name.
