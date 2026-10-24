@@ -93,6 +93,15 @@ abstract final class GoogleAuth {
   /// there is no name to want.
   static const String _keyEmail = 'ace.google.email';
   static const String _keyName = 'ace.google.name';
+
+  /// The account this session signed in as.
+  ///
+  /// Held so a token refresh never has to ask the plugin for it. The plugin has
+  /// no silent way to hand back an account: `attemptLightweightAuthentication`
+  /// tries quietly first and then *prompts* when nothing can be auto-selected,
+  /// so asking it on the reconnect path can put a sheet on screen while
+  /// somebody is opening a folder. Remembering the account avoids asking.
+  static GoogleSignInAccount? _remembered;
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static Future<String?> _read(String key) async {
@@ -156,6 +165,7 @@ abstract final class GoogleAuth {
           await GoogleSignIn.instance.authenticate(scopeHint: scopes);
       // Kept, so the greeting and the account row never have to ask the plugin
       // anything — asking is what can prompt.
+      _remembered = account;
       await _write(_keyEmail, account.email);
       final String? display = account.displayName?.trim();
       if (display != null && display.isNotEmpty) {
@@ -186,8 +196,19 @@ abstract final class GoogleAuth {
   static Future<String?> token() async {
     if (_desktop) return GoogleDesktopAuth.token();
     await _prepare();
+
+    // This session's account first, because that costs nothing and cannot put
+    // anything on screen.
+    final GoogleSignInAccount? known = _remembered;
+    if (known != null) return _tokenFor(known, allowPrompt: false);
+
+    // Nothing remembered, so this is a fresh launch. Asked only when the app
+    // has an address on file — a device that has never signed in has no account
+    // to find, and asking would be the one thing that puts a sheet up.
+    if (await _read(_keyEmail) == null) return null;
     final GoogleSignInAccount? account = await _lightweight();
     if (account == null) return null;
+    _remembered = account;
     return _tokenFor(account, allowPrompt: false);
   }
 
@@ -195,7 +216,9 @@ abstract final class GoogleAuth {
   static Future<void> forget() async {
     if (_desktop) return GoogleDesktopAuth.forget();
     await _prepare();
-    // Signed out is signed out: a cached name would outlive the account.
+    // Signed out is signed out: a remembered account and a cached name would
+    // both outlive it.
+    _remembered = null;
     for (final String key in <String>[_keyEmail, _keyName]) {
       try {
         await _storage.delete(key: key);
