@@ -89,9 +89,8 @@ class MailService implements MailTransport {
     final ImapClient client = ImapClient(isLogEnabled: false);
     try {
       // `isSecure: true`, always, with the library's own certificate
-      // validation. There is no `badCertificateCallback` anywhere in this app
-      // and a test fails the build if one appears — see
-      // test/transport_security_test.dart.
+      // validation. This app never overrides the TLS certificate decision;
+      // test/transport_security_test.dart guards against future bypasses.
       await client.connectToServer(
         account.imapHost,
         account.imapPort,
