@@ -14,6 +14,7 @@ import '../services/app_lock.dart';
 import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
+import '../services/platform_caps.dart';
 import '../widgets/avatar.dart';
 import '../services/translate.dart';
 import '../state/mail_controller.dart';
@@ -409,9 +410,13 @@ class SettingsScreen extends StatelessWidget {
                   trailing: _AccentSwatch(accent: prefs.accent),
                   onTap: () => _chooseAccent(context, prefs),
                 ),
-                SettingsRow(
-                  icon: AceIcons.image,
-                  title: 'Launcher icon',
+                // Android's launcher, Android's icon. On the desktop build
+                // this row would be a setting for something that does not
+                // exist.
+                if (PlatformCaps.isAndroid)
+                  SettingsRow(
+                    icon: AceIcons.image,
+                    title: 'Launcher icon',
                   subtitle: 'Which mark it wears. The background is the accent, '
                       'and follows it.',
                   value: prefs.launcherMark.label,
@@ -529,9 +534,12 @@ class SettingsScreen extends StatelessWidget {
                   value: prefs.cacheMessages,
                   onChanged: (bool value) => _setCaching(context, prefs, value),
                 ),
-                SettingsSwitchRow(
-                  icon: AceIcons.lock,
-                  title: 'Require unlock',
+                // A fingerprint or a face, which is the only way in this app
+                // locks. Offered where there is one to offer.
+                if (PlatformCaps.supportsBiometrics)
+                  SettingsSwitchRow(
+                    icon: AceIcons.lock,
+                    title: 'Require unlock',
                   subtitle: prefs.appLock
                       ? 'A fingerprint or a face opens the app, and it locks '
                           'again whenever it is left.'

@@ -92,6 +92,8 @@ abstract final class GoogleAuth {
   /// greeting wants the name of the account that is signed in, and if none is,
   /// there is no name to want.
   static const String _keyEmail = 'ace.google.email';
+  static const String _keyToken = 'ace.google.token';
+  static const String _keyTokenAt = 'ace.google.tokenAt';
   static const String _keyName = 'ace.google.name';
 
   /// The account this session signed in as.
@@ -102,6 +104,17 @@ abstract final class GoogleAuth {
   /// so asking it on the reconnect path can put a sheet on screen while
   /// somebody is opening a folder. Remembering the account avoids asking.
   static GoogleSignInAccount? _remembered;
+
+  /// The access token, and when it was issued.
+  ///
+  /// Google's live an hour. This is what a fresh launch uses, because the
+  /// alternative is asking the plugin for the account — and that call tries
+  /// quietly and then *prompts* when nothing can be auto-selected, which on a
+  /// device with two Google accounts is every time. A sheet that appears while
+  /// somebody is opening a folder is a sheet they did not ask for.
+  static const Duration _tokenLife = Duration(minutes: 50);
+  static String? _accessToken;
+  static DateTime? _accessTokenAt;
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static Future<String?> _read(String key) async {
@@ -172,6 +185,9 @@ abstract final class GoogleAuth {
         await _write(_keyName, display);
       }
       final String token = await _tokenFor(account, allowPrompt: true);
+      // Kept, so a restart inside the hour does not have to ask anybody.
+      await _write(_keyToken, token);
+      await _write(_keyTokenAt, DateTime.now().toIso8601String());
       final String? name = account.displayName?.trim();
       return (
         email: account.email,
@@ -193,33 +209,53 @@ abstract final class GoogleAuth {
   /// [GoogleAuthException.needsSignIn] when there is one but the grant no
   /// longer covers the scope, so the screen can offer the sign-in again rather
   /// than an error nobody can act on.
+  /// A token for the account already signed in, **without asking anybody**.
+  ///
+  /// This is the reconnect path — opening a folder, fetching a page — and it
+  /// runs without a person watching it. Every route here is silent: the session's
+  /// own account, the stored token, or nothing at all.
+  ///
+  /// It used to fall back to the plugin, on the reasoning that a device with an
+  /// address on file must have an account to find. It does — but finding it
+  /// *prompts* when more than one Google account is on the device, because the
+  /// quiet attempt cannot choose between them. So opening the app put a
+  /// "Signing you in" sheet on screen every time, which is exactly the thing
+  /// this path is not allowed to do.
+  ///
+  /// Null means the app needs a sign-in it cannot perform by itself, and the
+  /// caller says so. That is a worse sentence than a sheet, and a much better
+  /// one than a sheet nobody asked for.
   static Future<String?> token() async {
     if (_desktop) return GoogleDesktopAuth.token();
     await _prepare();
 
-    // This session's account first, because that costs nothing and cannot put
-    // anything on screen.
     final GoogleSignInAccount? known = _remembered;
-    if (known != null) return _tokenFor(known, allowPrompt: false);
+    if (known != null) {
+      try {
+        return await _tokenFor(known, allowPrompt: false);
+      } on GoogleAuthException {
+        // The remembered account can no longer produce one. Fall through to
+        // whatever is stored rather than giving up on the first refusal.
+      }
+    }
 
-    // Nothing remembered, so this is a fresh launch. Asked only when the app
-    // has an address on file — a device that has never signed in has no account
-    // to find, and asking would be the one thing that puts a sheet up.
-    if (await _read(_keyEmail) == null) return null;
-    final GoogleSignInAccount? account = await _lightweight();
-    if (account == null) return null;
-    _remembered = account;
-    return _tokenFor(account, allowPrompt: false);
+    final DateTime? issued = DateTime.tryParse(
+      await _read(_keyTokenAt) ?? '',
+    );
+    final String? stored = await _read(_keyToken);
+    if (stored == null || issued == null) return null;
+    if (DateTime.now().difference(issued) > _tokenLife) return null;
+    return stored;
   }
 
   /// Signs out, so the next connection asks for an account again.
   static Future<void> forget() async {
     if (_desktop) return GoogleDesktopAuth.forget();
     await _prepare();
-    // Signed out is signed out: a remembered account and a cached name would
-    // both outlive it.
+    // Signed out is signed out: a remembered account, a cached name and a live
+    // token would all outlive it.
     _remembered = null;
-    for (final String key in <String>[_keyEmail, _keyName]) {
+    for (final String key in <String>[_keyEmail, _keyName, _keyToken, _keyTokenAt]) {
       try {
         await _storage.delete(key: key);
       } catch (_) {
@@ -233,22 +269,6 @@ abstract final class GoogleAuth {
     }
   }
 
-  /// The lightweight attempt, flattened.
-  ///
-  /// The plugin returns a *nullable future* here: null means the platform has
-  /// no way to answer without UI and will report through a stream instead.
-  /// Android always returns one, so a null is treated as "nobody signed in"
-  /// rather than as a reason to wait for an event that is never coming.
-  static Future<GoogleSignInAccount?> _lightweight() async {
-    final Future<GoogleSignInAccount?>? attempt =
-        GoogleSignIn.instance.attemptLightweightAuthentication();
-    if (attempt == null) return null;
-    try {
-      return await attempt;
-    } on GoogleSignInException {
-      return null;
-    }
-  }
 
   /// A token for [account], from the cache if possible.
   ///

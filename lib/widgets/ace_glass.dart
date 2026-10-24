@@ -11,22 +11,14 @@ import '../theme/astryx_tokens.dart';
 abstract final class AceGlass {
   /// The Android API level, or null when this is not Android.
   ///
-  /// Read from the platform's own version string — `Android 13 (API 33)` — so
-  /// that a device reporting something unexpected falls back to no blur rather
-  /// than to a stall.
-  static int? get _androidApi {
-    if (!Platform.isAndroid) return null;
-    final RegExpMatch? match =
-        RegExp(r'API (\d+)').firstMatch(Platform.operatingSystemVersion);
-    return match == null ? null : int.tryParse(match.group(1)!);
-  }
+  /// Kept for the message below, which names the number. The capability itself
+  /// is [PlatformCaps]'s answer now: two places deciding whether this device can
+  /// blur is two places that can disagree.
+  static int? get _androidApi =>
+      PlatformCaps.isAndroid ? PlatformCaps.androidSdk : null;
 
   /// Whether this device can blur a backdrop at a price worth paying.
-  static bool get capable {
-    if (Platform.isIOS || Platform.isMacOS) return true;
-    final int? api = _androidApi;
-    return api != null && api >= 31;
-  }
+  static bool get capable => PlatformCaps.supportsBlur;
 
   /// What the device cannot do, in words, or null when it can do everything.
   ///
