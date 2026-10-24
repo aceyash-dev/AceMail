@@ -13,6 +13,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/dates.dart';
 import '../util/routes.dart';
+import '../util/text.dart';
 import 'ace_form_field.dart';
 import 'chyme_mark.dart';
 import 'markdown_view.dart';
@@ -123,7 +124,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ..writeln('Subject: ${open.subject}')
         ..writeln('Date: ${open.date}')
         ..writeln('--- body ---')
-        ..writeln(body.length > 6000 ? body.substring(0, 6000) : body);
+        ..writeln(truncateSafely(body, 6000));
     }
 
     if (out.isEmpty) return 'No mail is loaded at the moment.';

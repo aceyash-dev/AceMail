@@ -1,4 +1,5 @@
 import '../data/limits.dart';
+import 'text.dart';
 
 /// A filename that is safe to hand to the platform save dialog.
 ///
@@ -13,9 +14,7 @@ String sanitizeFileName(String raw) {
       .replaceAll(RegExp(r'^\.+'), '')
       .trim();
 
-  final String capped = cleaned.length > MailLimits.maxFileNameLength
-      ? cleaned.substring(0, MailLimits.maxFileNameLength)
-      : cleaned;
+  final String capped = truncateSafely(cleaned, MailLimits.maxFileNameLength);
 
   return capped.isEmpty ? 'attachment' : capped;
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ace_mail/data/limits.dart';
 import 'package:ace_mail/util/files.dart';
+import 'package:ace_mail/util/file_names.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -84,4 +85,12 @@ void main() {
       expect(picked.skipped, 0);
     });
   });
+
+  group('sanitizeFileName', () {
+    test('does not split a surrogate pair at the filename cap', () {
+      final String prefix = List<String>.filled(119, 'a').join();
+      expect(sanitizeFileName('${prefix}😀x'), prefix);
+    });
+  });
 }
+

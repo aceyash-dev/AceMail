@@ -437,10 +437,10 @@ class Preferences extends ChangeNotifier {
   /// before that, and only one of those is a material.
   GlassMode get glass => _glass;
 
-  /// Whether a notification names the sender and the subject.
+  /// Whether notification previews hide the sender and subject.
   ///
-  /// On by default: a notification on a lock screen is read by whoever is
-  /// holding the phone, and "you have mail" is enough for most people.
+  /// On by default: lock-screen notifications can be read by whoever is
+  /// holding the phone, so the sender and subject stay private.
   bool get privatePreviews => _privatePreviews;
 
   Future<void> setQuoteReplies(bool value) =>
