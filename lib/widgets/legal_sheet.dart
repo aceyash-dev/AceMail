@@ -118,7 +118,10 @@ class _LegalSheetState extends State<LegalSheet> {
             ),
             Divider(height: 1, color: c.border),
             Expanded(
-              child: ListView(
+              // A thumb, because a document that scrolls and gives no sign of
+              // it reads as a document that ends.
+              child: Scrollbar(
+                child: ListView(
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(
                   AstryxSpace.s5,
@@ -163,7 +166,7 @@ class _LegalSheetState extends State<LegalSheet> {
                   ),
                 ],
               ),
-            ),
+            )),
           ],
         );
       },

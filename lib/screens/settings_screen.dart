@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -34,6 +36,7 @@ import '../widgets/astryx_widgets.dart';
 import '../widgets/settings_group.dart';
 
 import '../widgets/ace_icon_view.dart';
+import '../widgets/ace_slider.dart';
 
 /// The app's settings. Every row here changes something real.
 class SettingsScreen extends StatelessWidget {
@@ -462,24 +465,7 @@ class SettingsScreen extends StatelessWidget {
                   icon: AceIcons.textSize,
                   title: 'Text size',
                   value: prefs.textSize.label,
-                  onTap: () async {
-                    final AceTextSize? chosen = await showChoiceSheet<AceTextSize>(
-                      context,
-                      title: 'Text size',
-                      current: prefs.textSize,
-                      choices: <SettingsChoice<AceTextSize>>[
-                        for (final AceTextSize size in AceTextSize.values)
-                          SettingsChoice<AceTextSize>(
-                            size,
-                            size.label,
-                            description: size == AceTextSize.medium
-                                ? 'Follows your device setting'
-                                : null,
-                          ),
-                      ],
-                    );
-                    if (chosen != null) await prefs.setTextSize(chosen);
-                  },
+                  onTap: () => _chooseTextSize(context, prefs),
                 ),
                 SettingsSwitchRow(
                   icon: AceIcons.logout,
@@ -1162,4 +1148,64 @@ Future<void> _mailSupport(BuildContext context) async {
   } catch (_) {
     if (context.mounted) AceSnack.show(context, 'hello@ace-base.cc');
   }
+}
+
+/// Text size, as a slider rather than a list of three names.
+///
+/// A slider is the right control for something you judge by looking at it: the
+/// mail behind the sheet is already re-rendering at the new size as you drag,
+/// which is the only honest way to answer "is this too big". Three names in a
+/// list made somebody choose, dismiss, look, and come back.
+Future<void> _chooseTextSize(BuildContext context, Preferences prefs) async {
+  final AstryxColors c = context.astryx;
+  int index = prefs.textSize.index;
+  final int last = AceTextSize.values.length - 1;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (BuildContext sheetContext) => StatefulBuilder(
+      builder: (BuildContext sheetContext, StateSetter setSheetState) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AstryxSpace.s5,
+            0,
+            AstryxSpace.s5,
+            AstryxSpace.s5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Text size', style: AstryxText.heading4(c.textPrimary)),
+              const SizedBox(height: AstryxSpace.s3),
+              AceSlider(
+                value: index.toDouble(),
+                max: last.toDouble(),
+                divisions: last,
+                semanticLabel: 'Text size',
+                onChanged: (double value) {
+                  final int next = value.round().clamp(0, last);
+                  if (next == index) return;
+                  setSheetState(() => index = next);
+                  unawaited(prefs.setTextSize(AceTextSize.values[next]));
+                },
+              ),
+              const SizedBox(height: AstryxSpace.s1),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  for (final AceTextSize size in AceTextSize.values)
+                    Text(
+                      size.label,
+                      style: AstryxText.supporting(c.textSecondary),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
