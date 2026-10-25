@@ -64,7 +64,13 @@ class MessageSummary {
       fromName: from?.personalName ?? from?.email ?? '(unknown sender)',
       fromEmail: from?.email ?? '',
       date: message.decodeDate(),
-      isSeen: message.isSeen,
+      // The flag as well as the property. enough_mail's `isSeen` reads the
+      // *parsed message's* flags, and on a fetch that asks for envelopes rather
+      // than full messages it can come back false for mail that has been read —
+      // which showed every row as unread while the folder's own count, which
+      // comes from the server's STATUS, said there was nothing unread at all.
+      isSeen: message.isSeen ||
+          (message.flags?.contains(MessageFlags.seen) ?? false),
       isFlagged: message.isFlagged,
       hasAttachments: message.hasAttachments(),
       otp: code,

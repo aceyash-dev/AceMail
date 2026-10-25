@@ -106,6 +106,12 @@ Rules:
 - When they are looking for mail, finish with one line of exactly this form:
   SEARCH: words that would appear in the message
   and nothing else on that line. Plain words, not a query language.
+- When they ask you to delete the message they have open, finish with one line
+  of exactly this form:
+  DELETE: yes
+  and nothing else on that line. You cannot delete anything yourself. Saying so
+  is a request, and the app asks the person before it does anything — which is
+  the only shape this should ever have had.
 - When drafting or rewriting mail, write only the message body, ready to send,
   with no commentary around it.
 - Never repeat a password, a one-time code or a token back to them.
@@ -287,6 +293,26 @@ Rules:
     }
     return null;
   }
+
+  /// Whether the reply asked for the open message to be deleted.
+  ///
+  /// A model may *ask* to delete; it may not delete. The line is a proposal the
+  /// sheet turns into a question, and the answer is the person's — an assistant
+  /// that can remove mail on its own is one you would be right not to trust.
+  /// Pure, so the rule can be tested without a model.
+  static bool deleteFrom(String reply) {
+    for (final String line in reply.split('\n')) {
+      if (line.trim().toUpperCase().startsWith('DELETE:')) return true;
+    }
+    return false;
+  }
+
+  /// The reply with the `DELETE:` line taken out, for showing to a person.
+  static String withoutDeleteLine(String reply) => reply
+      .split('\n')
+      .where((String line) => !line.trim().toUpperCase().startsWith('DELETE:'))
+      .join('\n')
+      .trim();
 
   /// The reply with the `SEARCH:` line taken out, for showing to a person.
   static String withoutSearchLine(String reply) => reply

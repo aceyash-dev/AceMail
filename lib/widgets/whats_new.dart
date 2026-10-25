@@ -106,7 +106,10 @@ class WhatsNewSheet extends StatelessWidget {
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.7,
         ),
-        child: SingleChildScrollView(
+        // A thumb, because notes that scroll and give no sign of it
+        // read as notes that end.
+        child: Scrollbar(
+          child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             AstryxSpace.s5,
             0,
@@ -146,7 +149,7 @@ class WhatsNewSheet extends StatelessWidget {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }

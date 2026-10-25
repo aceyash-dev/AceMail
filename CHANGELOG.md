@@ -2,6 +2,24 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
+## 0.5.6
+
+### Added
+- **Chyme can delete — by asking.** It writes a `DELETE:` line when it thinks
+  that is what you want, and the sheet turns that into a button, a question with
+  the subject in it, and a way to say no. It goes to the trash, not away. A model
+  that removes mail on its own is one you would be right not to trust, so it
+  proposes and you decide.
+
+### Fixed
+- **Every message looked unread.** The row's mark came from enough_mail's
+  `isSeen`, which reads the *parsed message's* flags and comes back false on a
+  fetch that asks for envelopes rather than full messages — so every row carried
+  the unread stripe while the folder's own count, which comes from the server's
+  STATUS, said there was nothing unread. It reads the flags directly now.
+- **The release notes scroll with a thumb**, like the legal sheets. Notes that
+  scroll and give no sign of it read as notes that end.
+
 ## 0.5.5
 
 The last planned update.

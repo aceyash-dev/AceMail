@@ -447,6 +447,14 @@ class _Bubble extends StatelessWidget {
                   tooltip: 'Start a message with this',
                   onPressed: () => openComposeSheet(context, initialBody: text),
                 ),
+                // Only when the reply asked to delete, and only as a question.
+                // A model may propose; the app asks; the person decides.
+                if (Chyme.deleteFrom(text))
+                  AceIconButton(
+                    icon: AceIcons.trash,
+                    tooltip: 'Delete this message',
+                    onPressed: () => _confirmDelete(context),
+                  ),
               ],
             ),
           Row(
@@ -571,4 +579,40 @@ class _NotSetUp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks before it deletes, then moves the open message to the trash.
+///
+/// Chyme cannot delete anything. It can say it would, and this is what happens
+/// next: a question with the subject in it, and a way to say no. Everything
+/// here is reversible — it goes to the trash, not away.
+Future<void> _confirmDelete(BuildContext context) async {
+  final MailController controller = context.read<MailController>();
+  final MessageSummary? open = controller.openSummary;
+  if (open == null) {
+    AceSnack.show(context, 'Open the message first — there is nothing to delete.');
+    return;
+  }
+  final bool? yes = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialog) => AlertDialog(
+      title: const Text('Delete this message?'),
+      content: Text(
+        '\u201C${open.subject}\u201D goes to the trash. You can put it back.',
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: const Text('Keep'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (yes != true || !context.mounted) return;
+  await controller.delete(open);
+  if (context.mounted) AceSnack.show(context, 'Moved to the trash.');
 }
