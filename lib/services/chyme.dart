@@ -106,6 +106,12 @@ Rules:
 - When they are looking for mail, finish with one line of exactly this form:
   SEARCH: words that would appear in the message
   and nothing else on that line. Plain words, not a query language.
+- You can look things up. When you need to see mail to answer, finish with one
+  line of exactly this form:
+  TOOL: search words that would appear in the message
+  and nothing else on that line. The app runs it and tells you what came back;
+  then answer the question with what you found. Ask for at most two things
+  before answering — a person waiting is not a search engine.
 - When they ask you to delete the message they have open, finish with one line
   of exactly this form:
   DELETE: yes
@@ -294,6 +300,86 @@ Rules:
     return null;
   }
 
+  /// A thing the reply asked the app to do.
+  ///
+  /// The model has no hands. It writes a line, the app reads it, runs something,
+  /// and writes the answer back into the conversation — which is all "agentic"
+  /// means when you take the word apart.
+  static ChymeToolCall? toolFrom(String reply) {
+    for (final String line in reply.split('\n')) {
+      final String trimmed = line.trim();
+      if (!trimmed.toUpperCase().startsWith('TOOL:')) continue;
+      final String rest = trimmed.substring('TOOL:'.length).trim();
+      if (rest.isEmpty) continue;
+      final int space = rest.indexOf(' ');
+      if (space < 0) return ChymeToolCall(rest.toLowerCase(), '');
+      return ChymeToolCall(
+        rest.substring(0, space).toLowerCase(),
+        rest.substring(space + 1).trim(),
+      );
+    }
+    return null;
+  }
+
+  /// The reply with the `TOOL:` line taken out.
+  static String withoutToolLine(String reply) => reply
+      .split('\n')
+      .where((String line) => !line.trim().toUpperCase().startsWith('TOOL:'))
+      .join('\n')
+      .trim();
+
+  /// Asks, runs whatever it asked for, and asks again — up to [maxSteps] times.
+  ///
+  /// A loop rather than a single request, and a *bounded* loop: a model that
+  /// keeps asking for things has to be stopped by something, and the something
+  /// should be a number here rather than a person pressing stop. Everything the
+  /// tools do is read-only or already asks its own question.
+  static Future<ChymeRun> run({
+    required String endpoint,
+    required String apiKey,
+    required String model,
+    required List<ChymeTurn> turns,
+    required Map<String, ChymeTool> tools,
+    int maxSteps = 3,
+  }) async {
+    final List<ChymeTurn> working = <ChymeTurn>[...turns];
+    final List<ChymeToolResult> trail = <ChymeToolResult>[];
+
+    for (int step = 0; step < maxSteps; step++) {
+      final String reply = await ask(
+        endpoint: endpoint,
+        apiKey: apiKey,
+        model: model,
+        turns: working,
+      );
+      final ChymeToolCall? call = toolFrom(reply);
+      if (call == null) {
+        return ChymeRun(reply: reply, trail: trail);
+      }
+      final ChymeTool? tool = tools[call.name];
+      String result;
+      if (tool == null) {
+        result = 'There is no tool called "${call.name}". '
+            'The only one is "search".';
+      } else {
+        try {
+          result = await tool(call.argument) ?? 'Nothing found.';
+        } on Object catch (error) {
+          result = 'That failed: $error';
+        }
+      }
+      trail.add(ChymeToolResult(call: call, result: result));
+      working
+        ..add(ChymeTurn('assistant', reply))
+        ..add(ChymeTurn('user', 'TOOL RESULT (${call.name}): $result'));
+    }
+
+    // Out of steps. The last thing it wrote is still an answer, minus the line
+    // asking for something nobody is going to run.
+    final String last = working.isEmpty ? '' : working.last.content;
+    return ChymeRun(reply: withoutToolLine(last), trail: trail);
+  }
+
   /// Whether the reply asked for the open message to be deleted.
   ///
   /// A model may *ask* to delete; it may not delete. The line is a proposal the
@@ -405,3 +491,33 @@ Rules:
     return '';
   }
 }
+
+/// Something the reply asked the app to run.
+class ChymeToolCall {
+  const ChymeToolCall(this.name, this.argument);
+
+  final String name;
+  final String argument;
+
+  @override
+  String toString() => '$name($argument)';
+}
+
+/// What a tool returned, kept so the sheet can show what Chyme looked at.
+class ChymeToolResult {
+  const ChymeToolResult({required this.call, required this.result});
+
+  final ChymeToolCall call;
+  final String result;
+}
+
+/// A finished run: what Chyme said, and everything it asked for on the way.
+class ChymeRun {
+  const ChymeRun({required this.reply, required this.trail});
+
+  final String reply;
+  final List<ChymeToolResult> trail;
+}
+
+/// One tool: takes the argument the model wrote, returns what it should see.
+typedef ChymeTool = Future<String?> Function(String argument);

@@ -161,16 +161,44 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ..._turns,
       ];
 
-      final String reply = await Chyme.ask(
+      // A loop now, not one request. The one tool it has is a search over the
+      // mail already in hand: read-only, instant, and enough to answer "what
+      // did the bank send me" without the model guessing. Deleting stays a
+      // separate proposal, because a tool that acts inside a loop is a tool
+      // that can act twice before anybody has read the first answer.
+      final ChymeRun run = await Chyme.run(
         endpoint: prefs.chymeEndpoint,
         apiKey: prefs.chymeKey,
         model: prefs.chymeModel,
         turns: request,
+        tools: <String, ChymeTool>{
+          'search': (String argument) async {
+            final String needle = argument.toLowerCase().trim();
+            if (needle.isEmpty) return 'No words to search for.';
+            final List<MessageSummary> hits = controller.visibleMessages
+                .where(
+                  (MessageSummary message) =>
+                      message.subject.toLowerCase().contains(needle) ||
+                      message.fromName.toLowerCase().contains(needle) ||
+                      message.fromEmail.toLowerCase().contains(needle),
+                )
+                .take(8)
+                .toList();
+            if (hits.isEmpty) {
+              final String where =
+                  controller.selectedFolder?.name ?? 'this folder';
+              return 'Nothing in $where matches "$argument".';
+            }
+            return hits
+                .map((MessageSummary m) => '${m.fromName} — ${m.subject}')
+                .join('\n');
+          },
+        },
       );
       if (!mounted) return;
       setState(() {
-        _turns.add(ChymeTurn('assistant', reply));
-        _search = Chyme.searchFrom(reply);
+        _turns.add(ChymeTurn('assistant', run.reply));
+        _search = Chyme.searchFrom(run.reply);
       });
       _scrollToEnd();
     } catch (error) {
