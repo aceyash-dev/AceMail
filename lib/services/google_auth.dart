@@ -103,7 +103,16 @@ abstract final class GoogleAuth {
   /// tries quietly first and then *prompts* when nothing can be auto-selected,
   /// so asking it on the reconnect path can put a sheet on screen while
   /// somebody is opening a folder. Remembering the account avoids asking.
-  static GoogleSignInAccount? _remembered;
+  /// Every account that has signed in, by address.
+  ///
+  /// This was one account — whoever signed in last. With two Google accounts
+  /// that meant only one of them could be refreshed quietly: the other fell
+  /// through to a stored token, and a token lives about an hour, so an hour
+  /// after signing in the second account was asked to sign in again. The
+  /// *stored* token was already per address; the account that can mint a new
+  /// one was not.
+  static final Map<String, GoogleSignInAccount> _remembered =
+      <String, GoogleSignInAccount>{};
 
   /// The access token, and when it was issued.
   ///
@@ -176,7 +185,7 @@ abstract final class GoogleAuth {
           await GoogleSignIn.instance.authenticate(scopeHint: scopes);
       // Kept, so the greeting and the account row never have to ask the plugin
       // anything — asking is what can prompt.
-      _remembered = account;
+      _remembered[account.email.toLowerCase()] = account;
       await _write(_keyEmail, account.email);
       final String? display = account.displayName?.trim();
       if (display != null && display.isNotEmpty) {
@@ -235,8 +244,10 @@ abstract final class GoogleAuth {
     // token to the other is how a second account ends up asked to sign in again
     // every hour while the first is fine.
     final String? want = email?.trim().toLowerCase();
-    final GoogleSignInAccount? known = _remembered;
-    if (known != null && (want == null || known.email.toLowerCase() == want)) {
+    final GoogleSignInAccount? known = want == null
+        ? (_remembered.isEmpty ? null : _remembered.values.last)
+        : _remembered[want];
+    if (known != null) {
       try {
         return await _tokenFor(known, allowPrompt: false);
       } on GoogleAuthException {
@@ -263,7 +274,7 @@ abstract final class GoogleAuth {
     await _prepare();
     // Signed out is signed out: a remembered account, a cached name and a live
     // token would all outlive it.
-    _remembered = null;
+    _remembered.clear();
     for (final String key in <String>[_keyEmail, _keyName]) {
       try {
         await _storage.delete(key: key);
