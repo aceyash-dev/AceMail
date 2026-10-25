@@ -30,15 +30,4 @@ void main() {
     });
   });
 
-  group('message view', () {
-    test('defaults to formatted, because that is what most mail is', () {
-      expect(Preferences().messageView, MessageView.formatted);
-    });
-
-    test('can be switched to plain text', () async {
-      final Preferences prefs = Preferences();
-      await prefs.setMessageView(MessageView.plainText);
-      expect(prefs.messageView, MessageView.plainText);
-    });
-  });
 }

@@ -301,7 +301,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
                         AstryxSpace.s4,
                       ),
                       children: <Widget>[
-                        if (_turns.isEmpty) _suggestions(c),
+                        if (_turns.isEmpty) _suggestions(c, controller),
                         for (final ChymeTurn turn in _turns)
                           _Bubble(turn: turn),
                         if (_search != null)
@@ -361,7 +361,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
   }
 
   /// What to ask, when somebody has opened Chyme and does not know what to ask.
-  Widget _suggestions(AstryxColors c) {
+  Widget _suggestions(AstryxColors c, MailController controller) {
     // Openers that ask for something the app cannot do by itself. "Summarise
     // this" is a button; "what is this actually asking for" is the question
     // somebody opens an assistant with.

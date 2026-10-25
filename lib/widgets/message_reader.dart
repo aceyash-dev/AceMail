@@ -35,7 +35,6 @@ class MessageReader extends StatefulWidget {
 }
 
 class _MessageReaderState extends State<MessageReader> {
-  bool _plainText = false;
   bool _viewInitialised = false;
 
   @override
@@ -43,10 +42,6 @@ class _MessageReaderState extends State<MessageReader> {
     super.didChangeDependencies();
     if (_viewInitialised) return;
     _viewInitialised = true;
-    // The setting decides how a message opens; the toggle above the body is
-    // then a per-message override.
-    _plainText =
-        context.read<Preferences>().messageView == MessageView.plainText;
   }
 
   /// Accumulated horizontal drag, for the swipe-right-to-go-back gesture.
@@ -340,29 +335,13 @@ class _MessageReaderState extends State<MessageReader> {
     // HTML first: it is what most mail is, and a plain-text body that is
     // plainly HTML is rendered as HTML rather than as tags.
     final String? html = message.htmlSource;
-    final bool showHtml = html != null && !_plainText;
+    // HTML when there is HTML. There is no plain-text mode: a message with both
+    // is shown as it was written, and one with only text is shown as text
+    // because that is all there is.
+    final bool showHtml = html != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (html != null)
-          Row(
-            children: <Widget>[
-              _segmented(
-                c,
-                label: 'Formatted',
-                active: !_plainText,
-                onTap: () => setState(() => _plainText = false),
-              ),
-              const SizedBox(width: AstryxSpace.s2),
-              _segmented(
-                c,
-                label: 'Plain text',
-                active: _plainText,
-                onTap: () => setState(() => _plainText = true),
-              ),
-            ],
-          ),
-        if (html != null) const SizedBox(height: AstryxSpace.s4),
         if (showHtml)
           _HtmlBody(
             html: html,

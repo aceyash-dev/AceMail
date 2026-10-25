@@ -174,15 +174,6 @@ class SettingsScreen extends StatelessWidget {
                   onChanged: prefs.setWarnEmptySubject,
                 ),
                 SettingsSwitchRow(
-                  icon: AceIcons.image,
-                  title: 'Load images in messages',
-                  subtitle: 'Fetching an image tells the sender\u2019s server '
-                      'that the message was opened, and from where. Off shows '
-                      'a placeholder in its place.',
-                  value: prefs.loadRemoteImages,
-                  onChanged: prefs.setLoadRemoteImages,
-                ),
-                SettingsSwitchRow(
                   icon: AceIcons.password,
                   title: 'Show one-time codes',
                   subtitle: 'Pick codes out of messages and show them in the '
@@ -1171,43 +1162,4 @@ Future<void> _mailSupport(BuildContext context) async {
   } catch (_) {
     if (context.mounted) AceSnack.show(context, 'hello@ace-base.cc');
   }
-}
-
-/// One line of text, in a dialog.
-///
-/// A dialog rather than a row that edits in place: these are addresses and keys,
-/// they are edited once, and a row that turns into a field is a row that has
-/// stopped being a row.
-Future<void> _editText(
-  BuildContext context, {
-  required String title,
-  required String hint,
-  required String value,
-  required Future<void> Function(String) onSave,
-}) async {
-  final TextEditingController controller = TextEditingController(text: value);
-  final String? saved = await showDialog<String>(
-    context: context,
-    builder: (BuildContext dialogContext) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(hintText: hint),
-        onSubmitted: (String text) => Navigator.of(dialogContext).pop(text),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-          child: const Text('Save'),
-        ),
-      ],
-    ),
-  );
-  controller.dispose();
-  if (saved != null) await onSave(saved);
 }
