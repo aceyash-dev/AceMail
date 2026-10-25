@@ -47,6 +47,30 @@ PY
 fi
 
 # --- Windows --------------------------------------------------------------
+# local_auth_windows includes <experimental/coroutine>, which MSVC 18 (the
+# Visual Studio 2026 image) turned from a warning into a hard error. The error
+# names its own escape hatch; this sets it for the whole build, because the
+# header is pulled in by a plugin and not by anything in this repository.
+win_cmake="windows/CMakeLists.txt"
+if [ -f "$win_cmake" ] && ! grep -q "_SILENCE_EXPERIMENTAL_COROUTINE" "$win_cmake"; then
+  python3 - "$win_cmake" <<'PYW'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+marker = "project(ace_mail LANGUAGES CXX)"
+if marker in s:
+    s = s.replace(
+        marker,
+        marker + "\n\n"
+        "# local_auth_windows pulls in <experimental/coroutine>, which MSVC 18\n"
+        "# rejects outright. Superseded by <coroutine>, but not by us.\n"
+        "add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)",
+        1,
+    )
+    open(p, 'w').write(s)
+PYW
+fi
+
 # The default window title is the project name; the app has a name.
 win="windows/runner/main.cpp"
 if [ -f "$win" ]; then
