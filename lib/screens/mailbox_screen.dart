@@ -269,7 +269,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
         // keyboard *and* the place you were standing.
         child: PopScope(
           canPop: !_searchFocus.hasFocus,
-          onPopInvoked: (bool didPop) {
+          onPopInvokedWithResult: (bool didPop, Object? _) {
             if (didPop) return;
             _searchFocus.unfocus();
             setState(() {});
@@ -613,14 +613,15 @@ class _MailboxScreenState extends State<MailboxScreen> {
                         ChymeMark(size: 22, color: foreground),
                     onPressed: () => ChymeSheet.show(context),
                   ),
-            // Beside the microphone, where the controls for the list belong.
-            AceIconButton(
-              icon: AceIcons.sort,
-              tooltip: 'Sort and filter',
-              selected: controller.filter != MessageFilter.all ||
-                  controller.sort != MessageSort.newest,
-              onPressed: () => showSortSheet(context),
-            ),
+          ),
+          // Beside the microphone, where the controls for the list belong. In
+          // the greeting it read as part of the sentence above the mail.
+          AceIconButton(
+            icon: AceIcons.sort,
+            tooltip: 'Sort and filter',
+            selected: context.read<MailController>().filter != MessageFilter.all ||
+                context.read<MailController>().sort != MessageSort.newest,
+            onPressed: () => showSortSheet(context),
           ),
         ],
       ),
