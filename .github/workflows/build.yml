@@ -22,10 +22,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -42,7 +42,7 @@ jobs:
       # the native code, which invalidates more of it, can push the job past its
       # own timeout.
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -183,7 +183,7 @@ jobs:
 
       - name: Upload the APKs
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ace-mail-apks
           path: build/app/outputs/flutter-apk/AceMail-*.apk
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload the debug APKs
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ace-mail-debug-apks
           path: build/app/outputs/flutter-apk/app-*-debug.apk
@@ -207,7 +207,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -246,7 +246,7 @@ jobs:
           ls -l "$GITHUB_WORKSPACE"/AceMail-*.tar.gz
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ace-mail-linux
           path: AceMail-*-linux-x64.tar.gz
@@ -259,7 +259,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -296,7 +296,7 @@ jobs:
           ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ace-mail-ios
           path: AceMail-*-ios-unsigned.zip
@@ -313,7 +313,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -340,7 +340,7 @@ jobs:
           ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ace-mail-windows
           path: AceMail-*-windows-x64.zip
@@ -353,7 +353,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -381,7 +381,7 @@ jobs:
           ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ace-mail-macos
           path: AceMail-*-macos-unsigned.zip
@@ -400,10 +400,10 @@ jobs:
     steps:
       # The notes are read from the changelog in the repo, so this job needs the
       # repo, not just the artifacts.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download the APKs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ace-mail-apks
           path: apk
@@ -412,28 +412,28 @@ jobs:
       # the release. The notes are already written by this point.
       - name: Download the Linux build
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ace-mail-linux
           path: linux
 
       - name: Download the Windows build
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ace-mail-windows
           path: windows
 
       - name: Download the macOS build
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ace-mail-macos
           path: macos
 
       - name: Download the iOS build
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ace-mail-ios
           path: ios
@@ -458,7 +458,7 @@ jobs:
       # pre-release that the next build replaces.
       - name: Publish a versioned release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
@@ -474,7 +474,7 @@ jobs:
 
       - name: Publish the rolling build
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: apk-latest
           name: Latest build
