@@ -2,6 +2,40 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
+## 0.5.5
+
+The last planned update.
+
+### Added
+- **Windows and macOS.** The runners are generated at build time by
+  `tool/desktop/setup_desktop.sh`, the way the iOS one already was — a template
+  committed to the repository is a template nobody updates, and it rots against
+  each Flutter release while the phone builds keep moving. The macOS build gets
+  the network client entitlement it needs to reach an IMAP server at all, and
+  both get a window wide enough for the rail and the list side by side.
+
+### Fixed
+- **Every Google account can be refreshed quietly, not just the last one.** The
+  stored token was per address; the *account* that mints a new one was not. With
+  two accounts, one could refresh itself and the other fell through to a token
+  that expires in an hour — so an hour after signing in, the second account was
+  asked to sign in again while the first was fine. That is the "sign in again to
+  reach this mailbox" banner.
+- **A Bcc field that went nowhere.** The send passed an empty string unless the
+  *setting* was on, so the field did nothing. It is wired now, and it combines
+  with the self-copy rather than replacing it.
+
+### Changed
+- **The splash is milk, always**, with the Ace Base emblem above the name —
+  drawn as one rendered image in Geograph, because a launch window can never use
+  a *font* but it can show a picture.
+- **One addressing row in the composer.** Cc and Bcc were a row each above the
+  subject, which is two rows of nothing before you can start writing; they are
+  folded behind a word now. Subject is inline under a divider.
+- **The greeting is a heading, not a poster.** At display size a normal name
+  wrapped to three lines, which is the whole screen before any mail.
+- **The subject is the line and the sender is the context**, in the list.
+
 ## 0.5.4
 
 ### Added
