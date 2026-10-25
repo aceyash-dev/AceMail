@@ -82,7 +82,6 @@ class _MessageReaderState extends State<MessageReader> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                if (widget.onBack != null) _topBar(context),
                 Expanded(
                   child: SingleChildScrollView(
                     // Clearance for the toolbar, which is at the top now.
@@ -133,6 +132,10 @@ class _MessageReaderState extends State<MessageReader> {
           // Top right, where the actions for the thing you are reading belong.
           // At the bottom it was a bar to reach past the message for; at the top
           // it sits under the back button, in the corner a thumb already knows.
+          // No top bar. It was a row of empty space with one chevron in it,
+          // costing height on every message to hold a control the system back
+          // gesture already is. The toolbar carries a back arrow for the
+          // platforms where it is not.
           Positioned(
             top: AstryxSpace.s2,
             right: AstryxSpace.s4,
@@ -191,6 +194,12 @@ class _MessageReaderState extends State<MessageReader> {
 
     return AceToolbar(
       actions: <AceToolbarAction>[
+        if (widget.onBack != null)
+          AceToolbarAction(
+            icon: AceIcons.chevronLeft,
+            tooltip: 'Back',
+            onPressed: widget.onBack!,
+          ),
         AceToolbarAction(
           icon: AceIcons.reply,
           tooltip: 'Reply',

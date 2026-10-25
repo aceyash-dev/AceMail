@@ -172,6 +172,19 @@ class _ChymeSheetState extends State<ChymeSheet> {
         model: prefs.chymeModel,
         turns: request,
         tools: <String, ChymeTool>{
+          // The message on screen, in full. The prompt already carries a
+          // shortened copy so a question about it needs no tool at all; this is
+          // for the long one, where the answer is further down than the excerpt.
+          'read': (String argument) async {
+            final FullMessage? open = controller.openMessage;
+            if (open == null) return 'No message is open.';
+            final String body = (open.textSource ?? '').trim();
+            final String html = open.htmlSource ?? '';
+            final String text = body.isNotEmpty ? body : html;
+            if (text.isEmpty) return 'The message has no readable body.';
+            return 'From ${open.fromName} \u2014 ${open.subject}\n\n'
+                '${text.length > 6000 ? '${text.substring(0, 6000)}\u2026' : text}';
+          },
           'search': (String argument) async {
             final String needle = argument.toLowerCase().trim();
             if (needle.isEmpty) return 'No words to search for.';

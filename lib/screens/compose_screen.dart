@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/limits.dart';
@@ -548,6 +549,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
       return;
     }
 
+    // A short knock when it goes. The button already changes state; this is
+    // the part you feel rather than see, and sending mail is the one action in
+    // this screen worth feeling.
+    HapticFeedback.mediumImpact();
     setState(() => _sending = true);
     try {
       await context.read<MailController>().send(
@@ -900,6 +905,45 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 enabled: choice.value.isAfter(now),
                 onTap: () => Navigator.of(sheetContext).pop(choice.value),
               ),
+            const Divider(height: 1),
+            // The moments above are the ones people mean. This is for the ones
+            // they mean that nobody thought to list — a birthday, a flight, a
+            // quiet hour in another timezone.
+            ListTile(
+              leading: const Icon(Icons.edit_calendar_outlined),
+              title: const Text('Pick a date and time'),
+              onTap: () async {
+                final DateTime? day = await showDatePicker(
+                  context: sheetContext,
+                  initialDate: now.add(const Duration(days: 1)),
+                  firstDate: now,
+                  lastDate: now.add(const Duration(days: 365)),
+                );
+                if (day == null || !sheetContext.mounted) return;
+                final TimeOfDay? time = await showTimePicker(
+                  context: sheetContext,
+                  initialTime: const TimeOfDay(hour: 9, minute: 0),
+                );
+                if (time == null || !sheetContext.mounted) return;
+                final DateTime at = DateTime(
+                  day.year,
+                  day.month,
+                  day.day,
+                  time.hour,
+                  time.minute,
+                );
+                if (!at.isAfter(now)) {
+                  AceSnack.show(
+                    sheetContext,
+                    'That time has already gone. Pick a later one.',
+                  );
+                  return;
+                }
+                if (sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop(at);
+                }
+              },
+            ),
           ],
         ),
       ),
