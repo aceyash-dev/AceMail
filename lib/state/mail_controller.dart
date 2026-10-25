@@ -139,12 +139,29 @@ class MailController extends ChangeNotifier {
         // Offered only when there is more than one inbox to unify. A single
         // account has an Inbox already, and a second row saying the same thing
         // is a row that makes the rail look longer for nothing.
-        if (_sessions.length > 1) kUnifiedInbox,
+        // With its count filled in, so the rail says how much is waiting across
+        // every account rather than nothing at all.
+        if (_sessions.length > 1) _unifiedFolder,
         ...?active?.folders,
       ];
 
+  /// The unified folder, with the unread count summed across the accounts.
+  ///
+  /// The constant carries a zero because it is a constant; a rail that shows
+  /// "All inboxes 0" while six unread messages sit behind it is worse than a
+  /// rail with no number at all.
+  MailFolder get _unifiedFolder => MailFolder(
+        name: kUnifiedInbox.name,
+        path: kUnifiedInbox.path,
+        role: kUnifiedInbox.role,
+        unseen: _sessions.fold<int>(
+          0,
+          (int total, MailSession session) => total + session.inboxUnseen,
+        ),
+      );
+
   MailFolder? get selectedFolder =>
-      _unified ? kUnifiedInbox : active?.selectedFolder;
+      _unified ? _unifiedFolder : active?.selectedFolder;
 
   List<MessageSummary> get messages {
     if (!_unified) return active?.messages ?? const <MessageSummary>[];
@@ -375,8 +392,16 @@ class MailController extends ChangeNotifier {
       notifyListeners();
       // Every account onto its own inbox, so the merge is a concatenation
       // rather than a second set of fetches.
+      //
+      // Each one is caught on its own. An account whose connection has dropped
+      // throws here, and without this the whole view fails on the one account
+      // that is down — leaving nothing on screen when every other account has
+      // mail in it. What is showing is what could be fetched.
       await Future.wait<void>(<Future<void>>[
-        for (final MailSession session in _sessions) session.showInbox(),
+        for (final MailSession session in _sessions)
+          session.showInbox().catchError((Object error) {
+            debugPrint('Ace Mail: an inbox could not be opened for the merge');
+          }),
       ]);
       notifyListeners();
       return;

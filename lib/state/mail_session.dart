@@ -120,6 +120,17 @@ class MailSession extends ChangeNotifier {
   List<MailFolder> folders = <MailFolder>[];
   MailFolder? selectedFolder;
 
+  /// How much is unread in this account's inbox.
+  ///
+  /// Read from the folder list rather than the message page: the page is one
+  /// fetch of forty, and the count is about the whole mailbox.
+  int get inboxUnseen {
+    for (final MailFolder folder in folders) {
+      if (folder.role == FolderRole.inbox) return folder.unseen;
+    }
+    return 0;
+  }
+
   /// Puts this session on its own inbox.
   ///
   /// What the unified view is built from: every account showing its inbox at

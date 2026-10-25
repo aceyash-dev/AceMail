@@ -222,13 +222,26 @@ class _SignInScreenState extends State<SignInScreen> {
             ),
           ),
           child: SafeArea(
-            // Centred, not anchored to the bottom. It was briefly a sheet —
-            // rounded at the top with a drag handle — and a sign-in screen is
-            // not a thing that arrives over anything: there is no page behind
-            // it to come up from. The material stays; the sheet framing goes.
-            child: Center(
+            // The page, not a card on it.
+            //
+            // It was a centred, 520-wide, rounded, frosted panel — which is a
+            // *web* sign-in form, and it read as one. A phone screen is not a
+            // browser: there is no page behind this to float over, the fields
+            // belong at the edges, and the way to look like the system is to
+            // stop drawing a box around yourself.
+            //
+            // The width is capped and left-aligned rather than centred, so a
+            // tablet gets a readable column against the edge instead of a
+            // floating island in the middle.
+            child: Align(
+              alignment: Alignment.topLeft,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AstryxSpace.s5),
+                padding: const EdgeInsets.fromLTRB(
+                  AstryxSpace.s6,
+                  AstryxSpace.s7,
+                  AstryxSpace.s6,
+                  AstryxSpace.s6,
+                ),
                 child: TweenAnimationBuilder<double>(
                   tween: Tween<double>(begin: 0, end: 1),
                   duration: const Duration(milliseconds: 320),
@@ -242,7 +255,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
+                    constraints: const BoxConstraints(maxWidth: 560),
                     child: _SignInSheet(
                       child: AutofillGroup(
                         child: Column(
@@ -1210,22 +1223,15 @@ class _SignInSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AceGlass.material(
-      context,
-      radius: BorderRadius.circular(AstryxRadius.page),
-      bordered: false,
-      opacity: 0.94,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Flexible(
-            child: Padding(
-              padding: const EdgeInsets.all(AstryxSpace.s6),
-              child: child,
-            ),
-          ),
-        ],
-      ),
+    // No glass, no corner, no border: the screen *is* the surface. A frosted
+    // panel is the app's own material and it belongs on things that sit over
+    // other things — a sheet, a bar, a card in a list. On a screen with nothing
+    // behind it, it is a box drawn around a form for no reason, and a box drawn
+    // around a form is what a web page looks like.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[Flexible(child: child)],
     );
   }
 }

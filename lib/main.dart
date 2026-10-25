@@ -16,10 +16,13 @@ import 'state/mail_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // A little more room for decoded images. The default is sized for a phone
-  // showing a handful; a mail reader scrolls through many, and re-decoding the
-  // same attachment on every pass is the kind of cost that shows up as jank.
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20;
+  // Room for decoded images, but not so much that the app is the reason a
+  // low-end phone is out of memory. The default is sized for a handful of
+  // pictures; a mail reader scrolls through many, so it needs more — 80MB was
+  // more than the phones this has to run on can spare, and the cost of being
+  // wrong here is not a slow screen, it is the app being killed in the
+  // background while somebody is reading their mail.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 48 << 20;
 
   // The encrypted local store: the draft in progress, and the messages already
   // read. Best effort — a device that will not hand over a directory must not
