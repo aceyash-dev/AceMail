@@ -913,7 +913,10 @@ class _Greeting extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     greetingFor(DateTime.now(), name: controller.displayName),
-                    style: AstryxText.display3(c.textPrimary),
+                    // A heading, not a poster. At display size a normal name
+                    // wraps to three lines on a phone, and three lines of
+                    // greeting is the whole screen before any mail.
+                    style: AstryxText.heading2(c.textPrimary),
                   ),
                   const SizedBox(height: AstryxSpace.s0_5),
                   Text(
