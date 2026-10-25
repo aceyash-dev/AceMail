@@ -15,7 +15,6 @@ import '../theme/astryx_tokens.dart';
 import '../util/addresses.dart';
 import '../util/dates.dart';
 import '../util/files.dart';
-import '../util/ace_snack.dart';
 import '../util/links.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
@@ -353,39 +352,6 @@ class _MessageReaderState extends State<MessageReader> {
             confirmLink: (Uri uri) => _confirmLink(context, uri),
           ),
       ],
-    );
-  }
-
-  Widget _segmented(
-    AstryxColors c, {
-    required String label,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      // Animated, so switching between the two views shows the fill moving
-      // rather than the two labels trading places.
-      animationDuration: AstryxMotion.of(AstryxMotion.fast),
-      color: active ? c.accent : c.backgroundSurface,
-      borderRadius: BorderRadius.circular(AstryxRadius.full),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AstryxRadius.full),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AstryxSpace.s3,
-            vertical: AstryxSpace.s1_5,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AstryxRadius.full),
-            border: Border.all(color: active ? c.accent : c.border),
-          ),
-          child: Text(
-            label,
-            style: AstryxText.label(active ? c.onAccent : c.textSecondary),
-          ),
-        ),
-      ),
     );
   }
 

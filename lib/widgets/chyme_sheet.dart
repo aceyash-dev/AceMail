@@ -301,7 +301,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
                         AstryxSpace.s4,
                       ),
                       children: <Widget>[
-                        if (_turns.isEmpty) _suggestions(c, controller),
+                        if (_turns.isEmpty) _suggestions(c, context.read<MailController>()),
                         for (final ChymeTurn turn in _turns)
                           _Bubble(turn: turn),
                         if (_search != null)
