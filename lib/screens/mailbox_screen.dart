@@ -348,14 +348,24 @@ class _MailboxScreenState extends State<MailboxScreen> {
           // still there for a swipe from the edge — a permanent icon in the
           // corner was costing a tap's worth of width on every screen to say
           // something the swipe already says.
-          leadingWidth: 0,
+          // The drawer toggle, back where it was. Hiding it to give the search
+          // bar the room made the folders reachable only by a swipe nobody is
+          // told about — a control you cannot find is not a control you saved
+          // space by removing.
+          leadingWidth: _searching || _searchFocus.hasFocus ? 0 : null,
           leading: _searching
               ? AceIconButton(
                   icon: AceIcons.chevronLeft,
                   tooltip: 'Clear the search',
                   onPressed: _exitSearch,
                 )
-              : null,
+              : _searchFocus.hasFocus
+                  ? null
+                  : AceIconButton(
+                      icon: AceIcons.sidebar,
+                      tooltip: 'Folders',
+                      onPressed: () => _scaffold.currentState?.openDrawer(),
+                    ),
           // The search bar, where the folder's name used to be. The name is not
           // lost — the greeting above the list says which folder you are in and
           // what is in it, which is where a person looks anyway — and the space
