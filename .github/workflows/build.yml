@@ -302,12 +302,97 @@ jobs:
           path: AceMail-*-ios-unsigned.zip
           if-no-files-found: error
 
+  # Windows and macOS. Neither runner is committed; tool/desktop/setup_desktop.sh
+  # generates them from Flutter's template and applies the settings each needs —
+  # the macOS network entitlement above all, without which a sandboxed build
+  # reaches no IMAP server and every mailbox looks like a wrong password.
+  windows:
+    name: Build Windows
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate the Windows runner
+        shell: bash
+        run: tool/desktop/setup_desktop.sh windows
+
+      - name: Build
+        run: flutter build windows --release
+
+      - name: Pack the app
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          cd build/windows/x64/runner/Release
+          powershell -Command "Compress-Archive -Path * -DestinationPath \"$GITHUB_WORKSPACE/AceMail-$VERSION-windows-x64.zip\""
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-mail-windows
+          path: AceMail-*-windows-x64.zip
+          if-no-files-found: error
+
+  macos:
+    name: Build macOS
+    runs-on: macos-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate the macOS runner
+        run: tool/desktop/setup_desktop.sh macos
+
+      # Unsigned, like the iOS build: signing needs a certificate and a
+      # provisioning profile this repository does not have. An unsigned .app is
+      # what an Xcode user re-signs, and it is also the check that it compiles.
+      - name: Build
+        run: flutter build macos --release
+
+      - name: Pack the app
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          cd build/macos/Build/Products/Release
+          zip -qry "$GITHUB_WORKSPACE/AceMail-$VERSION-macos-unsigned.zip" "ace_mail.app"
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-mail-macos
+          path: AceMail-*-macos-unsigned.zip
+          if-no-files-found: error
+
   release:
     name: Publish
     # It waits for all three — the artifacts have to exist before they can be
     # attached — but `always()` with a check on the Android build alone means a
     # Linux or iOS failure does not stop the APKs from being published.
-    needs: [build, linux, ios]
+    needs: [build, linux, ios, windows, macos]
     if: always() && needs.build.result == 'success' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
@@ -331,6 +416,20 @@ jobs:
         with:
           name: ace-mail-linux
           path: linux
+
+      - name: Download the Windows build
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ace-mail-windows
+          path: windows
+
+      - name: Download the macOS build
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ace-mail-macos
+          path: macos
 
       - name: Download the iOS build
         continue-on-error: true
@@ -368,6 +467,8 @@ jobs:
             apk/AceMail-*.apk
             linux/AceMail-*.tar.gz
             ios/AceMail-*.zip
+            windows/AceMail-*.zip
+            macos/AceMail-*.zip
           fail_on_unmatched_files: false
           prerelease: false
 
