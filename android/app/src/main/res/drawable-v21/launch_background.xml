@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's mark, centred on the colour the app opens onto.
 
-     This was a plain fill, on the reasoning that a mark here is a second thing
-     to look at before the app appears. It reads as a blank screen instead: the
-     native window is up for as long as the engine takes to start, and a blank
-     window is what a stuck app looks like. The mark says the app is coming.
+     A <bitmap> element was here and it could not inflate this: the mark is a
+     vector, and BitmapDrawable only takes a raster. That threw during window
+     inflation — before Flutter existed, before anything could report it — so the
+     app simply did not open. An <item> takes either kind, and its gravity sets
+     the bounds rather than the drawable's own size, which is what keeps the
+     108dp mark a mark instead of a full-screen tile.
 
      Milk rather than the accent, because the accent is a *setting* and this file
      is compiled — there is no way to know which one is chosen before the app can
-     run. Milk is neutral, so the accent arriving afterwards is a fill rather than
-     a change of colour. -->
+     run. Milk is neutral, so the accent arriving with the first Flutter frame is
+     a fill rather than a change of colour. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ace_milk" />
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/ic_splash_mark" />
-    </item>
+    <item
+        android:drawable="@drawable/ic_splash_mark"
+        android:gravity="center" />
 </layer-list>
