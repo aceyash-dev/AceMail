@@ -12,7 +12,6 @@ import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
-import '../widgets/ace_glass.dart';
 import '../util/redact.dart';
 import '../util/routes.dart';
 import '../widgets/ace_form_field.dart';
