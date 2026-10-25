@@ -23,26 +23,26 @@ const Map<String, List<String>> _byBand = <String, List<String>>{
   'morning': <String>[
     'Good morning',
     'Morning',
-    'Good morning to you',
-    'Hope the morning is kind',
+    'Back at it',
+    'Let us see what arrived',
   ],
   'afternoon': <String>[
     'Good afternoon',
     'Afternoon',
-    'Good afternoon to you',
     'Hope the day is going well',
+    'What came in while you were out',
   ],
   'evening': <String>[
     'Good evening',
     'Evening',
-    'Good evening to you',
     'Hope the evening is quiet',
+    'One last look',
   ],
   'night': <String>[
     'Still up',
-    'Good evening',
     'Working late',
-    'Late one',
+    'The quiet hours',
+    'Good evening',
   ],
 };
 

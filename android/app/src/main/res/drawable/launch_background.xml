@@ -12,7 +12,7 @@
      which one is chosen before the app can run. Milk is neutral, so the accent
      arriving with the first Flutter frame is a fill rather than a change. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/ace_milk" />
+    <item android:drawable="@color/ace_splash_bg" />
     <item>
         <bitmap
             android:gravity="center"

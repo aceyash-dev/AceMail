@@ -22,6 +22,8 @@ import 'message_html.dart';
 import 'avatar.dart';
 import 'skeleton.dart';
 import 'ace_icon_view.dart';
+import 'chyme_sheet.dart';
+import 'chyme_mark.dart';
 
 class MessageReader extends StatefulWidget {
   const MessageReader({super.key, this.onBack});
@@ -83,7 +85,7 @@ class _MessageReaderState extends State<MessageReader> {
                 if (widget.onBack != null) _topBar(context),
                 Expanded(
                   child: SingleChildScrollView(
-                    // Clearance for the floating toolbar.
+                    // Clearance for the toolbar, which is at the top now.
                     padding: const EdgeInsets.fromLTRB(
                       AstryxSpace.s6,
                       0,
@@ -128,12 +130,32 @@ class _MessageReaderState extends State<MessageReader> {
               ),
             ],
           ),
+          // Top right, where the actions for the thing you are reading belong.
+          // At the bottom it was a bar to reach past the message for; at the top
+          // it sits under the back button, in the corner a thumb already knows.
           Positioned(
-              left: AstryxSpace.s4,
-              right: AstryxSpace.s4,
-              bottom: AstryxSpace.s5,
-              child: Center(child: _actions(context, message)),
+            top: AstryxSpace.s2,
+            right: AstryxSpace.s4,
+            child: _actions(context, message),
+          ),
+          // The one thing worth a button of its own on a long message. Reading
+          // something you have not read is the moment you want it in three
+          // lines, and asking for that from a menu of six icons is asking
+          // somebody to find it first.
+          Positioned(
+            right: AstryxSpace.s4,
+            bottom: AstryxSpace.s5,
+            child: FloatingActionButton.extended(
+              onPressed: () => ChymeSheet.show(
+                context,
+                seed: 'Summarise this message in three lines.',
+              ),
+              backgroundColor: c.accent,
+              foregroundColor: c.onAccent,
+              icon: ChymeMark(size: 20, color: c.onAccent),
+              label: const Text('Summarise'),
             ),
+          ),
           ],
         ),
       ),

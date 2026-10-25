@@ -344,20 +344,18 @@ class _MailboxScreenState extends State<MailboxScreen> {
           //
           // An active search keeps the chevron, because that is the way out of
           // the *results* rather than out of the field.
-          leadingWidth: _searching || _searchFocus.hasFocus ? 0 : null,
+          // No sidebar button. The search bar takes the room, and the drawer is
+          // still there for a swipe from the edge — a permanent icon in the
+          // corner was costing a tap's worth of width on every screen to say
+          // something the swipe already says.
+          leadingWidth: 0,
           leading: _searching
               ? AceIconButton(
                   icon: AceIcons.chevronLeft,
                   tooltip: 'Clear the search',
                   onPressed: _exitSearch,
                 )
-              : _searchFocus.hasFocus
-                  ? null
-                  : AceIconButton(
-                      icon: AceIcons.sidebar,
-                      tooltip: 'Folders',
-                      onPressed: () => _scaffold.currentState?.openDrawer(),
-                    ),
+              : null,
           // The search bar, where the folder's name used to be. The name is not
           // lost — the greeting above the list says which folder you are in and
           // what is in it, which is where a person looks anyway — and the space
