@@ -866,9 +866,72 @@ class _ComposeScreenState extends State<ComposeScreen> {
     );
   }
 
+  /// Adds somebody from the contacts list to the To field.
+  ///
+  /// Appends rather than replaces: a message to two people is one message, and
+  /// a picker that threw away the first address would make the second a second
+  /// message.
+  Future<void> _pickContact() async {
+    final List<Contact> people = Contacts.all;
+    if (people.isEmpty) {
+      AceSnack.show(context, 'No contacts yet — they appear as you write.');
+      return;
+    }
+    final Contact? chosen = await showModalBottomSheet<Contact>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: people.length,
+            itemBuilder: (BuildContext context, int index) {
+              final Contact person = people[index];
+              return ListTile(
+                leading: MailAvatar(
+                  email: person.email,
+                  name: person.name,
+                  size: 36,
+                ),
+                title: Text(
+                  person.name.isEmpty ? person.email : person.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: person.name.isEmpty
+                    ? null
+                    : Text(
+                        person.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                onTap: () => Navigator.of(sheetContext).pop(person),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    final String existing = _to.text.trim();
+    setState(() {
+      _to.text = existing.isEmpty
+          ? chosen.email
+          : '$existing, ${chosen.email}';
+      _toError = null;
+    });
+  
+
 }
 
 /// Which account the message goes from, when there is more than one.
+}
+
 class _FromRow extends StatelessWidget {
   const _FromRow({
     required this.accounts,
@@ -1023,64 +1086,3 @@ class _FromChoice {
   final String? email;
 
 }
-
-  /// Adds somebody from the contacts list to the To field.
-  ///
-  /// Appends rather than replaces: a message to two people is one message, and
-  /// a picker that threw away the first address would make the second a second
-  /// message.
-  Future<void> _pickContact() async {
-    final List<Contact> people = Contacts.all;
-    if (people.isEmpty) {
-      AceSnack.show(context, 'No contacts yet — they appear as you write.');
-      return;
-    }
-    final Contact? chosen = await showModalBottomSheet<Contact>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (BuildContext sheetContext) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
-          ),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: people.length,
-            itemBuilder: (BuildContext context, int index) {
-              final Contact person = people[index];
-              return ListTile(
-                leading: MailAvatar(
-                  email: person.email,
-                  name: person.name,
-                  size: 36,
-                ),
-                title: Text(
-                  person.name.isEmpty ? person.email : person.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: person.name.isEmpty
-                    ? null
-                    : Text(
-                        person.email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                onTap: () => Navigator.of(sheetContext).pop(person),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    if (chosen == null || !mounted) return;
-
-    final String existing = _to.text.trim();
-    setState(() {
-      _to.text = existing.isEmpty
-          ? chosen.email
-          : '$existing, ${chosen.email}';
-      _toError = null;
-    });
-  }

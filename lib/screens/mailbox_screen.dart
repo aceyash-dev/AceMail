@@ -269,7 +269,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
         // keyboard *and* the place you were standing.
         child: PopScope(
           canPop: !_searchFocus.hasFocus,
-          onPopInvokedWithResult: (bool didPop, Object? _) {
+          onPopInvoked: (bool didPop) {
             if (didPop) return;
             _searchFocus.unfocus();
             setState(() {});
