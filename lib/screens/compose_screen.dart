@@ -552,7 +552,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     // A short knock when it goes. The button already changes state; this is
     // the part you feel rather than see, and sending mail is the one action in
     // this screen worth feeling.
-    HapticFeedback.mediumImpact();
+    unawaited(HapticFeedback.mediumImpact());
     setState(() => _sending = true);
     try {
       await context.read<MailController>().send(

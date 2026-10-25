@@ -178,7 +178,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
           'read': (String argument) async {
             final FullMessage? open = controller.openMessage;
             if (open == null) return 'No message is open.';
-            final String body = (open.textSource ?? '').trim();
+            final String body = open.textBody.trim();
             final String html = open.htmlSource ?? '';
             final String text = body.isNotEmpty ? body : html;
             if (text.isEmpty) return 'The message has no readable body.';

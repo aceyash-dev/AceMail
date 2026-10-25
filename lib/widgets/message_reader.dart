@@ -165,28 +165,6 @@ class _MessageReaderState extends State<MessageReader> {
     );
   }
 
-  /// Just the back affordance. The actions live in the floating toolbar at the
-  /// bottom, where a thumb can reach them.
-  Widget _topBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AstryxSpace.s3,
-        AstryxSpace.s3,
-        AstryxSpace.s3,
-        AstryxSpace.s1,
-      ),
-      child: Row(
-        children: <Widget>[
-          AceIconButton(
-            icon: AceIcons.chevronLeft,
-            tooltip: 'Back',
-            onPressed: widget.onBack,
-          ),
-        ],
-      ),
-    );
-  }
-
   /// The expressive floating toolbar.
   Widget _actions(BuildContext context, FullMessage message) {
     final bool flagged =
