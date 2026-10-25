@@ -130,7 +130,7 @@ a custom theme, not a departure.
 The Android project is included, so that target works out of the box:
 
 ```bash
-git clone https://github.com/aceyash-dev/AceMail.git
+git clone https://github.com/tab-gl/AceMail.git
 cd AceMail
 flutter pub get
 flutter run                 # or: flutter build apk --release

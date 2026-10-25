@@ -18,7 +18,7 @@ import argparse
 import re
 import sys
 
-DEFAULT_REPO = "aceyash-dev/AceMail"
+DEFAULT_REPO = "tab-gl/AceMail"
 DEFAULT_CHANGELOG = "CHANGELOG.md"
 
 _HEADING = re.compile(r"^##\s+(?P<version>\S+)\s*$")

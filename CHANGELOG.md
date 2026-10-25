@@ -2,6 +2,53 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
+## 0.5.4
+
+### Added
+- **Summarise, on the message itself.** Reading something you have not read is
+  the moment you want it in three lines, and asking for that from a menu of six
+  icons is asking somebody to find it first.
+- **A text-size slider**, drawn as Material 3 Expressive: a thin track, a gap
+  either side of a tall handle, and a stop indicator at the end. The mail behind
+  the sheet re-renders as you drag, which is the only honest way to answer "is
+  this too big".
+- **Pick a recipient from contacts**, in the composer. Appends rather than
+  replaces: a message to two people is one message.
+
+### Changed
+- **The launch window is the app's own.** The accent ground and the name in milk,
+  drawn in Geograph — the typeface the app uses, which a launch window can never
+  have as a *font*. It is a rendered image, so it can be drawn in anything.
+- **The reader's toolbar is at the top right**, under the back button, instead of
+  a bar along the bottom you had to reach past the message for.
+- **The sidebar button is gone.** The search bar takes the room and the drawer
+  still opens on an edge swipe. A permanent icon in the corner cost a tap's worth
+  of width on every screen to say something the swipe already says.
+- **The subject is the line, and the sender is the context.** The sender was the
+  bold one, which made a list of *names* to be read before you could see what any
+  of them said.
+- **The onboarding is a page, not a card on one.** It was a centred, rounded,
+  frosted panel — which is a *web* sign-in form, and it read as one.
+- **Greetings with a voice**, still chosen by the day so they hold still.
+
+### Fixed
+- **The changelog never appeared.** A fresh install had no "seen" version to
+  compare against and recorded nothing, so the next update found nothing either.
+  The notes only ever reached somebody who had already seen them once.
+- **Signing in after switching accounts.** One key held one token, so the second
+  Google account's overwrote the first's and the first was asked to sign in again
+  every hour.
+- **The unified inbox** was compared by identity, and it is built fresh on every
+  read because it carries a live unread count — so the check could never be true.
+- **Gmail's folders** listed one. `listMailboxes()` does not recurse by default
+  and every one of Gmail's is a child of the "[Gmail]" container.
+- **Spam under any name for it.** Yahoo calls the folder "Bulk", and a junk
+  folder that arrives as an ordinary one is a folder nobody knows to check.
+- **The trash the app could not find.** The role was guessed from the folder's
+  name; it reads the server's own flags first now, which is what RFC 6154 is for.
+- **The splash could not inflate.** A bitmap wrapping a vector, which threw
+  before Flutter existed — so the app did not open at all.
+
 ## 0.5.3
 
 ### Added

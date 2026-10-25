@@ -33,7 +33,7 @@ class _AboutSheet extends StatelessWidget {
   /// Where to find the people who made this.
   /// The source. It is the first thing in the list because it is the thing
   /// someone who wants to check a claim will look for.
-  static final Uri _source = Uri.parse('https://github.com/aceyash-dev/AceMail');
+  static final Uri _source = Uri.parse('https://github.com/tab-gl/AceMail');
   static final Uri _bluesky = Uri.parse('https://bsky.app/profile/ace-base.cc');
   static final Uri _email = Uri.parse('mailto:hello@ace-base.cc');
   static final Uri _website = Uri.parse('https://ace-base.cc');
@@ -98,7 +98,7 @@ class _AboutSheet extends StatelessWidget {
             _Handle(
               icon: AceIcons.github,
               platform: 'Source',
-              handle: 'aceyash-dev/AceMail',
+              handle: 'tab-gl/AceMail',
               onTap: () => _open(sheetContext, _source),
             ),
             _Handle(
