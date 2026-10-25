@@ -150,9 +150,12 @@ class MailController extends ChangeNotifier {
     if (!_unified) return active?.messages ?? const <MessageSummary>[];
     // Newest first across all of them, because that is what the list means when
     // it is not one mailbox: the order things arrived in.
+    // A summary can arrive without a date — the header was there and the field
+    // was not — so those sort last rather than crashing the merge.
+    DateTime when(MessageSummary m) => m.date ?? DateTime(1970);
     return <MessageSummary>[
       for (final MailSession session in _sessions) ...session.messages,
-    ]..sort((MessageSummary a, MessageSummary b) => b.date.compareTo(a.date));
+    ]..sort((MessageSummary a, MessageSummary b) => when(b).compareTo(when(a)));
   }
 
   /// What the list renders: the page, filtered and sorted.
