@@ -208,7 +208,7 @@ class Preferences extends ChangeNotifier {
   bool _confirmDelete = true;
   bool _detectCodes = true;
   MessageSort _messageSort = MessageSort.newest;
-  bool _loadRemoteImages = true;
+  final bool _loadRemoteImages = true;
   AceAccent _accent = AceAccent.orange;
   bool _warnEmptySubject = true;
   bool _warnExternalLinks = true;
