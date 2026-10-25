@@ -6,7 +6,7 @@
     <!-- The accent the launch window opens on. It cannot follow the setting:
          this file is compiled, and the setting is read by an app that has not
          started yet. The brand orange is what the app wears out of the box. -->
-    <color name="ace_splash_bg">#F25C05</color>
+    <color name="ace_splash_bg">#FFFCF6</color>
     <color name="ace_ink">#1A1614</color>
     <color name="ace_orange">#FF6A1A</color>
 </resources>

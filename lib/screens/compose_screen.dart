@@ -95,6 +95,8 @@ class ComposeScreen extends StatefulWidget {
 class _ComposeScreenState extends State<ComposeScreen> {
   late final TextEditingController _to =
       TextEditingController(text: widget.initialTo);
+  late final TextEditingController _bcc = TextEditingController();
+
   late final TextEditingController _cc =
       TextEditingController(text: widget.initialCc);
   late final TextEditingController _subject =
@@ -104,6 +106,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   final List<File> _attachments = <File>[];
   bool _sending = false;
+
+  /// Whether Cc and Bcc are showing. Folded by default: they are the two fields
+  /// almost nobody uses, and they were costing a row each above the subject.
+  bool _showCc = false;
   String? _toError;
   String? _ccError;
   String? _error;
@@ -547,7 +553,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
       await context.read<MailController>().send(
             to: to,
             cc: cc,
-            bcc: context.read<Preferences>().bccSelf ? _senderEmail : '',
+            // The field and the self-copy are two different reasons to blind
+            // copy somebody, and a Bcc field that went nowhere because the
+            // setting was off was a field that did nothing.
+            bcc: <String>[
+              if (_bcc.text.trim().isNotEmpty) _bcc.text.trim(),
+              if (context.read<Preferences>().bccSelf) _senderEmail,
+            ].join(', '),
             subject: _subject.text,
             body: _body.text,
             attachments: _attachments,
@@ -665,6 +677,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 ),
                 const SizedBox(height: AstryxSpace.s3),
               ],
+              // One row for the addressing, the way every mail client does it:
+              // To, then the two fields almost nobody uses folded behind a word
+              // rather than given a row each. Two empty rows above the subject
+              // is two rows of nothing before you can start writing.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -677,9 +693,6 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       keyboard: TextInputType.emailAddress,
                     ),
                   ),
-                  // Who you are writing to is the one field a mail client can
-                  // answer from what it already knows. Typing an address that is
-                  // sitting in the contacts list is work the app can do.
                   Padding(
                     padding: const EdgeInsets.only(top: AstryxSpace.s5),
                     child: AceIconButton(
@@ -688,18 +701,45 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       onPressed: _pickContact,
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AstryxSpace.s4),
+                    child: TextButton(
+                      onPressed: () => setState(() => _showCc = !_showCc),
+                      child: Text(_showCc ? 'Hide' : 'Cc Bcc'),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: AstryxSpace.s3),
-              AceFormField(
-                label: 'Cc',
-                controller: _cc,
-                hint: 'optional',
-                error: _ccError,
-                keyboard: TextInputType.emailAddress,
+              if (_showCc) ...<Widget>[
+                const SizedBox(height: AstryxSpace.s2),
+                AceFormField(
+                  label: 'Cc',
+                  controller: _cc,
+                  hint: 'optional',
+                  error: _ccError,
+                  keyboard: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: AstryxSpace.s2),
+                AceFormField(
+                  label: 'Bcc',
+                  controller: _bcc,
+                  hint: 'optional',
+                  keyboard: TextInputType.emailAddress,
+                ),
+              ],
+              const SizedBox(height: AstryxSpace.s2),
+              Divider(height: 1, color: c.border),
+              // Subject inline, with no label above it. It sits directly under
+              // the divider, where the subject of a letter goes.
+              TextField(
+                controller: _subject,
+                style: AstryxText.bodyStrong(c.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'Subject',
+                  border: InputBorder.none,
+                ),
               ),
-              const SizedBox(height: AstryxSpace.s3),
-              AceFormField(label: 'Subject', controller: _subject),
+              Divider(height: 1, color: c.border),
               const SizedBox(height: AstryxSpace.s4),
               TextField(
                 controller: _body,
