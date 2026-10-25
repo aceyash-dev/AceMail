@@ -119,6 +119,21 @@ class MailSession extends ChangeNotifier {
 
   List<MailFolder> folders = <MailFolder>[];
   MailFolder? selectedFolder;
+
+  /// Puts this session on its own inbox.
+  ///
+  /// What the unified view is built from: every account showing its inbox at
+  /// once, so the merge is a concatenation rather than a second set of fetches.
+  /// A session that has no inbox — a provider with an unusual LIST — stays where
+  /// it is and contributes whatever it is showing.
+  Future<void> showInbox() async {
+    final MailFolder? inbox = _firstWhereOrNull(
+      folders,
+      (MailFolder f) => f.role == FolderRole.inbox,
+    );
+    if (inbox == null || selectedFolder?.path == inbox.path) return;
+    await openFolder(inbox);
+  }
   List<MessageSummary> messages = <MessageSummary>[];
   MessageSummary? openSummary;
   FullMessage? openMessage;

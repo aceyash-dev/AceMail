@@ -124,15 +124,45 @@ class MailController extends ChangeNotifier {
   AceAccount? get account => active?.account;
   int get accountCount => _sessions.length;
 
+  /// Whether the list is showing every account's inbox at once.
+  ///
+  /// Not a folder on any server, and not a session: it is the one view that
+  /// belongs to the *set* of accounts rather than to one of them. A person with
+  /// two addresses wants to see both inboxes most of the time, and switching
+  /// between them to find out whether anything arrived is the thing an app is
+  /// supposed to save you from.
+  bool _unified = false;
+  bool get unified => _unified;
+
   // --- proxies onto the active session -----------------------------------
-  List<MailFolder> get folders => active?.folders ?? const <MailFolder>[];
-  MailFolder? get selectedFolder => active?.selectedFolder;
-  List<MessageSummary> get messages =>
-      active?.messages ?? const <MessageSummary>[];
+  List<MailFolder> get folders => <MailFolder>[
+        // Offered only when there is more than one inbox to unify. A single
+        // account has an Inbox already, and a second row saying the same thing
+        // is a row that makes the rail look longer for nothing.
+        if (_sessions.length > 1) kUnifiedInbox,
+        ...?active?.folders,
+      ];
+
+  MailFolder? get selectedFolder =>
+      _unified ? kUnifiedInbox : active?.selectedFolder;
+
+  List<MessageSummary> get messages {
+    if (!_unified) return active?.messages ?? const <MessageSummary>[];
+    // Newest first across all of them, because that is what the list means when
+    // it is not one mailbox: the order things arrived in.
+    return <MessageSummary>[
+      for (final MailSession session in _sessions) ...session.messages,
+    ]..sort((MessageSummary a, MessageSummary b) => b.date.compareTo(a.date));
+  }
 
   /// What the list renders: the page, filtered and sorted.
-  List<MessageSummary> get visibleMessages =>
-      active?.visibleMessages ?? const <MessageSummary>[];
+  ///
+  /// The unified view is not filtered: the filter operators are per-mailbox
+  /// (`is:read` asks a server), and applying them to a merge of several would be
+  /// answering a question nobody asked.
+  List<MessageSummary> get visibleMessages => _unified
+      ? messages
+      : (active?.visibleMessages ?? const <MessageSummary>[]);
 
   /// The account holder's own name, when the provider knows it. Null is
   /// ordinary: the greeting is written to read well without one.
@@ -336,8 +366,26 @@ class MailController extends ChangeNotifier {
       });
 
   // --- actions, forwarded to the active session --------------------------
-  Future<void> openFolder(MailFolder folder) async =>
-      active?.openFolder(folder);
+  Future<void> openFolder(MailFolder folder) async {
+    if (folder.role == FolderRole.unified) {
+      _unified = true;
+      notifyListeners();
+      // Every account onto its own inbox, so the merge is a concatenation
+      // rather than a second set of fetches.
+      await Future.wait<void>(<Future<void>>[
+        for (final MailSession session in _sessions) session.showInbox(),
+      ]);
+      notifyListeners();
+      return;
+    }
+    // Leaving the unified view is leaving it: the next folder belongs to one
+    // account, and the list has to stop merging before it opens.
+    if (_unified) {
+      _unified = false;
+      notifyListeners();
+    }
+    await active?.openFolder(folder);
+  }
 
   Future<void> refreshMessages() async => active?.refreshMessages();
 

@@ -2,7 +2,20 @@ import 'package:enough_mail/enough_mail.dart';
 
 /// A folder in the mailbox, with its role resolved once so the UI never has to
 /// re-derive it. Roles drive ordering and the friendly label.
-enum FolderRole { inbox, sent, drafts, trash, junk, archive, folder }
+enum FolderRole { unified, inbox, sent, drafts, trash, junk, archive, folder }
+
+/// Every account's inbox, as one list.
+///
+/// Not a folder on any server: it has no path and nothing is ever selected from
+/// it. It exists so the rail has something to point at when somebody is looking
+/// at all their mail at once, which is the view a person with two addresses
+/// wants most of the time.
+const MailFolder kUnifiedInbox = MailFolder(
+  name: 'All inboxes',
+  path: '',
+  role: FolderRole.unified,
+  unseen: 0,
+);
 
 class MailFolder {
   const MailFolder({
@@ -77,6 +90,7 @@ class MailFolder {
   }
 
   String get label => switch (role) {
+        FolderRole.unified => 'All inboxes',
         FolderRole.inbox => 'Inbox',
         FolderRole.sent => 'Sent',
         FolderRole.drafts => 'Drafts',
@@ -87,6 +101,7 @@ class MailFolder {
       };
 
   int get sortOrder => switch (role) {
+        FolderRole.unified => -1,
         FolderRole.inbox => 0,
         FolderRole.sent => 1,
         FolderRole.drafts => 2,
