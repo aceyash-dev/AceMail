@@ -606,7 +606,9 @@ class MessageTile extends StatelessWidget {
                 // Uniform, because a rounded border in Flutter has to be: a
                 // different colour per side is refused when it is painted. The
                 // unread mark is drawn over the edge instead of into it.
-                border: Border.all(color: c.border.withValues(alpha: 0.5)),
+                // Softer than a control's edge. A card is a grouping, not a thing to
+                // press, and a border at full strength makes forty of them shout.
+                border: Border.all(color: c.border.withValues(alpha: 0.35)),
               ),
               child: ClipRRect(
                 // So the mark below follows the card's corner rather than
@@ -677,13 +679,17 @@ class MessageTile extends StatelessWidget {
                                 // the subject keeps the whole width it needs.
                                 Row(
                                   children: <Widget>[
+                                    // The sender is the *context*, not the
+                                    // point. It was the bold line, which made a
+                                    // list of names to be read before you could
+                                    // see what any of them said.
                                     Expanded(
                                       child: Text(
                                         summary.fromName,
                                         overflow: TextOverflow.ellipsis,
-                                        style: unread
-                                            ? AstryxText.bodyStrong(c.textPrimary)
-                                            : AstryxText.body(c.textSecondary),
+                                        style: AstryxText.supporting(
+                                          c.textSecondary,
+                                        ),
                                       ),
                                     ),
                                     if (summary.isFlagged) ...<Widget>[
@@ -734,8 +740,11 @@ class MessageTile extends StatelessWidget {
                                   summary.subject,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
+                                  // The point of the row, and drawn like it.
+                                  // Unread keeps the ink; read steps back a
+                                  // shade rather than going grey.
                                   style: unread
-                                      ? AstryxText.body(c.textPrimary)
+                                      ? AstryxText.bodyStrong(c.textPrimary)
                                       : AstryxText.body(c.textSecondary),
                                 ),
                                 if (summary.otp != null) ...<Widget>[
