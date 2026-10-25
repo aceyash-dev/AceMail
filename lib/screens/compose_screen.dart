@@ -27,6 +27,7 @@ import '../widgets/settings_group.dart';
 import '../widgets/ace_icon_view.dart';
 import '../data/scheduled.dart';
 import '../util/dates.dart';
+import '../models/contact.dart';
 
 /// Opens the composer as a sheet.
 ///
@@ -664,12 +665,30 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 ),
                 const SizedBox(height: AstryxSpace.s3),
               ],
-              AceFormField(
-                label: 'To',
-                controller: _to,
-                hint: 'name@example.com',
-                error: _toError,
-                keyboard: TextInputType.emailAddress,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: AceFormField(
+                      label: 'To',
+                      controller: _to,
+                      hint: 'name@example.com',
+                      error: _toError,
+                      keyboard: TextInputType.emailAddress,
+                    ),
+                  ),
+                  // Who you are writing to is the one field a mail client can
+                  // answer from what it already knows. Typing an address that is
+                  // sitting in the contacts list is work the app can do.
+                  Padding(
+                    padding: const EdgeInsets.only(top: AstryxSpace.s5),
+                    child: AceIconButton(
+                      icon: AceIcons.contacts,
+                      tooltip: 'Choose from contacts',
+                      onPressed: _pickContact,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: AstryxSpace.s3),
               AceFormField(
@@ -1004,3 +1023,64 @@ class _FromChoice {
   final String? email;
 
 }
+
+  /// Adds somebody from the contacts list to the To field.
+  ///
+  /// Appends rather than replaces: a message to two people is one message, and
+  /// a picker that threw away the first address would make the second a second
+  /// message.
+  Future<void> _pickContact() async {
+    final List<Contact> people = Contacts.all;
+    if (people.isEmpty) {
+      AceSnack.show(context, 'No contacts yet — they appear as you write.');
+      return;
+    }
+    final Contact? chosen = await showModalBottomSheet<Contact>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: people.length,
+            itemBuilder: (BuildContext context, int index) {
+              final Contact person = people[index];
+              return ListTile(
+                leading: MailAvatar(
+                  email: person.email,
+                  name: person.name,
+                  size: 36,
+                ),
+                title: Text(
+                  person.name.isEmpty ? person.email : person.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: person.name.isEmpty
+                    ? null
+                    : Text(
+                        person.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                onTap: () => Navigator.of(sheetContext).pop(person),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    final String existing = _to.text.trim();
+    setState(() {
+      _to.text = existing.isEmpty
+          ? chosen.email
+          : '$existing, ${chosen.email}';
+      _toError = null;
+    });
+  }

@@ -71,7 +71,7 @@ class MailSession extends ChangeNotifier {
         // Only a Google account has a token to fetch. A password account's
         // secret is remembered by the service, because there is no way to
         // replace it.
-        tokenProvider: account.isGoogle ? GoogleAuth.token : null,
+        tokenProvider: account.isGoogle ? () => GoogleAuth.token(account.email) : null,
       );
 
   /// The secret for a handshake: a password, or a fresh Google token.
@@ -87,7 +87,7 @@ class MailSession extends ChangeNotifier {
   /// the screen turns into an offer to sign in rather than an error.
   Future<String> _secret() {
     if (!account.isGoogle) return Future<String>.value(password);
-    return GoogleAuth.token().then((String? token) {
+    return GoogleAuth.token(account.email).then((String? token) {
       if (token == null) {
         needsGoogleSignIn = true;
         throw const GoogleAuthException(

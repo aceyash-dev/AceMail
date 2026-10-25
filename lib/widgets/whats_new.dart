@@ -72,9 +72,18 @@ class WhatsNewSheet extends StatelessWidget {
     // nothing at all.
     final String running = AppInfo.fullVersion;
 
+    if (running.isEmpty || seen == running) return;
+
     // First run after install: nothing to compare against, and a wall of
-    // release notes is a poor introduction to an app.
-    if (running.isEmpty || seen == null || seen == running) return;
+    // release notes is a poor introduction to an app. The version is still
+    // *recorded*, though — it was not, and that was the bug: a fresh install
+    // returned here without writing anything, so the next update found no
+    // "seen" to compare against and said nothing either. The notes only ever
+    // appeared to somebody who had already seen them once.
+    if (seen == null) {
+      await context.read<Preferences>().setLastSeenVersion(running);
+      return;
+    }
 
     final String? body = await ReleaseNotes.forVersion(running);
     if (body == null || !context.mounted) return;

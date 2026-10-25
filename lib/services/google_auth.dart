@@ -183,9 +183,12 @@ abstract final class GoogleAuth {
         await _write(_keyName, display);
       }
       final String token = await _tokenFor(account, allowPrompt: true);
-      // Kept, so a restart inside the hour does not have to ask anybody.
-      await _write(_keyToken, token);
-      await _write(_keyTokenAt, DateTime.now().toIso8601String());
+      // Kept per address, so a restart inside the hour does not have to ask
+      // anybody — and so signing into a second account does not throw this one
+      // away.
+      final String suffix = '.${account.email.toLowerCase()}';
+      await _write('$_keyToken$suffix', token);
+      await _write('$_keyTokenAt$suffix', DateTime.now().toIso8601String());
       final String? name = account.displayName?.trim();
       return (
         email: account.email,
@@ -223,12 +226,17 @@ abstract final class GoogleAuth {
   /// Null means the app needs a sign-in it cannot perform by itself, and the
   /// caller says so. That is a worse sentence than a sheet, and a much better
   /// one than a sheet nobody asked for.
-  static Future<String?> token() async {
+  static Future<String?> token([String? email]) async {
     if (_desktop) return GoogleDesktopAuth.token();
     await _prepare();
 
+    // Only when the caller did not say which account. With two signed in, the
+    // remembered one is whoever signed in last — and handing that account's
+    // token to the other is how a second account ends up asked to sign in again
+    // every hour while the first is fine.
+    final String? want = email?.trim().toLowerCase();
     final GoogleSignInAccount? known = _remembered;
-    if (known != null) {
+    if (known != null && (want == null || known.email.toLowerCase() == want)) {
       try {
         return await _tokenFor(known, allowPrompt: false);
       } on GoogleAuthException {
@@ -237,10 +245,13 @@ abstract final class GoogleAuth {
       }
     }
 
+    // Stored per address. One key held one token, so signing into a second
+    // account threw the first one's away — and the first then had to ask again.
+    final String suffix = want == null ? '' : '.$want';
     final DateTime? issued = DateTime.tryParse(
-      await _read(_keyTokenAt) ?? '',
+      await _read('$_keyTokenAt$suffix') ?? '',
     );
-    final String? stored = await _read(_keyToken);
+    final String? stored = await _read('$_keyToken$suffix');
     if (stored == null || issued == null) return null;
     if (DateTime.now().difference(issued) > _tokenLife) return null;
     return stored;
@@ -253,7 +264,7 @@ abstract final class GoogleAuth {
     // Signed out is signed out: a remembered account, a cached name and a live
     // token would all outlive it.
     _remembered = null;
-    for (final String key in <String>[_keyEmail, _keyName, _keyToken, _keyTokenAt]) {
+    for (final String key in <String>[_keyEmail, _keyName]) {
       try {
         await _storage.delete(key: key);
       } catch (_) {

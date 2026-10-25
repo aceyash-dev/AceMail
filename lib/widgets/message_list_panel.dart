@@ -915,17 +915,10 @@ class _Greeting extends StatelessWidget {
               ),
             ),
             // Sorting lives here now, not in the app bar: it is a choice about
-            // the list, and this is the line that introduces the list. It lights
-            // when something other than the default order or filter is in force,
-            // which is the one thing the always-on chips could never say.
-            const SizedBox(width: AstryxSpace.s3),
-            AceIconButton(
-              icon: AceIcons.sort,
-              tooltip: 'Sort and filter',
-              selected: controller.filter != MessageFilter.all ||
-                  controller.sort != MessageSort.newest,
-              onPressed: () => showSortSheet(context),
-            ),
+            // The sort control lives in the search bar now, beside the
+            // microphone. It is the same kind of thing — a control for the list
+            // you are looking at — and it was sitting in the greeting, where it
+            // read as part of the sentence above the mail.
           ],
         ),
       ),

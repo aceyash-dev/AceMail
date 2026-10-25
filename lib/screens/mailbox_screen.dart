@@ -264,7 +264,17 @@ class _MailboxScreenState extends State<MailboxScreen> {
           const SingleActivator(LogicalKeyboardKey.keyR, meta: true): () =>
               context.read<MailController>().refreshMessages(),
         },
-        child: Scaffold(
+        // Back leaves the search before it leaves the screen. With the bar
+        // focused, a back press that closed the folder would throw away the
+        // keyboard *and* the place you were standing.
+        child: PopScope(
+          canPop: !_searchFocus.hasFocus,
+          onPopInvokedWithResult: (bool didPop, Object? _) {
+            if (didPop) return;
+            _searchFocus.unfocus();
+            setState(() {});
+          },
+          child: Scaffold(
         key: _scaffold,
         backgroundColor: c.backgroundBody,
         appBar: controller.selecting
@@ -480,6 +490,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
             ),
           ),
         ),
+        ),
       );
   }
 
@@ -602,6 +613,14 @@ class _MailboxScreenState extends State<MailboxScreen> {
                         ChymeMark(size: 22, color: foreground),
                     onPressed: () => ChymeSheet.show(context),
                   ),
+            // Beside the microphone, where the controls for the list belong.
+            AceIconButton(
+              icon: AceIcons.sort,
+              tooltip: 'Sort and filter',
+              selected: controller.filter != MessageFilter.all ||
+                  controller.sort != MessageSort.newest,
+              onPressed: () => showSortSheet(context),
+            ),
           ),
         ],
       ),

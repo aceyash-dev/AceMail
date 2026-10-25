@@ -112,14 +112,14 @@ Future<bool> checkOne(StoredAccount stored) async {
   // user and they never got a new-mail notification at all.
   final MailService service = MailService(
     stored.account,
-    tokenProvider: stored.account.isGoogle ? GoogleAuth.token : null,
+    tokenProvider: stored.account.isGoogle ? () => GoogleAuth.token(stored.account.email) : null,
   );
   final Preferences prefs = Preferences();
   await prefs.load();
 
   try {
     final String? secret = stored.account.isGoogle
-        ? await GoogleAuth.token()
+        ? await GoogleAuth.token(stored.account.email)
         : stored.password;
     if (secret == null) return false;
 
@@ -235,11 +235,13 @@ Future<void> sendDue({void Function()? onTransientFailure}) async {
 
     final MailService service = MailService(
       stored.account,
-      tokenProvider: stored.account.isGoogle ? GoogleAuth.token : null,
+      tokenProvider: stored.account.isGoogle
+          ? () => GoogleAuth.token(stored.account.email)
+          : null,
     );
     try {
       final String? secret = stored.account.isGoogle
-          ? await GoogleAuth.token()
+          ? await GoogleAuth.token(stored.account.email)
           : stored.password;
       if (secret == null) {
         // No token without asking somebody, so it waits for a run that can.

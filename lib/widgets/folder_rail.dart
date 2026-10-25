@@ -60,9 +60,16 @@ class FolderRail extends StatelessWidget {
                 itemCount: controller.folders.length,
                 itemBuilder: (BuildContext context, int index) {
                   final MailFolder folder = controller.folders[index];
+                  final MailFolder? chosen = controller.selectedFolder;
                   return _FolderTile(
                     folder: folder,
-                    selected: controller.selectedFolder == folder,
+                    // By value, not identity. The unified folder is built fresh
+                    // on every read — it carries a live unread count — so an
+                    // identity check could never be true and the selection never
+                    // showed on it.
+                    selected: chosen != null &&
+                        chosen.role == folder.role &&
+                        chosen.path == folder.path,
                     // Read where it is used. The "Unread counts on folders"
                     // switch used to change nothing but its own state.
                     showCounts: context.watch<Preferences>().showFolderCounts,
