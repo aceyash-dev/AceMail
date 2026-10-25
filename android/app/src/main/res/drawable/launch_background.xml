@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The app's mark, centred on the colour the app opens onto.
+<!-- The app's name, centred on the colour the app opens onto.
 
-     A <bitmap> element was here and it could not inflate this: the mark is a
-     vector, and BitmapDrawable only takes a raster. That threw during window
-     inflation — before Flutter existed, before anything could report it — so the
-     app simply did not open. An <item> takes either kind, and its gravity sets
-     the bounds rather than the drawable's own size, which is what keeps the
-     108dp mark a mark instead of a full-screen tile.
+     A bitmap wrapping a *vector* was here, and BitmapDrawable only takes a
+     raster — so the launch window threw during inflation, before Flutter existed
+     and before anything could report it, and the app did not open at all. This
+     is a real PNG, which is what the element can actually inflate.
 
-     Milk rather than the accent, because the accent is a *setting* and this file
-     is compiled — there is no way to know which one is chosen before the app can
-     run. Milk is neutral, so the accent arriving with the first Flutter frame is
-     a fill rather than a change of colour. -->
+     The name rather than the mark: a mark at launch is a logo to be recognised,
+     and the name is a thing to be read. Milk rather than the accent, because the
+     accent is a *setting* and this file is compiled — there is no way to know
+     which one is chosen before the app can run. Milk is neutral, so the accent
+     arriving with the first Flutter frame is a fill rather than a change. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ace_milk" />
-    <item
-        android:drawable="@drawable/ic_splash_mark"
-        android:gravity="center" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/ace_splash_wordmark" />
+    </item>
 </layer-list>

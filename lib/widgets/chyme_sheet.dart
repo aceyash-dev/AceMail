@@ -156,7 +156,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
       final List<ChymeTurn> request = <ChymeTurn>[
         ChymeTurn(
           'system',
-          '${Chyme.systemPrompt}\n${_context(controller, prefs, controller.openMessage)}',
+          '${Chyme.systemPromptFor(prefs.chymeTone)}\n${_context(controller, prefs, controller.openMessage)}',
         ),
         ..._turns,
       ];
@@ -362,11 +362,17 @@ class _ChymeSheetState extends State<ChymeSheet> {
 
   /// What to ask, when somebody has opened Chyme and does not know what to ask.
   Widget _suggestions(AstryxColors c) {
-    const List<String> prompts = <String>[
+    // Openers that ask for something the app cannot do by itself. "Summarise
+    // this" is a button; "what is this actually asking for" is the question
+    // somebody opens an assistant with.
+    final bool hasOpen = controller.openMessage != null;
+    final List<String> prompts = <String>[
+      if (hasOpen) 'What is this actually asking me for?',
+      if (hasOpen) 'Draft a reply saying I will look at it tomorrow.',
+      if (hasOpen) 'Turn this into a polite decline.',
       'What needs answering today?',
-      'Summarise the message I have open.',
-      'Draft a short reply to this.',
-      'Find mail from my bank.',
+      'Find the last invoice or receipt.',
+      'Anything from my bank this week?',
     ];
 
     return Column(

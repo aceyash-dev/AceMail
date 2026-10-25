@@ -4,11 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/launcher_icon.dart';
-import '../services/translate.dart';
 import 'accents.dart';
 import '../models/glass_mode.dart';
 import '../models/message_sort.dart';
 import '../models/swipe_action.dart';
+import '../services/chyme.dart';
 
 /// Which appearance the app follows.
 enum AceThemeMode {
@@ -58,15 +58,6 @@ enum ListDensity {
 }
 
 /// Which representation of a message the reader opens with.
-enum MessageView {
-  formatted('Formatted'),
-  plainText('Plain text');
-
-  const MessageView(this.label);
-
-  final String label;
-}
-
 /// How long the undo on a snack bar stays offered.
 ///
 /// Long enough to notice a mistake and reach for it, short enough that the bar
@@ -102,14 +93,12 @@ class Preferences extends ChangeNotifier {
   static const String _keySignature = 'ace.signature';
   static const String _keySwipeStart = 'ace.swipeStart';
   static const String _keySwipeEnd = 'ace.swipeEnd';
-  static const String _keyMessageView = 'ace.messageView';
   static const String _keyAutoReconnect = 'ace.autoReconnect';
   static const String _keyPageSize = 'ace.pageSize';
   static const String _keyDensity = 'ace.listDensity';
   static const String _keyConfirmDelete = 'ace.confirmDelete';
   static const String _keyDetectCodes = 'ace.detectCodes';
   static const String _keyMessageSort = 'ace.messageSort';
-  static const String _keyRemoteImages = 'ace.remoteImages';
   static const String _keyAccent = 'ace.accent';
   static const String _keyRawHeaders = 'ace.rawHeaders';
   static const String _keyDynamicColour = 'ace.dynamicColour';
@@ -139,10 +128,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
   static const String _keyGlass = 'ace.glass';
   static const String _keyLauncherMark = 'ace.launcherMark';
-  static const String _keyTranslateEndpoint = 'ace.translateEndpoint';
-  static const String _keyTranslateTo = 'ace.translateTo';
-  static const String _keyTranslateKey = 'ace.translateKey';
-  static const String _keyAppLanguage = 'ace.appLanguage';
+  static const String _keyChymeTone = 'ace.chymeTone';
   static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
   static const String _keyCheckStatus = 'ace.checkStatus';
 
@@ -155,14 +141,12 @@ class Preferences extends ChangeNotifier {
     _keySignature,
     _keySwipeStart,
     _keySwipeEnd,
-    _keyMessageView,
     _keyAutoReconnect,
     _keyPageSize,
     _keyDensity,
     _keyConfirmDelete,
     _keyDetectCodes,
     _keyMessageSort,
-    _keyRemoteImages,
     _keyAccent,
     _keyRawHeaders,
     _keyDynamicColour,
@@ -194,10 +178,7 @@ class Preferences extends ChangeNotifier {
     _keyWarnMissingAttachment,
     _keyGlass,
     _keyLauncherMark,
-    _keyTranslateEndpoint,
-    _keyTranslateTo,
-    _keyTranslateKey,
-    _keyAppLanguage,
+    _keyChymeTone,
   ];
 
   final FlutterSecureStorage _storage;
@@ -221,7 +202,6 @@ class Preferences extends ChangeNotifier {
   String _signature = '';
   SwipeAction _swipeStart = SwipeAction.toggleRead;
   SwipeAction _swipeEnd = SwipeAction.archive;
-  MessageView _messageView = MessageView.formatted;
   bool _autoReconnect = true;
   PageSize _pageSize = PageSize.forty;
   ListDensity _density = ListDensity.comfortable;
@@ -272,17 +252,11 @@ class Preferences extends ChangeNotifier {
   GlassMode _glass = GlassMode.auto;
   LauncherMark _launcherMark = LauncherMark.envelope;
 
-  /// Where translations are asked for. A setting, not a constant: there is no
-  /// single LibreTranslate instance, and the project's own is rate limited and
-  /// wants a key.
-  String _translateEndpoint = Translate.defaultEndpoint;
-  String _translateTo = 'en';
-  String _translateKey = '';
+  /// How Chyme writes. Neutral is the default: it answers in the register of
+  /// whatever it was asked about, which is right more often than any one voice.
+  ChymeTone _chymeTone = ChymeTone.neutral;
 
-  /// The language the app's own words are shown in. Empty is English, which is
-  /// what the app is written in — so the default costs nothing and needs no
-  /// network call at all.
-  String _appLanguage = '';
+
   Map<String, int> _lastSeen = <String, int>{};
 
   /// The UIDVALIDITY each saved UID was read under.
@@ -335,7 +309,6 @@ class Preferences extends ChangeNotifier {
   SwipeAction get swipeEnd => _swipeEnd;
 
   /// Whether the reader opens formatted or as plain text.
-  MessageView get messageView => _messageView;
 
   /// Whether a dropped connection is retried automatically.
   bool get autoReconnect => _autoReconnect;
@@ -514,26 +487,10 @@ class Preferences extends ChangeNotifier {
   /// background is not a setting — it is the accent, and it follows it.
   LauncherMark get launcherMark => _launcherMark;
 
-  String get translateEndpoint => _translateEndpoint;
-  String get translateTo => _translateTo;
-  String get translateKey => _translateKey;
+  ChymeTone get chymeTone => _chymeTone;
 
-  String get appLanguage => _appLanguage;
-
-  Future<void> setAppLanguage(String value) =>
-      _write(_keyAppLanguage, value, () => _appLanguage = value);
-
-  Future<void> setTranslateEndpoint(String value) => _write(
-        _keyTranslateEndpoint,
-        value.trim(),
-        () => _translateEndpoint = value.trim(),
-      );
-
-  Future<void> setTranslateTo(String value) =>
-      _write(_keyTranslateTo, value, () => _translateTo = value);
-
-  Future<void> setTranslateKey(String value) =>
-      _write(_keyTranslateKey, value.trim(), () => _translateKey = value.trim());
+  Future<void> setChymeTone(ChymeTone value) =>
+      _write(_keyChymeTone, value.name, () => _chymeTone = value);
 
   Future<void> setLauncherMark(LauncherMark value) => _write(
         _keyLauncherMark,
@@ -631,8 +588,6 @@ class Preferences extends ChangeNotifier {
     _swipeStart =
         _decodeEnum(raw[_keySwipeStart], SwipeAction.values, _swipeStart);
     _swipeEnd = _decodeEnum(raw[_keySwipeEnd], SwipeAction.values, _swipeEnd);
-    _messageView =
-        _decodeEnum(raw[_keyMessageView], MessageView.values, _messageView);
     _autoReconnect = _decodeBool(raw[_keyAutoReconnect], _autoReconnect);
     _pageSize = _decodeEnum(raw[_keyPageSize], PageSize.values, _pageSize);
     _density = _decodeEnum(raw[_keyDensity], ListDensity.values, _density);
@@ -640,8 +595,6 @@ class Preferences extends ChangeNotifier {
     _detectCodes = _decodeBool(raw[_keyDetectCodes], _detectCodes);
     _messageSort =
         _decodeEnum(raw[_keyMessageSort], MessageSort.values, _messageSort);
-    _loadRemoteImages =
-        _decodeBool(raw[_keyRemoteImages], _loadRemoteImages);
     _accent = _decodeEnum(raw[_keyAccent], AceAccent.values, _accent);
     _showRawHeaders = _decodeBool(raw[_keyRawHeaders], _showRawHeaders);
     _useDynamicColour =
@@ -681,11 +634,7 @@ class Preferences extends ChangeNotifier {
       _warnMissingAttachment,
     );
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
-    _translateEndpoint =
-        raw[_keyTranslateEndpoint] ?? _translateEndpoint;
-    _translateTo = raw[_keyTranslateTo] ?? _translateTo;
-    _translateKey = raw[_keyTranslateKey] ?? _translateKey;
-    _appLanguage = raw[_keyAppLanguage] ?? _appLanguage;
+    _chymeTone = _decodeEnum(raw[_keyChymeTone], ChymeTone.values, _chymeTone);
     _launcherMark = _decodeEnum(
       raw[_keyLauncherMark],
       LauncherMark.values,
@@ -721,9 +670,6 @@ class Preferences extends ChangeNotifier {
   Future<void> setSwipeEnd(SwipeAction value) =>
       _write(_keySwipeEnd, value.name, () => _swipeEnd = value);
 
-  Future<void> setMessageView(MessageView value) =>
-      _write(_keyMessageView, value.name, () => _messageView = value);
-
   Future<void> setAutoReconnect(bool value) =>
       _write(_keyAutoReconnect, '$value', () => _autoReconnect = value);
 
@@ -742,8 +688,6 @@ class Preferences extends ChangeNotifier {
   Future<void> setMessageSort(MessageSort value) =>
       _write(_keyMessageSort, value.name, () => _messageSort = value);
 
-  Future<void> setLoadRemoteImages(bool value) =>
-      _write(_keyRemoteImages, '$value', () => _loadRemoteImages = value);
 
   Future<void> setAccent(AceAccent value) =>
       _write(_keyAccent, value.name, () => _accent = value);

@@ -8,8 +8,6 @@ import '../data/preferences.dart';
 import '../theme/astryx_tokens.dart';
 import '../theme/astryx_theme.dart';
 import 'astryx_widgets.dart';
-import '../services/translate.dart';
-import '../services/tr.dart';
 import 'markdown_view.dart';
 
 /// The release notes for the version that is running.
@@ -126,12 +124,7 @@ class WhatsNewSheet extends StatelessWidget {
               // Rendered, not printed. The changelog is markdown and this
               // handed it to a Text, so `### Added` and `**bold**` arrived on
               // screen exactly as written — the release notes read like a diff.
-              //
-              // And in the language the app is set to, when there is one. This
-              // is the whole changelog in one block, which is one request rather
-              // than one per line — and it is the one screen in the app whose
-              // entire content is prose the app owns.
-              _TranslatedNotes(source: notes),
+              MarkdownView(source: notes),
               const SizedBox(height: AstryxSpace.s5),
               SizedBox(
                 width: double.infinity,
@@ -145,37 +138,6 @@ class WhatsNewSheet extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The changelog, in the app's language if it has one.
-///
-/// A `FutureBuilder` rather than a stateful sheet: there is one thing to wait
-/// for, it never changes while the sheet is open, and the fallback is the text
-/// it already has. English arrives instantly and is what everybody sees until an
-/// endpoint answers.
-class _TranslatedNotes extends StatelessWidget {
-  const _TranslatedNotes({required this.source});
-
-  final String source;
-
-  @override
-  Widget build(BuildContext context) {
-    final Preferences prefs = context.watch<Preferences>();
-    final String language = prefs.appLanguage;
-    if (!Tr.needed(language)) return MarkdownView(source: source);
-
-    return FutureBuilder<String>(
-      future: Translate.text(
-        source,
-        target: language,
-        source: 'en',
-        endpoint: prefs.translateEndpoint,
-        apiKey: prefs.translateKey,
-      ).then((String value) => value).catchError((Object _) => source),
-      builder: (BuildContext context, AsyncSnapshot<String> snapshot) =>
-          MarkdownView(source: snapshot.data ?? source),
     );
   }
 }

@@ -51,6 +51,28 @@ class ChymeException implements Exception {
 ///
 /// The parsing is separated from the asking, so every rule about what a reply
 /// may contain can be tested against a captured response.
+/// The register Chyme writes in.
+enum ChymeTone {
+  neutral('Neutral', 'Match the register of the mail being answered.'),
+  formal(
+    'Formal',
+    'Write as a professional: no contractions, no exclamation marks, no slang.',
+  ),
+  friendly(
+    'Friendly',
+    'Write warmly and plainly, the way a colleague you like would write.',
+  ),
+  brief(
+    'Brief',
+    'Say it in as few words as it can be said. One or two sentences at most.',
+  );
+
+  const ChymeTone(this.label, this.instruction);
+
+  final String label;
+  final String instruction;
+}
+
 abstract final class Chyme {
   static const Duration _timeout = Duration(seconds: 90);
 
@@ -59,6 +81,15 @@ abstract final class Chyme {
   /// Written as rules rather than as a personality, because the failure that
   /// matters here is an assistant that invents a sender or a date and sounds
   /// confident about it. Mail is a place where being wrong is expensive.
+  /// How Chyme should sound.
+  ///
+  /// A line in the system prompt rather than a second request: the tone of a
+  /// draft is part of writing it, not a pass over it afterwards, and a model
+  /// asked to rewrite in a tone rewrites the meaning as often as the register.
+  static String systemPromptFor(ChymeTone tone) => tone == ChymeTone.neutral
+      ? systemPrompt
+      : '$systemPrompt\n\nTone: ${tone.instruction}';
+
   static const String systemPrompt = '''
 You are Chyme, the assistant built into Ace Mail, an email client. You help the
 person write and find their own mail.

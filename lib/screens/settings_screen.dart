@@ -16,7 +16,6 @@ import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
 import '../services/platform_caps.dart';
 import '../widgets/avatar.dart';
-import '../services/translate.dart';
 import '../state/mail_controller.dart';
 import '../services/notification_setup.dart';
 import '../models/swipe_action.dart';
@@ -124,27 +123,6 @@ class SettingsScreen extends StatelessWidget {
                       : 'Messages keep their unread state until you say so.',
                   value: prefs.markAsReadOnOpen,
                   onChanged: prefs.setMarkAsReadOnOpen,
-                ),
-                SettingsRow(
-                  icon: AceIcons.news,
-                  title: 'Message view',
-                  subtitle: prefs.messageView == MessageView.formatted
-                      ? 'Show the HTML version when the sender provided one.'
-                      : 'Show the plain-text version.',
-                  value: prefs.messageView.label,
-                  onTap: () async {
-                    final MessageView? chosen =
-                        await showChoiceSheet<MessageView>(
-                      context,
-                      title: 'Message view',
-                      current: prefs.messageView,
-                      choices: <SettingsChoice<MessageView>>[
-                        for (final MessageView view in MessageView.values)
-                          SettingsChoice<MessageView>(view, view.label),
-                      ],
-                    );
-                    if (chosen != null) await prefs.setMessageView(chosen);
-                  },
                 ),
                 SettingsRow(
                   icon: AceIcons.folder,
@@ -647,6 +625,24 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   SettingsRow(
                     icon: AceIcons.chyme,
+                    title: 'Tone',
+                    subtitle: 'How it writes when you ask it to draft something.',
+                    value: prefs.chymeTone.label,
+                    onTap: () async {
+                      final ChymeTone? chosen = await showChoiceSheet<ChymeTone>(
+                        context,
+                        title: 'Tone',
+                        current: prefs.chymeTone,
+                        choices: <SettingsChoice<ChymeTone>>[
+                          for (final ChymeTone tone in ChymeTone.values)
+                            SettingsChoice<ChymeTone>(tone, tone.label),
+                        ],
+                      );
+                      if (chosen != null) await prefs.setChymeTone(chosen);
+                    },
+                  ),
+                  SettingsRow(
+                    icon: AceIcons.chyme,
                     title: 'Model',
                     value: prefs.chymeModel.isEmpty ? 'None chosen' : prefs.chymeModel,
                     onTap: () => _chooseChymeModel(context, prefs),
@@ -674,80 +670,6 @@ class SettingsScreen extends StatelessWidget {
                       'looks like a hung app.',
                   value: prefs.reduceMotion,
                   onChanged: prefs.setReduceMotion,
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: 'Translation',
-              children: <Widget>[
-                SettingsRow(
-                  icon: AceIcons.globe,
-                  title: 'Translate into',
-                  subtitle: 'The language the Translate action uses.',
-                  value: Translate.nameFor(prefs.translateTo),
-                  onTap: () async {
-                    final String? chosen = await showChoiceSheet<String>(
-                      context,
-                      title: 'Translate into',
-                      current: prefs.translateTo,
-                      choices: <SettingsChoice<String>>[
-                        for (final MapEntry<String, String> e
-                            in Translate.languages.entries)
-                          SettingsChoice<String>(e.key, e.value),
-                      ],
-                    );
-                    if (chosen != null) await prefs.setTranslateTo(chosen);
-                  },
-                ),
-                SettingsRow(
-                  icon: AceIcons.textSize,
-                  title: 'App language',
-                  subtitle: 'The language the app\'s own words are shown in. '
-                      'Mail is translated by the Translate action instead.',
-                  value: prefs.appLanguage.isEmpty
-                      ? 'English'
-                      : Translate.nameFor(prefs.appLanguage),
-                  onTap: () async {
-                    final String? chosen = await showChoiceSheet<String>(
-                      context,
-                      title: 'App language',
-                      current: prefs.appLanguage,
-                      choices: <SettingsChoice<String>>[
-                        const SettingsChoice<String>('', 'English'),
-                        for (final MapEntry<String, String> e
-                            in Translate.languages.entries)
-                          SettingsChoice<String>(e.key, e.value),
-                      ],
-                    );
-                    if (chosen != null) await prefs.setAppLanguage(chosen);
-                  },
-                ),
-                SettingsRow(
-                  icon: AceIcons.cloud,
-                  title: 'Translation service',
-                  subtitle: 'A LibreTranslate endpoint. The project\'s own is '
-                      'rate limited, so a server of your own is worth having.',
-                  value: prefs.translateEndpoint,
-                  onTap: () => _editText(
-                    context,
-                    title: 'Translation service',
-                    hint: 'https://libretranslate.com',
-                    value: prefs.translateEndpoint,
-                    onSave: prefs.setTranslateEndpoint,
-                  ),
-                ),
-                SettingsRow(
-                  icon: AceIcons.password,
-                  title: 'API key',
-                  subtitle: 'Only if the endpoint asks for one.',
-                  value: prefs.translateKey.isEmpty ? 'None' : 'Set',
-                  onTap: () => _editText(
-                    context,
-                    title: 'API key',
-                    hint: 'optional',
-                    value: prefs.translateKey,
-                    onSave: prefs.setTranslateKey,
-                  ),
                 ),
               ],
             ),
