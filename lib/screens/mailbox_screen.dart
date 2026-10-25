@@ -25,6 +25,7 @@ import '../widgets/message_reader.dart';
 import 'compose_screen.dart';
 import '../widgets/ace_icon_view.dart';
 import '../services/mailto.dart';
+import '../models/message_sort.dart';
 
 /// The three-pane mailbox. Above [_wideBreakpoint] the folder rail, message
 /// list and reader sit side by side; below it the reader takes the screen and
