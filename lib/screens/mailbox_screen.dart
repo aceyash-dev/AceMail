@@ -132,7 +132,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
       (Timer _) {
         if (!mounted) return;
         final MailController controller = context.read<MailController>();
-        if (!controller.loading) controller.refreshMessages();
+        if (!controller.refreshing) controller.refreshMessages();
       },
     );
     // The bar's right-hand end changes with the focus, so the focus has to
