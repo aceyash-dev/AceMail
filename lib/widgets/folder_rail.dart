@@ -389,14 +389,14 @@ class _FolderList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
       buildDefaultDragHandles: false,
       itemCount: folders.length,
-      onReorder: (int oldIndex, int newIndex) {
-        // Flutter hands over the index as if the item were still in place, so
-        // a move downward lands one short of where it was dropped.
-        final int to = newIndex > oldIndex ? newIndex - 1 : newIndex;
+      // onReorderItem, not onReorder: the older callback hands over the index
+      // as if the item were still in place, so every downward move landed one
+      // short. The newer one does that adjustment itself.
+      onReorderItem: (int oldIndex, int newIndex) {
         final List<String> paths = <String>[
           for (final MailFolder f in folders) f.path,
         ];
-        paths.insert(to, paths.removeAt(oldIndex));
+        paths.insert(newIndex, paths.removeAt(oldIndex));
         unawaited(context.read<Preferences>().setFolderOrder(paths));
       },
       itemBuilder: (BuildContext context, int index) {
