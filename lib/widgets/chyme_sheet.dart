@@ -68,6 +68,10 @@ class _ChymeSheetState extends State<ChymeSheet> {
   @override
   void initState() {
     super.initState();
+    // Pick up where the last opening left off. A second question almost always
+    // refers to the first answer, so starting from nothing made the app forget
+    // the thing being asked about.
+    _turns.addAll(ChymeMemory.turns);
     final String? seed = widget.seed;
     if (seed != null && seed.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _send(seed));
@@ -212,6 +216,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
       setState(() {
         _turns.add(ChymeTurn('assistant', run.reply));
         _search = Chyme.searchFrom(run.reply);
+        ChymeMemory.remember(_turns);
       });
       _scrollToEnd();
     } catch (error) {
@@ -314,13 +319,24 @@ class _ChymeSheetState extends State<ChymeSheet> {
                         Text(
                           prefs.chymeModel.isEmpty
                               ? 'Not set up yet'
-                              : prefs.chymeModel,
+                              : '${prefs.chymeModel} · ${prefs.chymeTone.label}',
                           overflow: TextOverflow.ellipsis,
                           style: AstryxText.supporting(c.textSecondary),
                         ),
                       ],
                     ),
                   ),
+                  if (_turns.isNotEmpty)
+                    AceIconButton(
+                      icon: AceIcons.add,
+                      tooltip: 'Start over',
+                      onPressed: () => setState(() {
+                        _turns.clear();
+                        _search = null;
+                        _error = null;
+                        ChymeMemory.forget();
+                      }),
+                    ),
                   AceIconButton(
                     icon: AceIcons.settings,
                     tooltip: 'Chyme settings',
@@ -426,7 +442,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ),
         const SizedBox(height: AstryxSpace.s4),
         for (final String prompt in prompts) ...<Widget>[
-          AceChip(label: prompt, onTap: () => _send(prompt)),
+          _Opener(label: prompt, onTap: () => _send(prompt)),
           const SizedBox(height: AstryxSpace.s2),
         ],
       ],
@@ -656,4 +672,49 @@ Future<void> _confirmDelete(BuildContext context) async {
   if (yes != true || !context.mounted) return;
   await controller.delete(open);
   if (context.mounted) AceSnack.show(context, 'Moved to the trash.');
+}
+
+/// One opener, as a card.
+///
+/// A chip is a filter; these are questions, and a question wants a row you can
+/// read rather than a pill you have to squint at. The mark on the left says who
+/// is offering it.
+class _Opener extends StatelessWidget {
+  const _Opener({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AstryxRadius.element),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AstryxSpace.s3,
+          vertical: AstryxSpace.s3,
+        ),
+        decoration: BoxDecoration(
+          color: c.surfaceHighest,
+          borderRadius: BorderRadius.circular(AstryxRadius.element),
+        ),
+        child: Row(
+          children: <Widget>[
+            ChymeMark(size: 18, color: c.textSecondary),
+            const SizedBox(width: AstryxSpace.s3),
+            Expanded(
+              child: Text(label, style: AstryxText.body(c.textPrimary)),
+            ),
+            AceIconView(
+              icon: AceIcons.chevronRight,
+              size: 16,
+              color: c.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

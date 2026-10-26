@@ -539,3 +539,22 @@ class ChymeRun {
 
 /// One tool: takes the argument the model wrote, returns what it should see.
 typedef ChymeTool = Future<String?> Function(String argument);
+
+/// The conversation, kept between openings of the sheet.
+///
+/// Closing Chyme and opening it again used to start from nothing, which is the
+/// opposite of what a conversation is — the second question almost always refers
+/// to the first answer. Memory rather than disk: this is a scratchpad for the
+/// session, not a chat log, and a transcript of somebody's mail is not something
+/// to leave on the device.
+abstract final class ChymeMemory {
+  static final List<ChymeTurn> turns = <ChymeTurn>[];
+
+  static void remember(List<ChymeTurn> conversation) {
+    turns
+      ..clear()
+      ..addAll(conversation);
+  }
+
+  static void forget() => turns.clear();
+}
