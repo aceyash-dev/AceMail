@@ -220,13 +220,34 @@ class MailSession extends ChangeNotifier {
   Future<void> forEachSelected(
     Future<void> Function(MessageSummary message) action,
   ) async {
-    for (final MessageSummary message in List<MessageSummary>.of(selectedMessages)) {
+    final List<MessageSummary> picked =
+        List<MessageSummary>.of(selectedMessages);
+    if (picked.isEmpty) return;
+
+    // Gone from the list before the first round-trip, not one at a time as each
+    // finishes. Deleting twenty messages is twenty round-trips, and watching
+    // twenty rows disappear over several seconds reads as "it is doing them one
+    // by one" — because it was. They leave the screen the moment you asked.
+    final Set<int> leaving = picked.map((MessageSummary m) => m.uid).toSet();
+    messages =
+        messages.where((MessageSummary m) => !leaving.contains(m.uid)).toList();
+    _uids = _uids.where((int uid) => !leaving.contains(uid)).toList();
+    _notify();
+
+    bool anyFailed = false;
+    for (final MessageSummary message in picked) {
       try {
         await action(message);
         selected.remove(message.uid);
       } catch (_) {
-        // Left selected, so the failure is visible rather than silent.
+        // Left selected, so the failure is visible rather than silent — and the
+        // row comes back, because a message that is still there must not look
+        // as though it went.
+        anyFailed = true;
       }
+    }
+    if (anyFailed) {
+      await refreshMessages();
     }
     _notify();
   }
