@@ -889,6 +889,12 @@ class _Greeting extends StatelessWidget {
     final AstryxColors c = context.astryx;
     final String folder = controller.selectedFolder?.label ?? 'Mail';
     final int unseen = controller.selectedFolder?.unseen ?? 0;
+    final String? query = controller.searchQuery;
+    // Which line belongs here depends on what the list is showing: the folder's
+    // own count, or how much of it the search picked out.
+    final String summary = query == null
+        ? folderSummary(folder, unseen)
+        : searchSummary(folder, controller.visibleMessages.length, query);
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
@@ -921,7 +927,7 @@ class _Greeting extends StatelessWidget {
                   ),
                   const SizedBox(height: AstryxSpace.s0_5),
                   Text(
-                    folderSummary(folder, unseen),
+                    summary,
                     style: AstryxText.body(c.textSecondary),
                   ),
                 ],

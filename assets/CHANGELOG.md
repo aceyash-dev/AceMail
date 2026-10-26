@@ -3,6 +3,37 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+79
+
+### Changed
+- **A message opens as a sheet, not a page.** On a phone the reader comes up
+  over the list, full height, and is dismissed by dragging it down or swiping it
+  away. The back chevron is gone with the page it belonged to; on a wide window
+  the reader is still the third pane, and nothing about it moved.
+
+### Fixed
+- **The unread count follows the mail.** Reading a message, deleting one,
+  archiving one or marking one unread moved the row and left the count where the
+  last folder listing had put it, so the greeting above the list — and the badge
+  in the rail — kept claiming unread mail you had already read. The count now
+  moves with the action, and the server's own number replaces it at the next
+  listing.
+- **The greeting says what is on screen while a search is up.** It used to sit
+  above four search results announcing the whole folder's unread count, which
+  read as a stale counter rather than as a fact about the mailbox. It now says
+  how many matched.
+- **A message from a sender with no display name says who it is from.** The name
+  line was left blank and the address demoted to the second line; the address
+  takes the name line now, and the second line appears only when it adds
+  something.
+- **Saved accounts survive the keychain.** Accounts and their passwords were one
+  keychain entry each, and a keychain that would not answer — a desktop session
+  before the keyring unlocks, a keystore that refuses at boot — meant signing in
+  again on every start. They are now one file on the device, sealed with
+  AES-256-GCM, with the key in the keychain and a key file beside the record for
+  when the keychain will not answer. The old keychain entries are read once and
+  moved across, so an update does not sign anyone out.
+
 ## 0.6.0
 
 ### Added

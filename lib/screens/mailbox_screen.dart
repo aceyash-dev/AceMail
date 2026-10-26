@@ -63,6 +63,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
   /// typing a name while looking at contacts must not search the mailbox.
   String _contactQuery = '';
 
+  /// Whether the reader sheet is up on a narrow layout.
+  ///
+  /// A message on a phone is a sheet over the list, not a page that replaces
+  /// it: it arrives from the bottom, it is dismissed by dragging it down, and
+  /// there is no back chevron because there is no page to go back to.
+  bool _readerSheetOpen = false;
+
   /// Whether the microphone is listening. The bar says so while it is: a
   /// microphone that gives no sign of being live is a microphone people talk to
   /// twice.
@@ -181,6 +188,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
     final MailController? controller = _controller;
     if (controller == null) return;
 
+    _syncReaderSheet(controller);
+
     final String? error = controller.sessionError;
     if (error == null) {
       _lastError = null;
@@ -207,6 +216,61 @@ class _MailboxScreenState extends State<MailboxScreen> {
         if (mounted) _exitSearch(clearQuery: false);
       });
     }
+  }
+
+  /// Keeps the reader sheet in step with the message that is open.
+  ///
+  /// Two things say "a message is open": the controller's state, and the route
+  /// that is showing it. Whichever one moved, the other follows — opening a
+  /// message raises the sheet, and dragging the sheet away closes the message,
+  /// so the list never sits behind a sheet that thinks it is still reading.
+  void _syncReaderSheet(MailController controller) {
+    if (!mounted) return;
+    final bool wide =
+        MediaQuery.sizeOf(context).width >= MailboxScreen._wideBreakpoint;
+    final bool wanted = !wide && controller.openSummary != null;
+    if (wanted == _readerSheetOpen) return;
+
+    if (wanted) {
+      unawaited(_showReaderSheet(controller));
+    } else {
+      // Claimed before the pop: the pop notifies the controller, which comes
+      // straight back here, and a second pop would take the mailbox with it.
+      _readerSheetOpen = false;
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _showReaderSheet(MailController controller) async {
+    _readerSheetOpen = true;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        // Full height, because a message is not a glance: the sheet is the
+        // reader, and a reader you have to drag up before you can read is a
+        // reader that made you do something first.
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        backgroundColor: context.astryx.backgroundSurface,
+        builder: (BuildContext sheetContext) => FractionallySizedBox(
+          heightFactor: 1,
+          child: MessageReader(
+            // No chevron: the handle is the way out. The actions that end the
+            // reading still close it, which is what onDismiss is for.
+            onDismiss: () => Navigator.of(sheetContext).pop(),
+          ),
+        ),
+      );
+    } finally {
+      _readerSheetOpen = false;
+    }
+
+    // Dragged away, or dismissed: the message is no longer being read. Guarded
+    // on mounted, and on the message still being open, because the other
+    // direction — the message closing and popping the sheet — lands here too.
+    if (!mounted) return;
+    if (controller.openSummary != null) controller.closeMessage();
   }
 
   /// Shortens the compose button as the list moves, and lengthens it again at
@@ -467,12 +531,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     ),
                   );
                 },
-                    child: reading
-                        ? MessageReader(
-                            key: const ValueKey<String>('reader'),
-                            onBack: controller.closeMessage,
-                          )
-                        : controller.contactsTab
+                    // The reader is not one of these on a phone: it comes up
+                    // over them as a sheet, so the list stays where it was.
+                    child: controller.contactsTab
                         ? ContactsPanel(
                             key: const ValueKey<String>('contacts'),
                             query: _contactQuery,

@@ -131,6 +131,29 @@ class MailSession extends ChangeNotifier {
     return 0;
   }
 
+  /// Moves a folder's unread count with what just happened to a message.
+  ///
+  /// The number in the rail badge and in the greeting above the list comes from
+  /// the server's `STATUS`, which is only as fresh as the last folder listing.
+  /// Reading, deleting or un-reading a message changes the truth *now*, and a
+  /// greeting that still says "3 unread" after you have read all three is worse
+  /// than saying nothing: it is the app telling you something it knows is not
+  /// so. The local count moves with the local action; the next listing replaces
+  /// it with the server's own number.
+  ///
+  /// Never negative — a server count that started too low, plus a local
+  /// subtraction, must not leave a folder owing mail.
+  void _adjustUnseen(String? path, int delta) {
+    if (delta == 0 || path == null) return;
+    final int index = folders.indexWhere((MailFolder f) => f.path == path);
+    if (index == -1) return;
+    final MailFolder folder = folders[index];
+    final int next = folder.unseen + delta;
+    if (next == folder.unseen) return;
+    folders = List<MailFolder>.of(folders)
+      ..[index] = folder.copyWith(unseen: next < 0 ? 0 : next);
+  }
+
   /// Puts this session on its own inbox.
   ///
   /// What the unified view is built from: every account showing its inbox at
@@ -309,6 +332,12 @@ class MailSession extends ChangeNotifier {
         await action(group);
         for (final MessageSummary m in group) {
           selected.remove(m.uid);
+          // A batch command has no per-message _runOn to carry the count, so it
+          // is carried here: every unread message that just left is one less
+          // waiting.
+          if (!m.isSeen) {
+            _adjustUnseen(m.folderPath ?? selectedFolder?.path, -1);
+          }
         }
       } catch (error) {
         // Failed rows come back and stay picked, so nothing is hidden.
@@ -746,7 +775,14 @@ class MailSession extends ChangeNotifier {
       Contacts.observeRecipients(loaded);
       if (cached == null) unawaited(_rememberBody(summary, loaded, folderPath));
       if (_markAsRead) {
-        _replace(summary.uid, summary.copyWith(isSeen: true));
+        // The count follows the row: opening an unread message is one less
+        // waiting, whether or not the list behind it is on screen.
+        if (!summary.isSeen) _adjustUnseen(folderPath, -1);
+        // The open row too, not only the list behind it: "Mark as unread" reads
+        // its state from here, and a stale copy would count the message back
+        // only if it thought it had been read.
+        openSummary = summary.copyWith(isSeen: true);
+        _replace(summary.uid, openSummary!);
         // Set \Seen deliberately rather than as a side effect of reading, so
         // the row and the server agree. Best effort: a failure must not hide
         // the mail.
@@ -826,6 +862,7 @@ class MailSession extends ChangeNotifier {
           permanently: permanently,
         ),
         remove: true,
+        unseenDelta: summary.isSeen ? 0 : -1,
       );
 
   Future<void> deleteOpenMessage({bool permanently = false}) async {
@@ -840,7 +877,12 @@ class MailSession extends ChangeNotifier {
   /// "never mind", and it returns the message to the folder it was deleted
   /// from rather than to the inbox.
   Future<void> undoDelete(MessageSummary summary, String path) =>
-      _runOn(summary, () => _transport.moveMessage(summary, path));
+      _runOn(
+        summary,
+        () => _transport.moveMessage(summary, path),
+        // Back where it was, so an unread one is waiting again.
+        unseenDelta: summary.isSeen ? 0 : 1,
+      );
 
   /// True when the folder on screen is the trash.
   bool get inTrash => selectedFolder?.role == FolderRole.trash;
@@ -858,7 +900,7 @@ class MailSession extends ChangeNotifier {
       return;
     }
     await _runOn(summary, () => _transport.moveMessage(summary, path),
-        remove: true);
+        remove: true, unseenDelta: summary.isSeen ? 0 : -1);
   }
 
   /// Empties the trash.
@@ -930,7 +972,7 @@ class MailSession extends ChangeNotifier {
       return;
     }
     await _runOn(summary, () => _transport.moveMessage(summary, path),
-        remove: true);
+        remove: true, unseenDelta: summary.isSeen ? 0 : -1);
   }
 
   /// Flips a message's read state from the list.
@@ -942,6 +984,7 @@ class MailSession extends ChangeNotifier {
           ? _transport.markSeen(summary)
           : _transport.markUnread(summary),
       updated: summary.copyWith(isSeen: next),
+      unseenDelta: next ? -1 : 1,
     );
   }
 
@@ -955,6 +998,7 @@ class MailSession extends ChangeNotifier {
       summary,
       () => _transport.markSeen(summary),
       updated: summary.copyWith(isSeen: true),
+      unseenDelta: -1,
     );
   }
 
@@ -976,6 +1020,7 @@ class MailSession extends ChangeNotifier {
     Future<void> Function() action, {
     MessageSummary? updated,
     bool remove = false,
+    int unseenDelta = 0,
   }) async {
     if (!_connected) return;
     final String? actionFolderPath = summary.folderPath ?? selectedFolder?.path;
@@ -989,6 +1034,9 @@ class MailSession extends ChangeNotifier {
       if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) {
         return;
       }
+      // Only once the server has agreed. A count that moved on a command that
+      // then failed would be a count that never comes back.
+      _adjustUnseen(actionFolderPath, unseenDelta);
       if (remove) {
         messages =
             messages.where((MessageSummary m) => m.uid != summary.uid).toList();
@@ -1017,7 +1065,13 @@ class MailSession extends ChangeNotifier {
     try {
       await _transport.markUnread(summary);
       if (actionFolderPath != null && selectedFolder?.path != actionFolderPath) return;
-      _replace(summary.uid, summary.copyWith(isSeen: false));
+      // Guarded on the row's state: marking unread something that is already
+      // unread must not count it twice.
+      if (summary.isSeen) _adjustUnseen(actionFolderPath, 1);
+      // The open row as well as the list: this is the state the next press of
+      // this button reads, and a stale copy would count the message twice.
+      openSummary = summary.copyWith(isSeen: false);
+      _replace(summary.uid, openSummary!);
       _notify();
     } catch (error) {
       errorMessage = error.toString();

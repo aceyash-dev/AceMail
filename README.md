@@ -120,7 +120,9 @@ a custom theme, not a departure.
 - Swipe a message either way to act on it — archive, delete, read/unread or
   flag — with both directions configurable in settings.
 - Messages open as HTML, with a per-message toggle to the plain-text version.
-- Credentials live in the platform keychain, never in plain files.
+- Credentials are sealed with AES-256-GCM in one file on the device — never in
+  plain text. The key lives in the platform keychain, with a `0600` key file
+  beside the record for the machines where the keychain will not answer.
 - Gesture navigation: swipe right to leave a message, pull down to refresh, and
   a confirmation before the app closes.
 - Light and dark, following the system.
@@ -363,8 +365,8 @@ Everything else needs an **app password**, not your account password:
 - **Yandex** — Yandex ID → *App passwords* → *Mail*, and enable IMAP under
   Email clients.
 
-Your password is stored in the platform keychain and sent only to your own mail
-provider over TLS.
+Your password is stored sealed on this device — AES-256-GCM, key in the platform
+keychain — and sent only to your own mail provider over TLS.
 
 ## Layout
 
@@ -377,7 +379,7 @@ lib/
     astryx_theme.dart       semantic type roles + ThemeData
   data/
     mail_providers.dart     IMAP/SMTP presets
-    account_store.dart      keychain persistence
+    account_store.dart      the sealed credential record (AES-256-GCM)
   models/                   account, folder, summary, full message
   services/mail_service.dart  IMAP + SMTP over enough_mail
   state/mail_controller.dart  session and screen state
@@ -544,8 +546,10 @@ Mail is hostile input, so the client treats it that way.
 - **Sending distinguishes rejection from an unknown outcome.** If the
   connection drops after the server has the message, the app says delivery is
   unconfirmed and does not resend.
-- **Secure-storage failures are reported**, not swallowed. A keychain that
-  cannot be read, or an account that could not be saved, says so.
+- **Secure-storage failures are reported**, not swallowed. A record that will
+  not open, or an account that could not be saved, says so — and a keychain that
+  will not answer is not one of them any more: the key file beside the record is
+  what keeps saved accounts open across a start.
 - **Releases fail closed.** A publishing run with no keystore secret fails
   rather than shipping a debug-signed APK, and the built APK's signer is
   checked against the expected certificate fingerprint.

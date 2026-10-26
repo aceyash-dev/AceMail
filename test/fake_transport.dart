@@ -44,6 +44,10 @@ class FakeTransport implements MailTransport {
   bool deletedPermanently = false;
   String? movedTo;
 
+  /// When set, every move fails the way a server that refuses one does. For the
+  /// cases where the app must not act as though the mail went.
+  bool failMove = false;
+
   /// Body text a preview fetch should return, keyed by uid.
   final Map<int, String> previews = <int, String>{};
   String? lastSearch;
@@ -53,11 +57,16 @@ class FakeTransport implements MailTransport {
   String? lastBcc;
   int? markedSeen;
 
-  MailFolder get inbox => const MailFolder(
+  /// How much unread mail the inbox claims, the way the server's STATUS would
+  /// report it. The session moves this number locally as mail is read; a test
+  /// sets it to say where the count started.
+  int inboxUnseen = 0;
+
+  MailFolder get inbox => MailFolder(
         name: 'Inbox',
         path: 'INBOX',
         role: FolderRole.inbox,
-        unseen: 0,
+        unseen: inboxUnseen,
       );
 
   MailFolder get archive => const MailFolder(
@@ -187,6 +196,7 @@ class FakeTransport implements MailTransport {
 
   @override
   Future<void> moveMessage(MessageSummary summary, String targetPath) async {
+    if (failMove) throw Exception('server refused the move');
     movedTo = targetPath;
     uids.remove(summary.uid);
   }

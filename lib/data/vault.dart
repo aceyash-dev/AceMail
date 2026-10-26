@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -32,6 +33,100 @@ class KeychainKeyStore implements KeyStore {
   Future<void> delete(String key) => _storage.delete(key: key);
 }
 
+/// The keychain, with a key file behind it.
+///
+/// The keychain is where a key belongs. It is also, on some machines, not
+/// there: a desktop with no secret service running, a Linux session before the
+/// keyring is unlocked, a device whose keystore refuses the write. The failure
+/// is silent — `read` comes back null — and the visible symptom is an app that
+/// asks for your password on every start, because the key that would have
+/// opened your saved accounts is gone.
+///
+/// So the key is written to both places and read from whichever answers first.
+/// The file sits in the app's own directory, mode `0600`, which is the same
+/// protection the rest of the app's data has. That is a real trade — a key on
+/// the same disk as the records it opens is weaker than a key the OS holds —
+/// and it is the right one here, because the alternative is not a stronger key.
+/// It is no stored credentials at all.
+class DeviceKeyStore implements KeyStore {
+  DeviceKeyStore({required Directory directory, KeyStore? keychain})
+      : _directory = directory,
+        _keychain = keychain ?? const KeychainKeyStore();
+
+  final Directory _directory;
+  final KeyStore _keychain;
+
+  File _fileFor(String key) => File('${_directory.path}/$key.key');
+
+  @override
+  Future<String?> read(String key) async {
+    try {
+      final String? value = await _keychain.read(key);
+      if (value != null && value.isNotEmpty) return value;
+    } catch (_) {
+      // The keychain is unavailable; the file below is why that is survivable.
+    }
+    try {
+      final File file = _fileFor(key);
+      if (!await file.exists()) return null;
+      final String value = (await file.readAsString()).trim();
+      return value.isEmpty ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    Object? keychainError;
+    try {
+      await _keychain.write(key, value);
+    } catch (error) {
+      keychainError = error;
+    }
+
+    // Written either way. A keychain that works today and is wiped tomorrow
+    // (a reset, a restore onto a new device, a moved profile) would otherwise
+    // take every saved account with it, which is the bug this exists to fix.
+    try {
+      await _directory.create(recursive: true);
+      final File file = _fileFor(key);
+      await file.writeAsString(value, flush: true);
+      await _restrict(file);
+    } catch (_) {
+      // If neither place took it, the caller finds out when it cannot open a
+      // record, and says so — which is better than a silent half-write.
+      if (keychainError != null) throw keychainError;
+    }
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    try {
+      await _keychain.delete(key);
+    } catch (_) {
+      // Gone either way is what the caller asked for.
+    }
+    try {
+      final File file = _fileFor(key);
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // Nothing to remove, or nothing that would let us remove it.
+    }
+  }
+
+  /// `0600` on the key file. Windows ignores the mode, and its app data lives
+  /// in a per-user directory anyway.
+  static Future<void> _restrict(File file) async {
+    if (Platform.isWindows) return;
+    try {
+      await Process.run('chmod', <String>['600', file.path]);
+    } catch (_) {
+      // Best effort: the directory is already the app's own.
+    }
+  }
+}
+
 /// The app's local cache, sealed.
 ///
 /// Everything Ace Mail keeps on the device — drafts, cached message bodies,
@@ -61,9 +156,16 @@ class KeychainKeyStore implements KeyStore {
 /// anything itself — the caller holds the records — but nothing becomes
 /// unreadable when it runs.
 class AceVault {
-  AceVault({KeyStore? keys, Random? random})
-      : _keys = keys ?? const KeychainKeyStore(),
-        _random = random ?? Random.secure();
+  AceVault({
+    KeyStore? keys,
+    Random? random,
+    // Which set of keys this vault uses. Two vaults that share a keychain and
+    // a directory — the cache and the saved credentials, say — would otherwise
+    // mint and rotate the same key under the same name.
+    String namespace = 'ace.vault',
+  })  : _keys = keys ?? const KeychainKeyStore(),
+        _random = random ?? Random.secure(),
+        _namespace = namespace;
 
   /// The current record format. A record whose first byte is not this is
   /// refused rather than guessed at, which is what makes a future change safe.
@@ -76,8 +178,9 @@ class AceVault {
   static const int _tagBits = 128;
   static const int _maxVersion = 255;
 
-  static const String _currentKey = 'ace.vault.keyVersion';
-  static String _keyName(int version) => 'ace.vault.key.$version';
+  final String _namespace;
+  String get _currentKey => '$_namespace.keyVersion';
+  String _keyName(int version) => '$_namespace.key.$version';
 
   final KeyStore _keys;
   final Random _random;

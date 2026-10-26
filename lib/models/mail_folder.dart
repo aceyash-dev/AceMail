@@ -31,6 +31,19 @@ class MailFolder {
   final FolderRole role;
   final int unseen;
 
+  /// The same folder with a different unread count.
+  ///
+  /// The count is the one thing about a folder that changes while it is on
+  /// screen: reading a message makes it one less. [MailFolder] is immutable, so
+  /// the session replaces the entry rather than mutating it.
+  MailFolder copyWith({int? unseen}) => MailFolder(
+        name: name,
+        path: path,
+        role: role,
+        unseen: unseen ?? this.unseen,
+        uidValidity: uidValidity,
+      );
+
   /// The server's UIDVALIDITY for this mailbox, when it told us.
   ///
   /// UIDs are only meaningful within one generation of a mailbox: if the server

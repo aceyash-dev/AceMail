@@ -26,10 +26,24 @@ import 'chyme_sheet.dart';
 import 'chyme_mark.dart';
 
 class MessageReader extends StatefulWidget {
-  const MessageReader({super.key, this.onBack});
+  const MessageReader({super.key, this.onBack, this.onDismiss});
 
-  /// Shown only on narrow layouts, where the reader takes the whole screen.
+  /// The way back: the chevron in the toolbar, and the swipe to the right.
+  ///
+  /// Null where there is no page to go back to — a wide layout, where the
+  /// reader is a pane that the list is always beside.
   final VoidCallback? onBack;
+
+  /// How the message closes when that is not [onBack].
+  ///
+  /// In the sheet the way out is the drag handle or a swipe down, so a chevron
+  /// on top of that would be a second door in the same wall. The actions that
+  /// end the reading — delete, mark unread — still have to close it, and this
+  /// is what they call.
+  final VoidCallback? onDismiss;
+
+  /// Whichever of the two closes the reader here.
+  VoidCallback? get _close => onDismiss ?? onBack;
 
   @override
   State<MessageReader> createState() => _MessageReaderState();
@@ -63,16 +77,16 @@ class _MessageReaderState extends State<MessageReader> {
     return GestureDetector(
       // Swipe right to go back, the way Android gesture navigation works.
       onHorizontalDragStart:
-          widget.onBack == null ? null : (DragStartDetails _) => _drag = 0,
-      onHorizontalDragUpdate: widget.onBack == null
+          widget._close == null ? null : (DragStartDetails _) => _drag = 0,
+      onHorizontalDragUpdate: widget._close == null
           ? null
           : (DragUpdateDetails details) =>
               _drag = details.delta.dx > 0 ? _drag + details.delta.dx : 0,
-      onHorizontalDragEnd: widget.onBack == null
+      onHorizontalDragEnd: widget._close == null
           ? null
           : (DragEndDetails details) {
               final double velocity = details.primaryVelocity ?? 0;
-              if (_drag > 80 || velocity > 300) widget.onBack!.call();
+              if (_drag > 80 || velocity > 300) widget._close!.call();
               _drag = 0;
             },
       child: Container(
@@ -190,6 +204,7 @@ class _MessageReaderState extends State<MessageReader> {
 
     return AceToolbar(
       actions: <AceToolbarAction>[
+        // Only where a chevron is the way out. In the sheet the handle is.
         if (widget.onBack != null)
           AceToolbarAction(
             icon: AceIcons.chevronLeft,
@@ -220,7 +235,7 @@ class _MessageReaderState extends State<MessageReader> {
           tooltip: 'Mark as unread',
           onPressed: () {
             context.read<MailController>().markOpenUnread();
-            widget.onBack?.call();
+            widget._close?.call();
           },
         ),
         AceToolbarAction(
@@ -234,22 +249,34 @@ class _MessageReaderState extends State<MessageReader> {
   }
 
   Widget _meta(AstryxColors c, FullMessage message) {
+    // Who it is from, said once. Plenty of mail arrives with no display name at
+    // all, and a blank line where the sender should be is a row that reads as
+    // broken. So the address takes that line when there is no name, and the
+    // second line appears only when it says something the first one did not.
+    final String name = message.fromName.trim();
+    final String email = message.fromEmail.trim();
+    final bool named = name.isNotEmpty && name != email;
+    final String from =
+        named ? name : (email.isEmpty ? 'Unknown sender' : email);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        MailAvatar(email: message.fromEmail, name: message.fromName, size: 40),
+        MailAvatar(email: email, name: name, size: 40),
         const SizedBox(width: AstryxSpace.s3),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                message.fromName,
+                from,
+                overflow: TextOverflow.ellipsis,
                 style: AstryxText.bodyStrong(c.textPrimary),
               ),
-              if (message.fromEmail.isNotEmpty)
+              if (named && email.isNotEmpty)
                 Text(
-                  message.fromEmail,
+                  email,
+                  overflow: TextOverflow.ellipsis,
                   style: AstryxText.supporting(c.textSecondary),
                 ),
               if (message.toLine.isNotEmpty)
@@ -469,7 +496,7 @@ class _MessageReaderState extends State<MessageReader> {
     // which is the one case where asking is the whole point.
     if (!context.read<Preferences>().confirmDelete && safe) {
       await controller.deleteOpenMessage();
-      if (context.mounted) widget.onBack?.call();
+      if (context.mounted) widget._close?.call();
       return;
     }
 
@@ -497,7 +524,7 @@ class _MessageReaderState extends State<MessageReader> {
     );
     if (confirmed ?? false) {
       await controller.deleteOpenMessage(permanently: !safe);
-      if (context.mounted) widget.onBack?.call();
+      if (context.mounted) widget._close?.call();
     }
   }
 

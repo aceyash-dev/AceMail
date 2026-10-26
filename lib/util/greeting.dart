@@ -75,3 +75,20 @@ String folderSummary(String folder, int unseen) {
   if (unseen <= 0) return '$folder · nothing unread';
   return '$folder · $unseen unread';
 }
+
+/// The same line, while a search is running.
+///
+/// The unread count is about the *folder*, and a search shows a handful of rows
+/// out of it. A number that describes something other than what is on screen is
+/// how the count came to look wrong: sitting above four results saying "12
+/// unread" reads as a stale counter rather than as a fact about the mailbox. So
+/// while a search is up, the line says how much matched.
+String searchSummary(String folder, int matches, String query) {
+  final String trimmed = query.trim();
+  // Long queries are cut, because the line is a heading and not a receipt.
+  final String quoted = trimmed.length > 28
+      ? '"${trimmed.substring(0, 27)}..."'
+      : '"$trimmed"';
+  if (matches <= 0) return '$folder · nothing matches $quoted';
+  return '$folder · $matches matching $quoted';
+}
