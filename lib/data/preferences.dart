@@ -130,6 +130,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyGlass = 'ace.glass';
   static const String _keyLauncherMark = 'ace.launcherMark';
   static const String _keyChymeTone = 'ace.chymeTone';
+  static const String _keyFolderOrder = 'ace.folderOrder';
   static const String _keyLastSeenValidity = 'ace.lastSeenValidity';
   static const String _keyCheckStatus = 'ace.checkStatus';
 
@@ -181,6 +182,7 @@ class Preferences extends ChangeNotifier {
     _keyGlass,
     _keyLauncherMark,
     _keyChymeTone,
+    _keyFolderOrder,
   ];
 
   final FlutterSecureStorage _storage;
@@ -512,6 +514,17 @@ class Preferences extends ChangeNotifier {
 
   ChymeTone get chymeTone => _chymeTone;
 
+  /// The folders in the order the person put them, by path. Folders not in
+  /// this list follow in the server's order.
+  List<String> _folderOrder = const <String>[];
+  List<String> get folderOrder => _folderOrder;
+
+  Future<void> setFolderOrder(List<String> value) => _write(
+        _keyFolderOrder,
+        jsonEncode(value),
+        () => _folderOrder = List<String>.of(value),
+      );
+
   Future<void> setChymeTone(ChymeTone value) =>
       _write(_keyChymeTone, value.name, () => _chymeTone = value);
 
@@ -658,6 +671,7 @@ class Preferences extends ChangeNotifier {
     );
     _glass = _decodeEnum(raw[_keyGlass], GlassMode.values, _glass);
     _chymeTone = _decodeEnum(raw[_keyChymeTone], ChymeTone.values, _chymeTone);
+    _folderOrder = _decodeStringList(raw[_keyFolderOrder], _folderOrder);
     _launcherMark = _decodeEnum(
       raw[_keyLauncherMark],
       LauncherMark.values,
@@ -785,6 +799,20 @@ class Preferences extends ChangeNotifier {
     } catch (_) {
       // The setting still applies for this session.
     }
+  }
+
+  /// A JSON list of strings. Anything else falls back rather than throwing.
+  static List<String> _decodeStringList(String? raw, List<String> fallback) {
+    if (raw == null) return fallback;
+    try {
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is List<dynamic>) {
+        return decoded.whereType<String>().toList();
+      }
+    } catch (_) {
+      // A stale or damaged value is the fallback, not a crash at startup.
+    }
+    return fallback;
   }
 
   static bool _decodeBool(String? raw, bool fallback) =>

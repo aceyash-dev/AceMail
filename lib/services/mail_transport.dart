@@ -52,6 +52,20 @@ abstract interface class MailTransport {
     bool permanently,
   });
 
+  /// Moves every message in [messages] to [targetPath] in one go. All of them
+  /// must be in the same folder. A server that takes a set of UIDs in one
+  /// command does it in one command, so twenty messages are one round-trip
+  /// rather than twenty.
+  Future<void> moveMessages(List<MessageSummary> messages, String targetPath);
+
+  /// Deletes every message in [messages] together, under the same rules as
+  /// [deleteMessage]. All of them must be in the same folder.
+  Future<void> deleteMessages(
+    List<MessageSummary> messages, {
+    String? trashPath,
+    bool permanently,
+  });
+
   Future<void> send({
     required String to,
     required String body,

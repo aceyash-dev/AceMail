@@ -191,6 +191,32 @@ class FakeTransport implements MailTransport {
     uids.remove(summary.uid);
   }
 
+  /// Records the batch as one call, so a test can tell a batch from a loop.
+  final List<int> batchSizes = <int>[];
+
+  @override
+  Future<void> moveMessages(
+    List<MessageSummary> messages,
+    String targetPath,
+  ) async {
+    batchSizes.add(messages.length);
+    for (final MessageSummary m in messages) {
+      await moveMessage(m, targetPath);
+    }
+  }
+
+  @override
+  Future<void> deleteMessages(
+    List<MessageSummary> messages, {
+    String? trashPath,
+    bool permanently = false,
+  }) async {
+    batchSizes.add(messages.length);
+    for (final MessageSummary m in messages) {
+      await deleteMessage(m, trashPath: trashPath, permanently: permanently);
+    }
+  }
+
   @override
   Future<void> deleteMessage(
     MessageSummary summary, {

@@ -82,6 +82,21 @@ class _MessageReaderState extends State<MessageReader> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                // The toolbar sits in its own row above the message, so it
+                // never covers the subject or the sender. It stays put while the
+                // body scrolls underneath it.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AstryxSpace.s4,
+                    AstryxSpace.s2,
+                    AstryxSpace.s4,
+                    AstryxSpace.s2,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _actions(context, message),
+                  ),
+                ),
                 Expanded(
                   // A flick sideways moves through the folder. Horizontal only:
                   // the body scrolls vertically, and a reader that also paged on
@@ -143,18 +158,6 @@ class _MessageReaderState extends State<MessageReader> {
               ),
                   ),
             ],
-          ),
-          // Top right, where the actions for the thing you are reading belong.
-          // At the bottom it was a bar to reach past the message for; at the top
-          // it sits under the back button, in the corner a thumb already knows.
-          // No top bar. It was a row of empty space with one chevron in it,
-          // costing height on every message to hold a control the system back
-          // gesture already is. The toolbar carries a back arrow for the
-          // platforms where it is not.
-          Positioned(
-            top: AstryxSpace.s2,
-            right: AstryxSpace.s4,
-            child: _actions(context, message),
           ),
           // The one thing worth a button of its own on a long message. Reading
           // something you have not read is the moment you want it in three

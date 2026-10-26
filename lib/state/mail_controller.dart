@@ -216,6 +216,13 @@ class MailController extends ChangeNotifier {
   ) async =>
       active?.forEachSelected(action);
 
+  /// Deletes everything picked as one batch. See [MailSession.deleteSelected].
+  Future<void> deleteSelected({bool permanently = false}) async =>
+      active?.deleteSelected(permanently: permanently);
+
+  /// Archives everything picked as one batch. See [MailSession.archiveSelected].
+  Future<void> archiveSelected() async => active?.archiveSelected();
+
   MessageFilter get filter => active?.filter ?? MessageFilter.all;
   MessageSort get sort => active?.sort ?? MessageSort.newest;
   MessageSummary? get openSummary => active?.openSummary;

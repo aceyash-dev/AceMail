@@ -712,9 +712,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
       if (!context.mounted) return;
     }
 
-    await controller.forEachSelected(
-      (MessageSummary m) => controller.delete(m, permanently: permanent),
-    );
+    await controller.deleteSelected(permanently: permanent);
   }
 
   /// Archives everything picked, asking first when the setting is on.
@@ -724,9 +722,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
         !await confirmArchive(context)) {
       return;
     }
-    await controller.forEachSelected(
-      (MessageSummary m) => controller.archive(m),
-    );
+    await controller.archiveSelected();
   }
 
 }

@@ -505,6 +505,78 @@ class MailService implements MailTransport {
         ),
       );
 
+  /// One UID set for the whole batch: one copy, one flag, one expunge. The
+  /// callers group by folder first, so every message here is in the folder the
+  /// first one names.
+  @override
+  Future<void> moveMessages(
+    List<MessageSummary> messages,
+    String targetPath,
+  ) {
+    if (messages.isEmpty) return Future<void>.value();
+    if (messages.length == 1) return moveMessage(messages.first, targetPath);
+    return _queue.run(
+      () => _guard(
+        () async {
+          await _selectSummaryFolder(messages.first);
+          final MessageSequence sequence = _sequenceOf(messages);
+          await removeMessage(
+            canRemoveSafely: _canRemoveSafely,
+            refusal: _removalRefusal,
+            copy: () => _copyTo(sequence, targetPath),
+            flagAndExpunge: () => _deleteAndExpunge(sequence),
+          );
+        },
+        fallback: 'Could not move the messages, so they were left where they were.',
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteMessages(
+    List<MessageSummary> messages, {
+    String? trashPath,
+    bool permanently = false,
+  }) {
+    if (messages.isEmpty) return Future<void>.value();
+    if (messages.length == 1) {
+      return deleteMessage(
+        messages.first,
+        trashPath: trashPath,
+        permanently: permanently,
+      );
+    }
+    return _queue.run(
+      () => _guard(
+        () async {
+          if (!permanently && trashPath == null) {
+            throw const MailRejectedException(
+              'This account has no Trash folder, so the messages were not '
+              'deleted.',
+            );
+          }
+          await _selectSummaryFolder(messages.first);
+          final MessageSequence sequence = _sequenceOf(messages);
+          await removeMessage(
+            canRemoveSafely: _canRemoveSafely,
+            refusal: _removalRefusal,
+            copy: permanently
+                ? () async {}
+                : () => _copyTo(sequence, trashPath!),
+            flagAndExpunge: () => _deleteAndExpunge(sequence),
+          );
+        },
+        fallback: 'The messages could not be removed.',
+      ),
+    );
+  }
+
+  static MessageSequence _sequenceOf(List<MessageSummary> messages) =>
+      MessageSequence.fromIds(
+        <int>[for (final MessageSummary m in messages) m.uid],
+        isUid: true,
+      );
+
   Future<void> _copyTo(MessageSequence sequence, String targetPath) async {
     try {
       await _client.uidCopy(sequence, targetMailboxPath: targetPath);

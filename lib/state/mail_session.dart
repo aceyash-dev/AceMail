@@ -252,6 +252,74 @@ class MailSession extends ChangeNotifier {
     _notify();
   }
 
+  /// Deletes everything picked in as few round-trips as the server allows.
+  ///
+  /// [forEachSelected] is one command per message, which is what the list used
+  /// to do and why deleting twenty read as "one by one". This sends the picked
+  /// messages as a set: one command per folder, because a set of UIDs only means
+  /// something inside the one mailbox it came from.
+  Future<void> deleteSelected({bool permanently = false}) => _removeSelected(
+        (List<MessageSummary> group) => _transport.deleteMessages(
+          group,
+          trashPath: trashPath,
+          permanently: permanently,
+        ),
+      );
+
+  /// Archives everything picked, as one batch per folder.
+  Future<void> archiveSelected() async {
+    final String? path = _folderPathFor(FolderRole.archive);
+    if (path == null) {
+      errorMessage = 'This account has no Archive folder.';
+      _notify();
+      return;
+    }
+    await _removeSelected(
+      (List<MessageSummary> group) => _transport.moveMessages(group, path),
+    );
+  }
+
+  Future<void> _removeSelected(
+    Future<void> Function(List<MessageSummary> group) action,
+  ) async {
+    if (!_connected) return;
+    final List<MessageSummary> picked = List<MessageSummary>.of(selectedMessages);
+    if (picked.isEmpty) return;
+
+    // Off the screen before the first round-trip, the same as [forEachSelected].
+    final Set<int> leaving = picked.map((MessageSummary m) => m.uid).toSet();
+    messages =
+        messages.where((MessageSummary m) => !leaving.contains(m.uid)).toList();
+    _uids = _uids.where((int uid) => !leaving.contains(uid)).toList();
+    _notify();
+
+    // Grouped by the folder each message came from. In the unified view one
+    // list holds several mailboxes, and a UID is only unique inside its own.
+    final Map<String?, List<MessageSummary>> byFolder =
+        <String?, List<MessageSummary>>{};
+    for (final MessageSummary m in picked) {
+      byFolder
+          .putIfAbsent(m.folderPath ?? selectedFolder?.path, () => <MessageSummary>[])
+          .add(m);
+    }
+
+    bool anyFailed = false;
+    for (final List<MessageSummary> group in byFolder.values) {
+      try {
+        await action(group);
+        for (final MessageSummary m in group) {
+          selected.remove(m.uid);
+        }
+      } catch (error) {
+        // Failed rows come back and stay picked, so nothing is hidden.
+        anyFailed = true;
+        errorMessage = error.toString();
+      }
+    }
+    if (anyFailed) await refreshMessages();
+    _notify();
+  }
+
   /// Which quick filter is applied to the page. Transient by design: it is a
   /// way of looking at what is loaded, not a saved preference.
   MessageFilter filter = MessageFilter.all;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -55,27 +57,7 @@ class FolderRail extends StatelessWidget {
               child: Text('Folders', style: AstryxText.caption(c.textSecondary)),
             ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
-                itemCount: controller.folders.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final MailFolder folder = controller.folders[index];
-                  final MailFolder? chosen = controller.selectedFolder;
-                  return _FolderTile(
-                    folder: folder,
-                    // By value, not identity. The unified folder is built fresh
-                    // on every read — it carries a live unread count — so an
-                    // identity check could never be true and the selection never
-                    // showed on it.
-                    selected: chosen != null &&
-                        chosen.role == folder.role &&
-                        chosen.path == folder.path,
-                    // Read where it is used. The "Unread counts on folders"
-                    // switch used to change nothing but its own state.
-                    showCounts: context.watch<Preferences>().showFolderCounts,
-                  );
-                },
-              ),
+              child: _FolderList(controller: controller),
             ),
             Divider(height: 1, color: c.border),
             Padding(
@@ -367,6 +349,76 @@ class _FolderTile extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// The folders, in the order the person arranged them.
+///
+/// Long-press a folder and drag it. The order is kept by path, so it survives a
+/// restart; a folder the person has not moved keeps its place after the ones
+/// they have.
+class _FolderList extends StatelessWidget {
+  const _FolderList({required this.controller});
+
+  final MailController controller;
+
+  /// The server's folders, rearranged to the saved order.
+  static List<MailFolder> ordered(List<MailFolder> folders, List<String> order) {
+    if (order.isEmpty) return folders;
+    final Map<String, int> rank = <String, int>{
+      for (int i = 0; i < order.length; i++) order[i]: i,
+    };
+    final List<MailFolder> known = folders
+        .where((MailFolder f) => rank.containsKey(f.path))
+        .toList()
+      ..sort((MailFolder a, MailFolder b) =>
+          rank[a.path]!.compareTo(rank[b.path]!));
+    final List<MailFolder> unknown =
+        folders.where((MailFolder f) => !rank.containsKey(f.path)).toList();
+    return <MailFolder>[...known, ...unknown];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Preferences prefs = context.watch<Preferences>();
+    final List<MailFolder> folders =
+        ordered(controller.folders, prefs.folderOrder);
+
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s2),
+      buildDefaultDragHandles: false,
+      itemCount: folders.length,
+      onReorder: (int oldIndex, int newIndex) {
+        // Flutter hands over the index as if the item were still in place, so
+        // a move downward lands one short of where it was dropped.
+        final int to = newIndex > oldIndex ? newIndex - 1 : newIndex;
+        final List<String> paths = <String>[
+          for (final MailFolder f in folders) f.path,
+        ];
+        paths.insert(to, paths.removeAt(oldIndex));
+        unawaited(context.read<Preferences>().setFolderOrder(paths));
+      },
+      itemBuilder: (BuildContext context, int index) {
+        final MailFolder folder = folders[index];
+        final MailFolder? chosen = controller.selectedFolder;
+        return ReorderableDelayedDragStartListener(
+          key: ValueKey<String>(folder.path),
+          index: index,
+          child: _FolderTile(
+            folder: folder,
+            // By value, not identity. The unified folder is built fresh on
+            // every read — it carries a live unread count — so an identity
+            // check could never be true and the selection never showed on it.
+            selected: chosen != null &&
+                chosen.role == folder.role &&
+                chosen.path == folder.path,
+            // Read where it is used. The "Unread counts on folders" switch used
+            // to change nothing but its own state.
+            showCounts: prefs.showFolderCounts,
+          ),
+        );
+      },
     );
   }
 }
