@@ -573,9 +573,20 @@ class _SignInScreenState extends State<SignInScreen> {
       key: const ValueKey<int>(0),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          'Your mail,\non your terms.',
-          style: AstryxText.display3(c.textPrimary),
+        // One phrase in the accent. "terms" is the promise; the rest is the
+        // sentence around it, and colouring the word is how a headline says
+        // which word it means.
+        Text.rich(
+          TextSpan(
+            style: AstryxText.display3(c.textPrimary),
+            children: <InlineSpan>[
+              const TextSpan(text: 'Your mail,\non your '),
+              TextSpan(
+                text: 'terms.',
+                style: TextStyle(color: c.accent),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AstryxSpace.s3),
         Text(
@@ -600,32 +611,51 @@ class _SignInScreenState extends State<SignInScreen> {
         // has been asked, is how you end up with two buttons that do the same
         // thing and an error message on a screen with nothing to fail.
         Text('Where is your mail?', style: AstryxText.heading4(c.textPrimary)),
-        const SizedBox(height: AstryxSpace.s4),
-        Wrap(
-          spacing: AstryxSpace.s2,
-          runSpacing: AstryxSpace.s2,
-          children: <Widget>[
-            for (final MailProvider provider in kProviderChoices)
-              _ProviderChoice(
-                provider: provider,
-                // The first domain, not a question about which: Gmail hands out
-                // gmail.com and googlemail.com and this picks one. The next
-                // screen shows it and lets it be changed, so a wrong guess costs
-                // one edit rather than a wrong address.
-                onTap: () => _pickProvider(provider),
-              ),
-            _OtherProviderChoice(onTap: _getStarted),
-          ],
+        const SizedBox(height: AstryxSpace.s1),
+        Text(
+          'Choose your email provider to get started.',
+          style: AstryxText.body(c.textSecondary),
         ),
+        const SizedBox(height: AstryxSpace.s4),
+        // Three to a row, as cards. The marks are the answer to the question,
+        // and a grid of six is a question you can answer without reading.
+        for (int row = 0; row < kProviderChoices.length; row += 3) ...<Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              for (int i = row; i < row + 3; i++) ...<Widget>[
+                if (i > row) const SizedBox(width: AstryxSpace.s2),
+                Expanded(
+                  child: i < kProviderChoices.length
+                      ? _ProviderCard(
+                          provider: kProviderChoices[i],
+                          onTap: () => _pickProvider(kProviderChoices[i]),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AstryxSpace.s2),
+        ],
+        _OtherProviderCard(onTap: _getStarted),
         const SizedBox(height: AstryxSpace.s6),
 
         // The reasons, after the way in rather than before it. Somebody who has
         // already decided does not want to read three paragraphs first, and
         // somebody who has not will scroll anyway.
-        for (final ({AceIcon icon, String title, String body}) point
-            in _points) ...<Widget>[
-          _Point(icon: point.icon, title: point.title, body: point.body),
-          const SizedBox(height: AstryxSpace.s3),
+        for (int i = 0; i < _points.length; i++) ...<Widget>[
+          if (i > 0)
+            Divider(
+              height: AstryxSpace.s5,
+              color: c.border.withValues(alpha: 0.5),
+            ),
+          _Point(
+            icon: _points[i].icon,
+            title: _points[i].title,
+            body: _points[i].body,
+          ),
+          if (i < _points.length - 1) const SizedBox(height: AstryxSpace.s4),
         ],
         const SizedBox(height: AstryxSpace.s1),
         Center(
@@ -1093,18 +1123,13 @@ class _Point extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: c.accentMuted,
-            borderRadius: BorderRadius.circular(AstryxRadius.element),
-          ),
-          child: Center(
-            child: AceIconView(icon: icon, size: 17, color: c.onAccentMuted),
-          ),
+        // A plain mark, not a chip. Three coloured squares stacked up read as
+        // three buttons; these are three sentences with a picture beside them.
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: AceIconView(icon: icon, size: 26, color: c.textPrimary),
         ),
-        const SizedBox(width: AstryxSpace.s3),
+        const SizedBox(width: AstryxSpace.s4),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1307,6 +1332,108 @@ class _OtherProviderChoice extends StatelessWidget {
             ),
             const SizedBox(height: AstryxSpace.s1),
             Text('Other', style: AstryxText.supporting(c.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A provider as a card: the mark, a chevron, the name underneath.
+///
+/// The mark answers the question before the label is read, which is why it is
+/// the biggest thing on the card and the name is the caption.
+class _ProviderCard extends StatelessWidget {
+  const _ProviderCard({required this.provider, required this.onTap});
+
+  final MailProvider provider;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return Semantics(
+      button: true,
+      label: provider.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AstryxRadius.element),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(
+            AstryxSpace.s3,
+            AstryxSpace.s3,
+            AstryxSpace.s2,
+            AstryxSpace.s3,
+          ),
+          decoration: BoxDecoration(
+            color: c.surfaceHighest,
+            borderRadius: BorderRadius.circular(AstryxRadius.element),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  _ProviderTile(provider: provider),
+                  const Spacer(),
+                  AceIconView(
+                    icon: AceIcons.chevronRight,
+                    size: 16,
+                    color: c.textSecondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AstryxSpace.s2),
+              Text(provider.label, style: AstryxText.bodyStrong(c.textPrimary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The way out, as a full-width card — because it is a different kind of answer.
+class _OtherProviderCard extends StatelessWidget {
+  const _OtherProviderCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AstryxRadius.element),
+      child: Container(
+        padding: const EdgeInsets.all(AstryxSpace.s3),
+        decoration: BoxDecoration(
+          color: c.surfaceHighest,
+          borderRadius: BorderRadius.circular(AstryxRadius.element),
+        ),
+        child: Row(
+          children: <Widget>[
+            AceIconView(icon: AceIcons.globe, size: 24, color: c.textPrimary),
+            const SizedBox(width: AstryxSpace.s3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('Other', style: AstryxText.bodyStrong(c.textPrimary)),
+                  const SizedBox(height: AstryxSpace.s0_5),
+                  Text(
+                    'Use any IMAP/SMTP provider',
+                    style: AstryxText.supporting(c.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            AceIconView(
+              icon: AceIcons.chevronRight,
+              size: 16,
+              color: c.textSecondary,
+            ),
           ],
         ),
       ),
