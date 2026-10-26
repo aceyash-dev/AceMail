@@ -207,8 +207,21 @@ abstract final class GoogleAuth {
     try {
       await _prepare();
 
+      // No scopeHint here, deliberately.
+      //
+      // authenticate() is Credential Manager's *button* flow
+      // (GetSignInWithGoogleOption), and that flow answers one question: who
+      // are you. Handing it `https://mail.google.com/` — a restricted Gmail
+      // scope — makes the consent request it sends invalid, and the sheet
+      // closes with `canceled`. The app then reported "Sign-in was cancelled"
+      // for a sign-in nobody had cancelled, which is what the banner on the
+      // mailbox was.
+      //
+      // The mail scope is asked for separately, by
+      // authorizationClient.authorizeScopes inside _tokenFor, which is the call
+      // that is actually allowed to request it.
       final GoogleSignInAccount account =
-          await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+          await GoogleSignIn.instance.authenticate();
       // Kept, so the greeting and the account row never have to ask the plugin
       // anything — asking is what can prompt.
       _remembered[account.email.toLowerCase()] = account;
@@ -217,7 +230,20 @@ abstract final class GoogleAuth {
       if (display != null && display.isNotEmpty) {
         await _write(_keyName, display);
       }
-      final String token = await _tokenFor(account, allowPrompt: true);
+      // Signed in as somebody, but the mail scope is a second, separate
+      // consent. If it is refused the account is still known — the greeting can
+      // use the name — but there is no token, and saying which of the two steps
+      // failed is the difference between "try again" and "the app is broken".
+      final String token;
+      try {
+        token = await _tokenFor(account, allowPrompt: true);
+      } on GoogleAuthException catch (error) {
+        throw GoogleAuthException(
+          '${error.message} Ace Mail needs permission to read your mail — '
+          'tick the Gmail box on the consent screen.',
+          needsSignIn: true,
+        );
+      }
       // Kept per address, so a restart inside the hour does not have to ask
       // anybody — and so signing into a second account does not throw this one
       // away.
