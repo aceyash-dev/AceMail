@@ -132,18 +132,7 @@ class SettingsScreen extends StatelessWidget {
                   title: 'Messages per page',
                   subtitle: 'How many load before "Load older messages".',
                   value: prefs.pageSize.label,
-                  onTap: () async {
-                    final PageSize? chosen = await showChoiceSheet<PageSize>(
-                      context,
-                      title: 'Messages per page',
-                      current: prefs.pageSize,
-                      choices: <SettingsChoice<PageSize>>[
-                        for (final PageSize size in PageSize.values)
-                          SettingsChoice<PageSize>(size, size.label),
-                      ],
-                    );
-                    if (chosen != null) await prefs.setPageSize(chosen);
-                  },
+                  onTap: () => _choosePageSize(context, prefs),
                 ),
                 SettingsSwitchRow(
                   icon: AceIcons.headers,
@@ -315,19 +304,7 @@ class SettingsScreen extends StatelessWidget {
                   title: 'Undo window',
                   subtitle: 'How long an undo stays on the bar after a swipe.',
                   value: prefs.undoWindow.label,
-                  onTap: () async {
-                    final UndoWindow? chosen =
-                        await showChoiceSheet<UndoWindow>(
-                      context,
-                      title: 'Undo window',
-                      current: prefs.undoWindow,
-                      choices: <SettingsChoice<UndoWindow>>[
-                        for (final UndoWindow window in UndoWindow.values)
-                          SettingsChoice<UndoWindow>(window, window.label),
-                      ],
-                    );
-                    if (chosen != null) await prefs.setUndoWindow(chosen);
-                  },
+                  onTap: () => _chooseUndoWindow(context, prefs),
                 ),
               ],
             ),
@@ -768,15 +745,7 @@ class SettingsScreen extends StatelessWidget {
     }
     if (!context.mounted) return;
 
-    final String? chosen = await showChoiceSheet<String>(
-      context,
-      title: 'Model',
-      current: prefs.chymeModel,
-      choices: <SettingsChoice<String>>[
-        for (final String model in models)
-          SettingsChoice<String>(model, model),
-      ],
-    );
+    final String? chosen = await _chooseModel(context, models, prefs.chymeModel);
     if (chosen != null) await prefs.setChymeModel(chosen);
   }
 
@@ -1308,6 +1277,252 @@ Future<ChymeTemplate?> _pickProvider(
               ),
             ),
           ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Messages per page, as a slider.
+///
+/// Three names in a list made a choice out of something continuous — and the
+/// number is the point, so the control should show the number moving.
+Future<void> _choosePageSize(BuildContext context, Preferences prefs) async {
+  final AstryxColors c = context.astryx;
+  int index = prefs.pageSize.index;
+  final int last = PageSize.values.length - 1;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (BuildContext sheetContext) => StatefulBuilder(
+      builder: (BuildContext sheetContext, StateSetter setSheetState) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AstryxSpace.s5,
+            0,
+            AstryxSpace.s5,
+            AstryxSpace.s5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Messages per page', style: AstryxText.heading4(c.textPrimary)),
+              const SizedBox(height: AstryxSpace.s3),
+              AceSlider(
+                value: index.toDouble(),
+                max: last.toDouble(),
+                divisions: last,
+                semanticLabel: 'Messages per page',
+                onChanged: (double value) {
+                  final int next = value.round().clamp(0, last);
+                  if (next == index) return;
+                  setSheetState(() => index = next);
+                  unawaited(prefs.setPageSize(PageSize.values[next]));
+                },
+              ),
+              const SizedBox(height: AstryxSpace.s1),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  for (final PageSize size in PageSize.values)
+                    Text(
+                      size.label,
+                      style: AstryxText.supporting(c.textSecondary),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// The model list, with a search field.
+///
+/// An endpoint can offer a hundred models and the list arrived unsorted and
+/// unfiltered, so finding one meant scrolling past every embedding model to
+/// reach the chat one. Typing three characters is faster than reading a hundred.
+Future<String?> _chooseModel(
+  BuildContext context,
+  List<String> models,
+  String current,
+) {
+  final AstryxColors c = context.astryx;
+  final TextEditingController filter = TextEditingController();
+
+  return showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: StatefulBuilder(
+        builder: (BuildContext sheetContext, StateSetter setSheetState) {
+          final String needle = filter.text.trim().toLowerCase();
+          final List<String> shown = needle.isEmpty
+              ? models
+              : models
+                  .where((String m) => m.toLowerCase().contains(needle))
+                  .toList();
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AstryxSpace.s5,
+                      0,
+                      AstryxSpace.s5,
+                      AstryxSpace.s3,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Model',
+                          style: AstryxText.heading4(c.textPrimary),
+                        ),
+                        const SizedBox(height: AstryxSpace.s2),
+                        TextField(
+                          controller: filter,
+                          autofocus: true,
+                          onChanged: (_) => setSheetState(() {}),
+                          style: AstryxText.body(c.textPrimary),
+                          decoration: InputDecoration(
+                            hintText: 'Search ${models.length} models',
+                            prefixIcon: AceIconView(
+                              icon: AceIcons.search,
+                              size: 18,
+                              color: c.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (shown.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(AstryxSpace.s5),
+                      child: Text(
+                        'Nothing matches that.',
+                        style: AstryxText.body(c.textSecondary),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: shown.length,
+                        itemBuilder: (BuildContext context, int i) {
+                          final String model = shown[i];
+                          final bool isCurrent = model == current;
+                          return InkWell(
+                            onTap: () =>
+                                Navigator.of(sheetContext).pop(model),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AstryxSpace.s5,
+                                vertical: AstryxSpace.s3,
+                              ),
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Text(
+                                      model,
+                                      style: AstryxText.body(
+                                        isCurrent ? c.accent : c.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isCurrent)
+                                    AceIconView(
+                                      icon: AceIcons.checkCircle,
+                                      size: 18,
+                                      color: c.accent,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  ).whenComplete(filter.dispose);
+}
+
+/// How long undo stays offered, as a slider.
+///
+/// The same reasoning as page size: the number is the thing being chosen, so
+/// the control shows the number moving rather than offering three words.
+Future<void> _chooseUndoWindow(
+  BuildContext context,
+  Preferences prefs,
+) async {
+  final AstryxColors c = context.astryx;
+  int index = prefs.undoWindow.index;
+  final int last = UndoWindow.values.length - 1;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (BuildContext sheetContext) => StatefulBuilder(
+      builder: (BuildContext sheetContext, StateSetter setSheetState) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AstryxSpace.s5,
+            0,
+            AstryxSpace.s5,
+            AstryxSpace.s5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Undo window', style: AstryxText.heading4(c.textPrimary)),
+              const SizedBox(height: AstryxSpace.s3),
+              AceSlider(
+                value: index.toDouble(),
+                max: last.toDouble(),
+                divisions: last,
+                semanticLabel: 'Undo window',
+                onChanged: (double value) {
+                  final int next = value.round().clamp(0, last);
+                  if (next == index) return;
+                  setSheetState(() => index = next);
+                  unawaited(prefs.setUndoWindow(UndoWindow.values[next]));
+                },
+              ),
+              const SizedBox(height: AstryxSpace.s1),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  for (final UndoWindow window in UndoWindow.values)
+                    Text(
+                      window.label,
+                      style: AstryxText.supporting(c.textSecondary),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     ),
