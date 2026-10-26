@@ -115,9 +115,26 @@ class _MailboxScreenState extends State<MailboxScreen> {
     }
   }
 
+  /// A refresh while somebody is looking at the mail.
+  ///
+  /// The background worker runs every fifteen minutes, which is the floor
+  /// WorkManager allows and is fine for a phone in a pocket. It is not fine for
+  /// a phone in a hand: fifteen minutes of staring at a list that is already
+  /// out of date. This is the same fetch, on a shorter clock, only while the
+  /// screen is up — the worker keeps doing the rest.
+  Timer? _foregroundRefresh;
+
   @override
   void initState() {
     super.initState();
+    _foregroundRefresh = Timer.periodic(
+      const Duration(minutes: 2),
+      (Timer _) {
+        if (!mounted) return;
+        final MailController controller = context.read<MailController>();
+        if (!controller.loading) controller.refreshMessages();
+      },
+    );
     // The bar's right-hand end changes with the focus, so the focus has to
     // rebuild it. Tapping is not enough: putting the keyboard away is a way of
     // leaving the search, and the microphone has to leave with it.
@@ -149,6 +166,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
 
   @override
   void dispose() {
+    _foregroundRefresh?.cancel();
     _searchDebounce?.cancel();
     _search.dispose();
     _searchFocus.dispose();

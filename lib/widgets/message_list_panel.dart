@@ -603,12 +603,13 @@ class MessageTile extends StatelessWidget {
                     ? c.accentMuted
                     : (hover ? c.surfaceHighest : c.backgroundCard),
                 borderRadius: shape,
-                // Uniform, because a rounded border in Flutter has to be: a
-                // different colour per side is refused when it is painted. The
-                // unread mark is drawn over the edge instead of into it.
-                // Softer than a control's edge. A card is a grouping, not a thing to
-                // press, and a border at full strength makes forty of them shout.
-                border: Border.all(color: c.border.withValues(alpha: 0.35)),
+                // No border. Forty outlined boxes is forty edges to look at
+                // before you have read a single subject — the list already
+                // separates rows by the space between them, and the card's
+                // fill is enough to say "this is one message". The unread mark
+                // still rides the left edge, which is now the only line in the
+                // row.
+                border: null,
               ),
               child: ClipRRect(
                 // So the mark below follows the card's corner rather than
