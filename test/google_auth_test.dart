@@ -136,13 +136,25 @@ void main() {
   });
 
   group('what a failure says', () {
-    test('cancelling is not an error', () {
-      expect(
-        GoogleAuth.describe(const GoogleSignInException(
-          code: GoogleSignInExceptionCode.canceled,
-        )),
-        'Sign-in was cancelled.',
-      );
+    test('cancelling says so, and points at the other cause', () {
+      final String said = GoogleAuth.describe(const GoogleSignInException(
+        code: GoogleSignInExceptionCode.canceled,
+      ));
+      expect(said, startsWith('Sign-in was cancelled.'));
+      // "Cancelled" is also what Credential Manager reports when it could not
+      // produce a credential at all, so the message has to name that second
+      // possibility rather than send somebody looking for a sheet they closed.
+      expect(said, contains('not registered with Google'));
+    });
+
+    test("Google's own description is kept when there is one", () {
+      // The only thing that separates a real cancellation from a
+      // configuration fault is what Google put in the description.
+      final String said = GoogleAuth.describe(const GoogleSignInException(
+        code: GoogleSignInExceptionCode.canceled,
+        description: 'No credential available.',
+      ));
+      expect(said, contains('No credential available.'));
     });
 
     test('a configuration failure names the cause', () {
