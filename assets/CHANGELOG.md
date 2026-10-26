@@ -2,6 +2,123 @@
 
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
+
+## 0.6.0
+
+### Added
+- **A changelog screen.** Settings → Support → Changelog shows every version,
+  newest first. The sheet after an update shows only what changed since you last
+  looked; this is for the release you skipped.
+- **Three new launcher marks** — a bear, a heart and a hand-drawn heart — replacing
+  the old monogram, sealed and open envelopes. Drawn artwork, cut out on
+  transparency and fitted to the adaptive-icon safe zone.
+- **Swipe between messages.** A flick sideways in the reader moves to the next
+  message or the one before.
+- **Settings categories fold.** Tap a heading and it closes.
+- **Sliders** for messages per page and the undo window, where the number is the
+  thing being chosen.
+- **Search in the model list.** An endpoint can offer a hundred models, unsorted.
+- **Folders can be reordered** by long-press and drag, and the order survives a
+  restart.
+- **Chyme remembers the conversation** between openings, and has a Start over
+  button. Four more tones: warm, direct, apologetic, enthusiastic.
+- **Batch delete and archive** — one UID set, one copy, one flag, one expunge per
+  folder, instead of a round-trip per message.
+
+### Fixed
+- **"Sign-in was cancelled" when it had not been.** `authenticate()` is
+  Credential Manager's *button* flow — it answers "who are you" — and it was being
+  handed `https://mail.google.com/`, a restricted Gmail scope, which makes the
+  consent request it sends invalid. Google closed the sheet with `canceled` and
+  the app reported a cancellation nobody had performed. The mail scope is
+  requested separately now, by `authorizationClient.authorizeScopes`.
+- **A failed sign-in now carries Google's own description** when it has one, and
+  names the registration fault when it does not. `canceled` is what the plugin
+  reports for both a dismissed sheet and a credential it could not produce at
+  all, and the two are indistinguishable without that text.
+- **Bulk actions leave the list at once**, rather than one row per round-trip.
+- **Codes written with spaces are found** — `4 4 5 5 6 6` and `445-566`.
+- **The provider picker no longer lays its text out one character wide.** A
+  `ListTile` inside a `Column` inside a sheet had nothing giving it a width.
+- **Signing in again after the app had been closed.** The device's already-granted
+  accounts are restored silently at startup.
+- **The reader's toolbar sits in its own top row**, above the message, instead of
+  floating over the subject and sender.
+
+### Known limitation
+- **A Google token still cannot be refreshed silently forever.** `google_sign_in`
+  keeps the granted authorization in the plugin's memory, so after the app is
+  killed it is gone, and `attemptLightweightAuthentication` only ever returns one
+  account. Doing better needs a refresh token, which needs the web client's
+  secret at token-exchange time — the Android build has the client ID but not the
+  secret.
+
+## 0.5.14
+
+### Added
+- **Device lock actually opens.** The Android activity is a `FragmentActivity`,
+  which the unlock prompt needs before it can be shown at all.
+
+## 0.5.13
+
+### Added
+- **The onboarding, as drawn.** Providers are cards three to a row — the mark, a
+  chevron, the name underneath — and "Other" is a full-width card because it is a
+  different kind of answer. "terms." carries the accent, because colouring the
+  word is how a headline says which word it means. The three promises are a
+  divided list with a plain mark each, not three coloured chips.
+
+## 0.5.12
+
+### Changed
+- The provider picker shows what it is asking you to choose: the description, not
+  just the name, with a tick on the one in use.
+
+## 0.5.10
+
+### Fixed
+- **Signing in again after the app had been closed.** The map of Google accounts
+  was memory, so it was empty on every cold start and the only fallback was a
+  stored token that lives an hour.
+
+## 0.5.9
+
+### Fixed
+- **Swipe navigation named a method that does not exist** (`openMessage` rather
+  than `open`), and the settings chevron named an icon and a colour that did not
+  exist either.
+
+## 0.5.8
+
+### Added
+- **Quiet hours**, so notifications stop overnight.
+
+### Fixed
+- The foreground refresh guard named a getter that does not exist. The one that
+  does is `refreshing`, which is also the more accurate word.
+
+### Changed
+- **Flat rows** in the message list instead of forty outlined boxes. The list
+  already separates rows by the space between them.
+- The list refreshes every two minutes while the screen is up, and stops when it
+  goes away.
+
+## 0.5.7
+
+### Added
+- **Windows and macOS builds**, in CI and on the release.
+- **Chyme is a loop**: it can search your mail and read the open message, up to
+  three steps.
+- **Chyme can delete** — it proposes, and the sheet turns that into a button, a
+  question with the subject in it, and a way to say no.
+- **A real time picker** for scheduled sending.
+
+### Fixed
+- **Every row stopped looking unread.** `isSeen` reads the parsed message's flags
+  and returns false on an envelope-only fetch; the flags are read directly now.
+- **The reader's top bar is gone**, with the back arrow moved into the toolbar.
+- The sidebar button is back, as `SidebarLeft`.
+
 ## 0.5.6
 
 ### Added
