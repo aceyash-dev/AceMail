@@ -65,6 +65,22 @@ enum ChymeTone {
   brief(
     'Brief',
     'Say it in as few words as it can be said. One or two sentences at most.',
+  ),
+  warm(
+    'Warm',
+    'Write to somebody you like. Plain words, a little care, no flourishes.',
+  ),
+  direct(
+    'Direct',
+    'Lead with the answer, then the reason. No preamble, no hedging.',
+  ),
+  apologetic(
+    'Apologetic',
+    'Take responsibility plainly and say what happens next. Do not grovel.',
+  ),
+  enthusiastic(
+    'Enthusiastic',
+    'Say yes with some energy. Still short, still a person.',
   );
 
   const ChymeTone(this.label, this.instruction);

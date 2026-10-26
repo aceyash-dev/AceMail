@@ -1250,6 +1250,10 @@ Future<ChymeTemplate?> _pickProvider(
                 style: AstryxText.heading4(c.textPrimary),
               ),
             ),
+            // Rows written out rather than ListTile. A ListTile inside a
+            // Column inside a sheet laid its title out one character wide —
+            // "G r o q" down the left edge — because nothing in that chain
+            // gave it a width to fill. An Expanded does.
             Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
@@ -1258,25 +1262,47 @@ Future<ChymeTemplate?> _pickProvider(
                 itemBuilder: (BuildContext context, int index) {
                   final ChymeTemplate template = ChymeTemplate.values[index];
                   final bool isCurrent = template == current;
-                  return ListTile(
-                    title: Text(
-                      template.label,
-                      style: AstryxText.bodyStrong(
-                        isCurrent ? c.accent : c.textPrimary,
+                  return InkWell(
+                    onTap: () => Navigator.of(sheetContext).pop(template),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AstryxSpace.s5,
+                        vertical: AstryxSpace.s3,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  template.label,
+                                  style: AstryxText.bodyStrong(
+                                    isCurrent ? c.accent : c.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: AstryxSpace.s0_5),
+                                Text(
+                                  template.description,
+                                  style: AstryxText.supporting(c.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isCurrent)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(left: AstryxSpace.s3),
+                              child: AceIconView(
+                                icon: AceIcons.checkCircle,
+                                size: 20,
+                                color: c.accent,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    subtitle: Text(
-                      template.description,
-                      style: AstryxText.supporting(c.textSecondary),
-                    ),
-                    trailing: isCurrent
-                        ? AceIconView(
-                            icon: AceIcons.checkCircle,
-                            size: 20,
-                            color: c.accent,
-                          )
-                        : null,
-                    onTap: () => Navigator.of(sheetContext).pop(template),
                   );
                 },
               ),
