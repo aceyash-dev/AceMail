@@ -16,7 +16,7 @@ dependencies:
   # Material implementation whose ColorScheme is a different type from
   # Flutter's — which makes DynamicColorBuilder unusable with a normal
   # MaterialApp. 1.9.0 uses Flutter's own.
-  dynamic_color: ^2.1.0
+  dynamic_color: ^1.9.0
   hugeicons: ^1.2.0
   flutter:
     sdk: flutter
