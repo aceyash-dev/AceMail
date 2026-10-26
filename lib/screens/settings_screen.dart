@@ -544,20 +544,9 @@ class SettingsScreen extends StatelessWidget {
                         'comes from whatever you point it at.',
                     value: ChymeTemplate.forEndpoint(prefs.chymeEndpoint).label,
                     onTap: () async {
-                      final ChymeTemplate? chosen =
-                          await showChoiceSheet<ChymeTemplate>(
+                      final ChymeTemplate? chosen = await _pickProvider(
                         context,
-                        title: 'Provider',
-                        current: ChymeTemplate.forEndpoint(prefs.chymeEndpoint),
-                        choices: <SettingsChoice<ChymeTemplate>>[
-                          for (final ChymeTemplate template
-                              in ChymeTemplate.values)
-                            SettingsChoice<ChymeTemplate>(
-                              template,
-                              template.label,
-                              description: template.description,
-                            ),
-                        ],
+                        prefs,
                       );
                       if (chosen == null) return;
                       if (chosen.needsTyping) {
@@ -1217,6 +1206,82 @@ Future<void> _chooseTextSize(BuildContext context, Preferences prefs) async {
               ),
             ],
           ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// The provider picker, as a sheet of cards rather than a list of names.
+///
+/// Each one is a decision with a description attached — "generous on the free
+/// tier" is the reason somebody picks Groq over OpenAI — and a choice sheet
+/// that showed only the name was hiding the part that helps. The tick is on the
+/// one currently in use, and the key link is where you get one.
+Future<ChymeTemplate?> _pickProvider(
+  BuildContext context,
+  Preferences prefs,
+) {
+  final AstryxColors c = context.astryx;
+  final ChymeTemplate current = ChymeTemplate.forEndpoint(prefs.chymeEndpoint);
+
+  return showModalBottomSheet<ChymeTemplate>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                0,
+                AstryxSpace.s5,
+                AstryxSpace.s3,
+              ),
+              child: Text(
+                'Where Chyme points',
+                style: AstryxText.heading4(c.textPrimary),
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: AstryxSpace.s4),
+                itemCount: ChymeTemplate.values.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final ChymeTemplate template = ChymeTemplate.values[index];
+                  final bool isCurrent = template == current;
+                  return ListTile(
+                    title: Text(
+                      template.label,
+                      style: AstryxText.bodyStrong(
+                        isCurrent ? c.accent : c.textPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      template.description,
+                      style: AstryxText.supporting(c.textSecondary),
+                    ),
+                    trailing: isCurrent
+                        ? AceIconView(
+                            icon: AceIcons.checkCircle,
+                            size: 20,
+                            color: c.accent,
+                          )
+                        : null,
+                    onTap: () => Navigator.of(sheetContext).pop(template),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     ),

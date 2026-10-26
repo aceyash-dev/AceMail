@@ -70,11 +70,37 @@ abstract final class GoogleAuth {
   static Future<void> _initialize() async {
     try {
       await GoogleSignIn.instance.initialize(serverClientId: clientId);
+      // Restore the accounts the device already knows about, before anything
+      // asks for a token.
+      //
+      // Without this the map below is empty on every cold start — it is memory,
+      // and memory does not survive the app being killed. The only thing left to
+      // try is the stored token, and a token lives an hour, so reopening the app
+      // later found nothing usable and asked again. That is the whole bug.
+      await _restoreAccounts();
     } catch (_) {
       // A failed initialization is not a successful one. Clear the cached
       // future so a transient platform failure does not poison every retry.
       _prepareFuture = null;
       rethrow;
+    }
+  }
+
+  /// Puts the device's already-signed-in accounts back into [_remembered].
+  ///
+  /// A silent attempt: it can only return an account that is already granted,
+  /// and never shows anything. Null is the normal answer on a device with none,
+  /// and every route after it — the stored token, the sign-in screen — still
+  /// works, so a failure here is nothing to report.
+  static Future<void> _restoreAccounts() async {
+    try {
+      final GoogleSignInAccount? restored =
+          await GoogleSignIn.instance.attemptLightweightAuthentication();
+      if (restored != null) {
+        _remembered[restored.email.toLowerCase()] = restored;
+      }
+    } catch (_) {
+      // Nothing to restore. Not an error.
     }
   }
 
