@@ -6,7 +6,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.Locale
@@ -32,7 +32,13 @@ import java.util.Locale
  * comes back with text. Nothing is recorded here: the app never sees the audio,
  * and it never asks for the microphone permission, because it never listens.
  */
-class MainActivity : FlutterActivity() {
+/**
+ * A FragmentActivity, not a plain FlutterActivity, because the device unlock
+ * (local_auth) is only allowed to show its prompt from one. On a FlutterActivity
+ * the prompt cannot open at all, so the app lock would hold the cover up with
+ * no way through it.
+ */
+class MainActivity : FlutterFragmentActivity() {
     /**
      * A `mailto:` the app was opened with, waiting to be taken.
      *
@@ -206,7 +212,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "app.tab.mail/launcher"
         private const val INTENT_CHANNEL = "app.tab.mail/intents"
-private const val VOICE_CHANNEL = "app.tab.mail/voice"
+        private const val VOICE_CHANNEL = "app.tab.mail/voice"
         private const val VOICE_REQUEST = 7301
         private const val PACKAGE = "app.tab.mail"
 
