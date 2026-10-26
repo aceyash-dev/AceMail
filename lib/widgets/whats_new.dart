@@ -18,6 +18,19 @@ import 'markdown_view.dart';
 abstract final class ReleaseNotes {
   static String? _cache;
 
+  /// The changelog in full, newest first.
+  ///
+  /// The sheet shows one version, because that is what changed since you last
+  /// opened the app. This is the whole file, for when somebody wants to know
+  /// what a version they skipped actually did.
+  static Future<String?> all() async {
+    try {
+      return _cache ??= await rootBundle.loadString('assets/CHANGELOG.md');
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// The section of the changelog for [version], or null when there is none.
   ///
   /// [version] is the full `name+build`, which is what the headings carry. A

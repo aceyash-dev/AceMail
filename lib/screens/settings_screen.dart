@@ -26,6 +26,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../widgets/about_dialog.dart';
+import 'changelog_screen.dart';
 import '../widgets/ace_glass.dart';
 import '../models/chyme_template.dart';
 import '../widgets/diagnostics_sheet.dart';
@@ -640,6 +641,12 @@ class SettingsScreen extends StatelessWidget {
                   // form: a person with a problem is better served by an address
                   // that reaches somebody than by a screen that reaches nobody.
                   onTap: () => _mailSupport(context),
+                ),
+                SettingsRow(
+                  icon: AceIcons.restore,
+                  title: 'Changelog',
+                  subtitle: 'Every version, and what it changed',
+                  onTap: () => ChangelogScreen.show(context),
                 ),
                 SettingsRow(
                   icon: AceIcons.password,

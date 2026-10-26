@@ -257,6 +257,13 @@ abstract final class GoogleAuth {
         name: (name == null || name.isEmpty) ? null : name,
       );
     } on GoogleSignInException catch (error) {
+      // The code, the description and nothing else. Not a credential, not an
+      // address — this is the one line that makes "it does not work" into
+      // something that can be looked up.
+      debugPrint(
+        'Ace Mail: Google sign-in failed — code=${error.code.name} '
+        'description=${error.description ?? '(none)'}',
+      );
       throw GoogleAuthException(describe(error));
     }
   }
@@ -383,7 +390,19 @@ abstract final class GoogleAuth {
   static String describe(GoogleSignInException error) {
     switch (error.code) {
       case GoogleSignInExceptionCode.canceled:
-        return 'Sign-in was cancelled.';
+        // "Cancelled" is what this means when somebody dismissed the sheet —
+        // and it is also what Credential Manager reports when it could not
+        // produce a credential at all, which is a configuration fault, not a
+        // cancellation. Google's own description is the only thing that tells
+        // the two apart, so it is kept rather than swallowed.
+        final String? detail = error.description?.trim();
+        if (detail == null || detail.isEmpty) {
+          return 'Sign-in was cancelled. If you did not cancel it, this build is '
+              'not registered with Google for this account — the package name '
+              'and signing certificate have to be registered in the same Cloud '
+              'project as the web client ID.';
+        }
+        return 'Sign-in was cancelled. (Google said: $detail)';
       case GoogleSignInExceptionCode.interrupted:
         return 'Sign-in was interrupted. Try again.';
       case GoogleSignInExceptionCode.uiUnavailable:
