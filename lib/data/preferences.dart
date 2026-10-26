@@ -120,6 +120,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyCacheMessages = 'ace.cacheMessages';
   static const String _keyAppLock = 'ace.appLock';
   static const String _keyPrivatePreviews = 'ace.privatePreviews';
+  static const String _keyQuietHours = 'ace.quietHours';
   static const String _keyChymeEnabled = 'ace.chymeEnabled';
   static const String _keyChymeEndpoint = 'ace.chymeEndpoint';
   static const String _keyChymeModel = 'ace.chymeModel';
@@ -170,6 +171,7 @@ class Preferences extends ChangeNotifier {
     _keyCacheMessages,
     _keyAppLock,
     _keyPrivatePreviews,
+    _keyQuietHours,
     _keyChymeEnabled,
     _keyChymeEndpoint,
     _keyChymeModel,
@@ -232,6 +234,13 @@ class Preferences extends ChangeNotifier {
   // screen with no way past it.
   bool _appLock = false;
   bool _privatePreviews = true;
+
+  /// Whether notifications stay quiet overnight.
+  ///
+  /// A window rather than a schedule: 22:00 to 07:00, and the app's own idea of
+  /// when a day ends. Mail arrives at three in the morning and there is nothing
+  /// anybody can do about it then, so the phone does not say so.
+  bool _quietHours = false;
   // Chyme ships off, and this is the one setting that does. It cannot do
   // anything at all until somebody gives it an endpoint — a switch that is on
   // and does nothing is exactly what the rest of these defaults exist to
@@ -440,6 +449,20 @@ class Preferences extends ChangeNotifier {
   /// On by default: a notification on a lock screen is read by whoever is
   /// holding the phone, and "you have mail" is enough for most people.
   bool get privatePreviews => _privatePreviews;
+
+  bool get quietHours => _quietHours;
+
+  Future<void> setQuietHours(bool value) =>
+      _write(_keyQuietHours, '$value', () => _quietHours = value);
+
+  /// Whether it is currently inside the quiet window.
+  ///
+  /// Wraps: 22:00 to 07:00 is one window, not two.
+  bool isQuietAt(DateTime now) {
+    if (!_quietHours) return false;
+    final int hour = now.hour;
+    return hour >= 22 || hour < 7;
+  }
 
   Future<void> setQuoteReplies(bool value) =>
       _write(_keyQuoteReplies, '$value', () => _quoteReplies = value);

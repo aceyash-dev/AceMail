@@ -222,6 +222,19 @@ class SettingsScreen extends StatelessWidget {
                     await prefs.setNotifyNewMail(on);
                   },
                 ),
+
+                SettingsSwitchRow(
+                  icon: AceIcons.schedule,
+                  title: 'Quiet overnight',
+                  subtitle: 'No notifications between 22:00 and 07:00. Mail '
+                      'still arrives and is still counted — only the phone '
+                      'stays quiet.',
+                  value: prefs.quietHours,
+                  onChanged: (bool value) async {
+                    await prefs.setQuietHours(value);
+                    await NotificationSetup.apply(enabled: prefs.notifyNewMail);
+                  },
+                ),
                 SettingsSwitchRow(
                   icon: AceIcons.visibilityOff,
                   title: 'Private notification previews',

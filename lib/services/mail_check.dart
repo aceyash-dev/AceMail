@@ -182,7 +182,10 @@ Future<bool> checkOne(StoredAccount stored) async {
       );
     }
 
-    if (result.hasNews) {
+    // Silent overnight, but the mail is still fetched and still counted — the
+    // notification is what waits, not the work. Opening the app in the morning
+    // finds everything already there.
+    if (result.hasNews && !prefs.isQuietAt(DateTime.now())) {
       await AceNotifications.newMail(
         account: stored.account.email,
         count: result.count,
