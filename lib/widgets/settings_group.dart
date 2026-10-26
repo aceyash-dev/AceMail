@@ -62,12 +62,12 @@ class _SettingsSectionState extends State<SettingsSection> {
                 ),
                 AnimatedRotation(
                   turns: _open ? 0 : -0.25,
-                  duration: AstryxMotion.short,
+                  duration: AstryxMotion.fast,
                   curve: AstryxMotion.emphasized,
-                  child: HugeIcon(
+                  child: AceIconView(
                     icon: AceIcons.chevronDown,
                     size: 16,
-                    color: c.textTertiary,
+                    color: c.textSecondary,
                   ),
                 ),
               ],
