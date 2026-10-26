@@ -620,9 +620,13 @@ class _SignInScreenState extends State<SignInScreen> {
         // Three to a row, as cards. The marks are the answer to the question,
         // and a grid of six is a question you can answer without reading.
         for (int row = 0; row < kProviderChoices.length; row += 3) ...<Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
+          // IntrinsicHeight, because stretch inside a scroll view has no
+          // height to stretch to — the row is in a Column that scrolls, so its
+          // height is unbounded and "match the tallest" needs to be measured.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
               for (int i = row; i < row + 3; i++) ...<Widget>[
                 if (i > row) const SizedBox(width: AstryxSpace.s2),
                 Expanded(
@@ -635,6 +639,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 ),
               ],
             ],
+          ),
           ),
           const SizedBox(height: AstryxSpace.s2),
         ],
