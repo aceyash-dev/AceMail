@@ -25,6 +25,11 @@ abstract final class OtpDetector {
   /// whether fetching a body preview is worth it.
   static bool looksLikeCodeMail(String subject) => _context.hasMatch(subject);
 
+  /// A separator between two digits, as senders write them: "4 4 5 5 6 6" or
+  /// "445-566". Plenty of mail does this because a code with spaces is easier
+  /// to read off a lock screen, and none of it matched a `\d{4,8}` run.
+  static final RegExp _split = RegExp(r'(?<=\d)[\s\u2011\u2013-](?=\d)');
+
   /// The code in [text], or null when there is not one worth showing.
   ///
   /// When more than one number has context near it — "Order 998877 shipped.
@@ -32,11 +37,15 @@ abstract final class OtpDetector {
   /// words are describing it.
   static String? find(String text) {
     if (text.isEmpty) return null;
+    // Collapsed first, so a code written with spaces is one run of digits. The
+    // context window is measured on the collapsed text, which is a few
+    // characters shorter — close enough for a 64-character window.
+    final String collapsed = text.replaceAll(_split, '');
 
     String? best;
     int bestDistance = 1 << 30;
 
-    for (final RegExpMatch match in _code.allMatches(text)) {
+    for (final RegExpMatch match in _code.allMatches(collapsed)) {
       final String digits = match.group(1)!;
       if (!_plausible(digits)) continue;
 

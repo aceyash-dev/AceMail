@@ -8,15 +8,27 @@ import 'ace_icon_view.dart';
 
 /// One labelled group of settings, the way a settings screen is meant to read:
 /// a tracked caption, then a card of related rows.
-class SettingsSection extends StatelessWidget {
+class SettingsSection extends StatefulWidget {
   const SettingsSection({
     super.key,
     required this.title,
     required this.children,
+    this.initiallyOpen = true,
   });
 
   final String title;
   final List<Widget> children;
+
+  /// Open by default. A settings screen where every category starts folded is
+  /// a list of headings you have to open one at a time to find anything in.
+  final bool initiallyOpen;
+
+  @override
+  State<SettingsSection> createState() => _SettingsSectionState();
+}
+
+class _SettingsSectionState extends State<SettingsSection> {
+  late bool _open = widget.initiallyOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -25,41 +37,75 @@ class SettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AstryxSpace.s6,
-            AstryxSpace.s6,
-            AstryxSpace.s6,
-            AstryxSpace.s2,
-          ),
-          child: Text(
-            title.toUpperCase(),
-            style: AstryxText.label(c.textSecondary).copyWith(
-              letterSpacing: 1.4,
-              fontSize: AstryxType.sXs,
+        // The heading is the handle. Tapping a category folds it, which is how
+        // you get from fourteen sections to the two you came here for.
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AstryxSpace.s6,
+              AstryxSpace.s6,
+              AstryxSpace.s6,
+              AstryxSpace.s2,
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
-          child: AceSurface(
-            squircle: true,
-            padding: const EdgeInsets.symmetric(vertical: AstryxSpace.s1),
-            child: Column(
+            child: Row(
               children: <Widget>[
-                for (int i = 0; i < children.length; i++) ...<Widget>[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      indent: AstryxSpace.s11,
-                      endIndent: AstryxSpace.s3,
-                      color: c.border,
+                Expanded(
+                  child: Text(
+                    widget.title.toUpperCase(),
+                    style: AstryxText.label(c.textSecondary).copyWith(
+                      letterSpacing: 1.4,
+                      fontSize: AstryxType.sXs,
                     ),
-                  children[i],
-                ],
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _open ? 0 : -0.25,
+                  duration: AstryxMotion.short,
+                  curve: AstryxMotion.emphasized,
+                  child: HugeIcon(
+                    icon: AceIcons.chevronDown,
+                    size: 16,
+                    color: c.textTertiary,
+                  ),
+                ),
               ],
             ),
           ),
+        ),
+        AnimatedSize(
+          duration: AstryxMotion.medium,
+          curve: AstryxMotion.emphasized,
+          alignment: Alignment.topCenter,
+          child: _open
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AstryxSpace.s3,
+                  ),
+                  child: AceSurface(
+                    squircle: true,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AstryxSpace.s1,
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        for (int i = 0; i < widget.children.length; i++)
+                          ...<Widget>[
+                            if (i > 0)
+                              Divider(
+                                height: 1,
+                                indent: AstryxSpace.s11,
+                                endIndent: AstryxSpace.s3,
+                                color: c.border,
+                              ),
+                            widget.children[i],
+                          ],
+                      ],
+                    ),
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
         ),
       ],
     );

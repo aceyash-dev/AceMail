@@ -386,6 +386,24 @@ class MailController extends ChangeNotifier {
       });
 
   // --- actions, forwarded to the active session --------------------------
+  /// Opens the message one place along the list.
+  ///
+  /// Reading is sequential: the next thing you want is almost always the next
+  /// thing in the list, and reaching for the back arrow and then a row is two
+  /// gestures where one would do.
+  Future<void> openAdjacent(int step) async {
+    final MessageSummary? current = openSummary;
+    if (current == null) return;
+    final List<MessageSummary> list = visibleMessages;
+    final int index = list.indexWhere(
+      (MessageSummary message) => message.uid == current.uid,
+    );
+    if (index < 0) return;
+    final int next = index + step;
+    if (next < 0 || next >= list.length) return;
+    await open(list[next]);
+  }
+
   Future<void> openFolder(MailFolder folder) async {
     if (folder.role == FolderRole.unified) {
       _unified = true;

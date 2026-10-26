@@ -83,7 +83,21 @@ class _MessageReaderState extends State<MessageReader> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Expanded(
-                  child: SingleChildScrollView(
+                  // A flick sideways moves through the folder. Horizontal only:
+                  // the body scrolls vertically, and a reader that also paged on
+                  // a vertical fling would fight itself. Right is the message
+                  // before, left the one after — the way a page turns.
+                  child: GestureDetector(
+                    onHorizontalDragEnd: (DragEndDetails details) {
+                      final double velocity = details.primaryVelocity ?? 0;
+                      if (velocity.abs() < 300) return;
+                      unawaited(
+                        context
+                            .read<MailController>()
+                            .openAdjacent(velocity < 0 ? 1 : -1),
+                      );
+                    },
+                    child: SingleChildScrollView(
                     // Clearance for the toolbar, which is at the top now.
                     padding: const EdgeInsets.fromLTRB(
                       AstryxSpace.s6,
@@ -127,6 +141,7 @@ class _MessageReaderState extends State<MessageReader> {
                   ),
                 ),
               ),
+                  ),
             ],
           ),
           // Top right, where the actions for the thing you are reading belong.
