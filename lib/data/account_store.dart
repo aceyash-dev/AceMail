@@ -131,6 +131,30 @@ class AccountStore {
     await temp.rename(file.path);
   }
 
+  /// Moves an unopenable record out of the way, under a name that says what it
+  /// is.
+  ///
+  /// Not deleted: a record that will not open is still the only copy of
+  /// somebody's account list, and a key that comes back — a restored keychain, a
+  /// fixed build — opens it again. It only has to stop being the file the next
+  /// save overwrites.
+  Future<void> _keepAside() async {
+    try {
+      final File file = await _file();
+      if (!await file.exists()) return;
+      int suffix = 1;
+      File target = File('${file.path}.kept');
+      while (await target.exists()) {
+        suffix++;
+        target = File('${file.path}.kept$suffix');
+      }
+      await file.rename(target.path);
+    } catch (_) {
+      // Nothing to move, or nowhere to move it. The error is already on its way
+      // to the screen either way.
+    }
+  }
+
   /// The account that was in front last time, so a restart lands back on it.
   Future<String?> loadActiveEmail() async {
     try {
@@ -160,10 +184,20 @@ class AccountStore {
     try {
       record = await _readRecord();
     } on AceVaultException catch (error) {
+      // The record is there and will not open: the key it was sealed with is
+      // gone, or the record has been altered. Either way the accounts are not
+      // lost *yet* — the bytes are still on the disk — so the record is kept
+      // and the next sign-in writes beside it rather than over it.
+      await _keepAside();
+      // One more chance: a device that updated but never finished migrating may
+      // still have the old keychain entries, which are readable without a key.
+      final AccountLoad legacy = await _migrate();
+      if (legacy.accounts.isNotEmpty) return legacy;
       return (
         accounts: <StoredAccount>[],
         error: 'The accounts saved on this device could not be opened '
-            '($error). Sign in again to restore them.',
+            '($error). They have been kept rather than deleted. Sign in again '
+            'to use the app.',
       );
     } catch (_) {
       return (
@@ -227,11 +261,31 @@ class AccountStore {
       // The active account rides along in the same record: one write instead of
       // two, and no window where the file names an account it does not hold.
       String? active;
+      Map<String, Object?>? previous;
       try {
-        active = (await _readRecord())?['active'] as String?;
+        previous = await _readRecord();
+        active = previous?['active'] as String?;
       } catch (_) {
         // An unreadable record is being replaced by this one anyway.
         active = null;
+      }
+
+      // Passwords already on the device, by address. A session that has not
+      // been given a password yet holds an empty string, and writing that over
+      // a good one is how an account is signed out by a save nobody asked for:
+      // the next start reads the record, finds a blank password, and treats the
+      // account as one it cannot restore.
+      final Map<String, String> known = <String, String>{};
+      for (final Object? entry
+          in previous?['accounts'] as List<Object?>? ?? const <Object?>[]) {
+        if (entry is! Map<String, Object?>) continue;
+        final Object? json = entry['account'];
+        if (json is! Map<String, Object?>) continue;
+        final Object? email = json['email'];
+        final Object? password = entry['password'];
+        if (email is String && password is String && password.isNotEmpty) {
+          known[email.toLowerCase()] = password;
+        }
       }
 
       await _writeRecord(<String, Object?>{
@@ -243,8 +297,13 @@ class AccountStore {
               'account': a.account.toJson(),
               // A Google account is stored with no password at all rather than
               // with an empty one: a field holding nothing says a secret exists
-              // and is blank, which is a different claim.
-              'password': a.account.isGoogle ? null : a.password,
+              // and is blank, which is a different claim. Any other account
+              // keeps the password it already had rather than being blanked.
+              'password': a.account.isGoogle
+                  ? null
+                  : (a.password.isNotEmpty
+                      ? a.password
+                      : known[a.account.email.toLowerCase()]),
             },
         ],
       });

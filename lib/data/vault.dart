@@ -60,12 +60,31 @@ class DeviceKeyStore implements KeyStore {
 
   @override
   Future<String?> read(String key) async {
+    String? fromKeychain;
     try {
       final String? value = await _keychain.read(key);
-      if (value != null && value.isNotEmpty) return value;
+      if (value != null && value.isNotEmpty) fromKeychain = value;
     } catch (_) {
       // The keychain is unavailable; the file below is why that is survivable.
     }
+
+    final String? fromFile = await _readFile(key);
+    if (fromKeychain == null) return fromFile;
+
+    // Both places are meant to hold the same value, and a pair that has drifted
+    // apart is the interesting case: a write that reached one and not the other
+    // leaves the next start with one chance instead of two. The keychain is the
+    // authority — it is the one the OS protects — so the file is repaired to
+    // match it, and a keychain that dies later still has something to fall back
+    // on. Written, not fire-and-forgotten: a read that leaves the fallback
+    // half-done is the bug this pair exists to prevent.
+    if (fromFile != fromKeychain) {
+      await _writeFile(key, fromKeychain);
+    }
+    return fromKeychain;
+  }
+
+  Future<String?> _readFile(String key) async {
     try {
       final File file = _fileFor(key);
       if (!await file.exists()) return null;
@@ -73,6 +92,18 @@ class DeviceKeyStore implements KeyStore {
       return value.isEmpty ? null : value;
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<void> _writeFile(String key, String value) async {
+    try {
+      await _directory.create(recursive: true);
+      final File file = _fileFor(key);
+      await file.writeAsString(value, flush: true);
+      await _restrict(file);
+    } catch (_) {
+      // Best effort: the keychain still answered, so this read succeeds and
+      // the next one has two places to look instead of one.
     }
   }
 
@@ -217,12 +248,38 @@ class AceVault {
   ///
   /// Re-checked inside the guard: a caller that started before the winner
   /// finished would otherwise mint over the key the winner is already using.
+  ///
+  /// Before it mints, it looks for a key that is already there. A marker that
+  /// is missing or unreadable is not evidence that no key exists — the marker
+  /// and the key are two writes, and a process killed between them leaves the
+  /// key without its marker. Minting then would replace a key that records on
+  /// disk were sealed with, and the app would come up signed out for no reason
+  /// the person could see. This was that bug.
   Future<int> _mintFirst() async {
     final int? version = int.tryParse(await _keys.read(_currentKey) ?? '');
     if (version != null && await _keys.read(_keyName(version)) != null) {
       return version;
     }
+    final int adopted = await _adoptExisting();
+    if (adopted != 0) return adopted;
     return _mint(1);
+  }
+
+  /// The highest key already stored, made current again. Zero when there is
+  /// none.
+  ///
+  /// Keys are minted in order, so the run of present ones from 1 upward is the
+  /// whole set, and it stops at the first gap.
+  Future<int> _adoptExisting() async {
+    int highest = 0;
+    for (int version = 1; version <= _maxVersion; version++) {
+      final String? key = await _keys.read(_keyName(version));
+      if (key == null || key.isEmpty) break;
+      highest = version;
+    }
+    if (highest == 0) return 0;
+    await _keys.write(_currentKey, '$highest');
+    return highest;
   }
 
   Future<Uint8List> _keyFor(int version) async {
@@ -240,7 +297,17 @@ class AceVault {
   }
 
   Future<int> _mint(int version) async {
-    await _keys.write(_keyName(version), base64Encode(_randomBytes(_keyLength)));
+    // Never over a key that is already there. Two writers can reach this at
+    // once — the app and its background worker are separate isolates, with a
+    // guard each — and the loser's records would be sealed with a key the
+    // winner then replaced. One of the two would never open again.
+    final String? existing = await _keys.read(_keyName(version));
+    if (existing == null || existing.isEmpty) {
+      await _keys.write(
+        _keyName(version),
+        base64Encode(_randomBytes(_keyLength)),
+      );
+    }
     await _keys.write(_currentKey, '$version');
     return version;
   }

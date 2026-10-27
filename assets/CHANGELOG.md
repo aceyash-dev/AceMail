@@ -3,6 +3,37 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+81
+
+### Fixed
+- **Being signed out for no reason.** The record and its key are two writes, and
+  a process killed between them — or a keychain that answered once and then did
+  not — left the key without its marker. The next start read "no key version",
+  minted version 1 over the key that was already there, and every record sealed
+  with it stopped opening: the app came up at the sign-in screen with nothing
+  wrong that anybody could see. A missing or unreadable marker now adopts the key
+  that is on the device instead of replacing it, and minting never writes over a
+  key that already exists — which also closes the same race between the app and
+  its background worker, two isolates with a guard each.
+- **A save that had no password in it blanked the one on the device.** A session
+  that has not been handed a password yet — a reconnect, an account switch, a
+  save after removing another account — used to write an empty password into the
+  record. The next start read it back as an account it could not restore, and
+  asked for the password again. A save now keeps the password already stored for
+  that address rather than overwriting it with nothing.
+- **The key file is repaired while the keychain can still answer.** The key is
+  written to the keychain and to a file beside the record; if a write reached
+  only one of them, the next read now puts the other back, so a keychain that
+  fails later still has something to fall back on.
+- **A record that will not open is kept, not overwritten.** It is moved to
+  `credentials.ace.kept` and named in the error, so a key that comes back — a
+  restored keychain, a fixed build — can still open it, and the next sign-in
+  writes beside it rather than over it. The old keychain layout is tried once
+  more first, for a device whose update never finished migrating.
+- **A snack raised from a sheet that was closing.** Chyme's "Searching for …"
+  was shown from a context that had just been popped, which is a lookup on a
+  widget no longer in the tree.
+
 ## 0.6.0+80
 
 ### Added

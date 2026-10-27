@@ -170,6 +170,181 @@ void main() {
     });
   });
 
+  group('a save that has no password in it', () {
+    test('keeps the one already on the device', () async {
+      final MemoryKeys keys = MemoryKeys();
+      await storeOn(keys).saveAll(<StoredAccount>[
+        (account: accountA, password: 'hunter2'),
+      ]);
+
+      // A session that has not been handed a password yet — a reconnect, a
+      // switch, a save after removing another account — must not blank it.
+      expect(
+        await storeOn(keys).saveAll(<StoredAccount>[
+          (account: accountA, password: ''),
+        ]),
+        isNull,
+      );
+
+      final AccountLoad loaded = await storeOn(keys).loadAll();
+      expect(loaded.error, isNull);
+      expect(loaded.accounts.single.password, 'hunter2');
+    });
+  });
+
+  group('a key that went missing', () {
+    /// The key file `DeviceKeyStore` keeps beside the record.
+    File keyFile(String name) => File('${directory.path}/$name.key');
+
+    test('a lost marker does not cost the key, or the accounts', () async {
+      final MemoryKeys keys = MemoryKeys();
+      await storeOn(keys).saveAll(<StoredAccount>[
+        (account: accountA, password: 'hunter2'),
+      ]);
+
+      // The marker and the key are two writes. A process killed between them —
+      // or a keychain that answered once and then did not — leaves the key
+      // without its marker.
+      keys.values.remove('ace.credentials.keyVersion');
+
+      final AccountLoad loaded = await storeOn(keys).loadAll();
+      expect(loaded.error, isNull);
+      expect(loaded.accounts.single.password, 'hunter2');
+
+      // Reading does not mint, so nothing has been rewritten yet. The first
+      // write after it — a switch of account, a sign-in — puts the marker back
+      // instead of starting a second key.
+      final String key = keys.values['ace.credentials.key.1']!;
+      await storeOn(keys).saveActiveEmail(accountA.email);
+      expect(keys.values['ace.credentials.keyVersion'], '1');
+      expect(keys.values['ace.credentials.key.1'], key);
+    });
+
+    test('a garbled marker adopts the key that is there', () async {
+      final MemoryKeys keys = MemoryKeys();
+      await storeOn(keys).saveAll(<StoredAccount>[
+        (account: accountA, password: 'hunter2'),
+      ]);
+      keys.values['ace.credentials.keyVersion'] = 'not a number';
+
+      final AccountLoad loaded = await storeOn(keys).loadAll();
+      expect(loaded.accounts.single.password, 'hunter2');
+
+      final String key = keys.values['ace.credentials.key.1']!;
+      await storeOn(keys).saveActiveEmail(accountA.email);
+      expect(keys.values['ace.credentials.keyVersion'], '1');
+      expect(keys.values['ace.credentials.key.1'], key);
+    });
+
+    test('minting never replaces a key that is already stored', () async {
+      final MemoryKeys keys = MemoryKeys();
+      final AceVault vault = AceVault(
+        keys: keys,
+        random: Random(9),
+        namespace: 'ace.credentials',
+      );
+      final Uint8List sealed = await vault.seal(
+        Uint8List.fromList(utf8.encode('a password')),
+      );
+      final String minted = keys.values['ace.credentials.key.1']!;
+
+      // What a killed process leaves behind, and what a stale keychain does.
+      keys.values.remove('ace.credentials.keyVersion');
+      await vault.currentVersion();
+
+      expect(
+        keys.values['ace.credentials.key.1'],
+        minted,
+        reason: 'the key that sealed the record must still be the key',
+      );
+      expect(utf8.decode(await vault.open(sealed)), 'a password');
+    });
+
+    test('the record still opens from the key file alone', () async {
+      final MemoryKeys live = MemoryKeys();
+      await AccountStore(
+        directory: directory,
+        vault: AceVault(
+          keys: DeviceKeyStore(directory: directory, keychain: live),
+          random: Random(4),
+          namespace: 'ace.credentials',
+        ),
+        legacy: MemoryKeys(),
+      ).saveAll(<StoredAccount>[
+        (account: accountA, password: 'hunter2'),
+      ]);
+
+      // The next start: the keychain is gone — wiped, restored onto a new
+      // device, a secret service that never started — and only the file is left.
+      final AccountLoad loaded = await AccountStore(
+        directory: directory,
+        vault: AceVault(
+          keys: DeviceKeyStore(
+            directory: directory,
+            keychain: MemoryKeys(refuse: true),
+          ),
+          namespace: 'ace.credentials',
+        ),
+        legacy: MemoryKeys(),
+      ).loadAll();
+
+      expect(loaded.error, isNull);
+      expect(loaded.accounts.single.password, 'hunter2');
+      expect(keyFile('ace.credentials.key.1').existsSync(), isTrue);
+    });
+
+    test('a keychain that answers repairs the file beside it', () async {
+      final MemoryKeys keychain = MemoryKeys();
+      final DeviceKeyStore store = DeviceKeyStore(
+        directory: directory,
+        keychain: keychain,
+      );
+      await store.write('ace.credentials.key.1', 'the-key');
+
+      // The file write was lost: a full disk, a killed process.
+      keyFile('ace.credentials.key.1').deleteSync();
+
+      expect(await store.read('ace.credentials.key.1'), 'the-key');
+      expect(
+        keyFile('ace.credentials.key.1').existsSync(),
+        isTrue,
+        reason: 'the fallback is rewritten while the keychain can still answer',
+      );
+    });
+  });
+
+  group('a record that will not open', () {
+    test('is kept rather than overwritten, and says so', () async {
+      final MemoryKeys keys = MemoryKeys();
+      await storeOn(keys).saveAll(<StoredAccount>[
+        (account: accountA, password: 'hunter2'),
+      ]);
+
+      // The key is gone from both places: nothing can open this record.
+      keys.values.remove('ace.credentials.key.1');
+      final File keyFile = File('${directory.path}/ace.credentials.key.1.key');
+      if (keyFile.existsSync()) keyFile.deleteSync();
+
+      final AccountLoad loaded = await storeOn(keys).loadAll();
+      expect(loaded.accounts, isEmpty);
+      expect(loaded.error, contains('kept'));
+
+      final File kept = File('${directory.path}/credentials.ace.kept');
+      expect(kept.existsSync(), isTrue);
+      final List<int> before = kept.readAsBytesSync();
+
+      // Signing in again writes a new record, and the old one is still there,
+      // byte for byte.
+      expect(
+        await storeOn(keys).saveAll(<StoredAccount>[
+          (account: accountA, password: 'a new one'),
+        ]),
+        isNull,
+      );
+      expect(kept.readAsBytesSync(), before);
+    });
+  });
+
   group('the key', () {
     test('is written to the keychain and to a file beside the record',
         () async {

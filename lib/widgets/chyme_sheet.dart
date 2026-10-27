@@ -444,8 +444,11 @@ class _ChymeSheetState extends State<ChymeSheet> {
   void _applySearch(String query) {
     final NavigatorState navigator = Navigator.of(context);
     context.read<MailController>().search(query);
-    navigator.pop();
+    // Said before the sheet goes, not after: the snack belongs to the screen
+    // underneath, and a message raised from a context that has just been popped
+    // is a message raised from a widget that is no longer in the tree.
     AceSnack.show(context, 'Searching for “$query”');
+    navigator.pop();
   }
 
   /// Starts a reply to the open message with what Chyme wrote in it.
