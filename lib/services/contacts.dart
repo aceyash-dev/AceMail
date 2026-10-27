@@ -314,6 +314,59 @@ abstract final class Contacts {
     return contact;
   }
 
+  /// Forgets an address completely.
+  ///
+  /// Distinct from un-saving it: a saved contact that is un-saved goes back to
+  /// being one the app merely saw, which is right for "I did not mean to keep
+  /// this". This is the other request — "I do not want this person in my list at
+  /// all" — and it takes the record out, along with any block on it.
+  static Future<void> remove(String email) async {
+    final String key = email.trim().toLowerCase();
+    final bool had = _byEmail.remove(key) != null;
+    final bool blocked = _blocked.remove(key);
+    if (!had && !blocked) return;
+    if (blocked) await _persistBlocked();
+    await _persist();
+  }
+
+  /// Takes a batch of addresses from the device's own address book.
+  ///
+  /// A contact on the device is a decision somebody made already, so these
+  /// arrive **saved** rather than as addresses the app merely noticed. Nothing
+  /// is written back to the device: this is an import, not a sync, and an app
+  /// that edited your address book because you signed in would be a worse
+  /// neighbour than one that only reads it.
+  ///
+  /// Returns how many records were added or changed.
+  ///
+  /// Stops adding at [limit]. The cap is the promise this file makes about
+  /// growth, and a device address book is the one caller that can arrive with
+  /// more addresses than the whole list is allowed to hold — an import that
+  /// quietly blew past it would make the bound a lie. Records already here still
+  /// get their name and their saved mark, whatever the count.
+  static Future<int> importContacts(Iterable<Contact> incoming) async {
+    int changed = 0;
+    for (final Contact contact in incoming) {
+      final String key = contact.email.trim().toLowerCase();
+      if (key.isEmpty || !key.contains('@')) continue;
+      final String name = contact.name.trim();
+      final Contact? existing = _byEmail[key];
+      if (existing == null) {
+        if (_byEmail.length >= limit) continue;
+        _byEmail[key] = Contact(email: key, name: name, saved: true);
+        changed++;
+        continue;
+      }
+      final String merged = existing.name.trim().isEmpty ? name : existing.name;
+      if (merged != existing.name || !existing.saved) {
+        _byEmail[key] = existing.copyWith(name: merged, saved: true);
+        changed++;
+      }
+    }
+    if (changed > 0) await _persist();
+    return changed;
+  }
+
   /// Drops the addresses the app merely saw, keeping the saved ones.
   static Future<void> forgetSeen() async {
     _byEmail.removeWhere((_, Contact c) => !c.saved);

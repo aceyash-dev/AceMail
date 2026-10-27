@@ -288,21 +288,26 @@ Future<T?> showChoiceSheet<T>(
             ),
             child: Text(title, style: AstryxText.heading2(c.textPrimary)),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
-            child: Column(
-              children: <Widget>[
-                for (final SettingsChoice<T> choice in choices)
-                  AceListTile(
-                    onTap: () => Navigator.of(sheetContext).pop(choice.value),
-                    title: choice.label,
-                    subtitle: choice.description,
-                    selected: choice.value == current,
-                    trailing: choice.value == current
-                        ? AceIconView(icon: AceIcons.check, color: c.accent)
-                        : null,
-                  ),
-              ],
+          // Scrollable, and bounded: a list of choices grows with the app, and
+          // eight tones plus a ninth was enough to overflow the sheet on a
+          // short phone — a choice nobody can scroll to is a choice removed.
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
+              child: Column(
+                children: <Widget>[
+                  for (final SettingsChoice<T> choice in choices)
+                    AceListTile(
+                      onTap: () => Navigator.of(sheetContext).pop(choice.value),
+                      title: choice.label,
+                      subtitle: choice.description,
+                      selected: choice.value == current,
+                      trailing: choice.value == current
+                          ? AceIconView(icon: AceIcons.check, color: c.accent)
+                          : null,
+                    ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AstryxSpace.s4),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/contact.dart';
 import '../services/contacts.dart';
+import '../services/device_contacts.dart';
+import '../util/ace_snack.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
@@ -27,6 +29,9 @@ class ContactsPanel extends StatefulWidget {
 }
 
 class _ContactsPanelState extends State<ContactsPanel> {
+  /// True while the device's address book is being read.
+  bool _importing = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,13 +42,69 @@ class _ContactsPanelState extends State<ContactsPanel> {
     });
   }
 
+  /// Asks for the address book, and says why before it asks.
+  ///
+  /// The system prompt is one line and no context, so the explanation belongs
+  /// on this side of it: what is read, what is kept, and — the part people
+  /// actually want to know — that nothing is written back.
+  Future<void> _importFromDevice() async {
+    if (_importing) return;
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialog) => AlertDialog(
+        title: const Text('Import your contacts?'),
+        content: const Text(
+          'Ace Mail will read the names and email addresses in this device\'s '
+          'address book and add them here, marked as saved. Nothing is sent '
+          'anywhere, and nothing is written back to your address book.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !mounted) return;
+
+    setState(() => _importing = true);
+    final ContactImport result = await DeviceContacts.import();
+    if (!mounted) return;
+    setState(() => _importing = false);
+
+    if (result.error != null) {
+      AceSnack.show(context, result.error!);
+      return;
+    }
+    if (result.found == 0) {
+      AceSnack.show(context, 'No email addresses in your address book.');
+      return;
+    }
+    AceSnack.show(
+      context,
+      result.imported == 0
+          ? 'Every address in your address book is already here.'
+          : '${result.imported} ${result.imported == 1 ? 'address' : 'addresses'} '
+              'imported.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final List<Contact> contacts = Contacts.search(widget.query);
 
     if (contacts.isEmpty) {
-      return _Empty(query: widget.query);
+      return _Empty(
+        query: widget.query,
+        onImport: DeviceContacts.isSupported ? _importFromDevice : null,
+        importing: _importing,
+      );
     }
 
     final int saved = contacts.where((Contact contact) => contact.saved).length;
@@ -66,11 +127,22 @@ class _ContactsPanelState extends State<ContactsPanel> {
               AstryxSpace.s2,
               AstryxSpace.s3,
             ),
-            child: Text(
-              saved == 0
-                  ? '${contacts.length} ${contacts.length == 1 ? 'address' : 'addresses'} from your mail'
-                  : '$saved saved · ${contacts.length} in all',
-              style: AstryxText.supporting(c.textSecondary),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    saved == 0
+                        ? '${contacts.length} ${contacts.length == 1 ? 'address' : 'addresses'} from your mail'
+                        : '$saved saved · ${contacts.length} in all',
+                    style: AstryxText.supporting(c.textSecondary),
+                  ),
+                ),
+                if (DeviceContacts.isSupported)
+                  _ImportButton(
+                    busy: _importing,
+                    onPressed: _importFromDevice,
+                  ),
+              ],
             ),
           );
         }
@@ -146,10 +218,38 @@ class _ContactRow extends StatelessWidget {
   }
 }
 
+/// The address book, behind one button.
+class _ImportButton extends StatelessWidget {
+  const _ImportButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
+        child: AceLoader(size: 18),
+      );
+    }
+    return AceButton(
+      label: 'Import',
+      icon: AceIcons.contacts,
+      variant: AceButtonVariant.tonal,
+      onPressed: onPressed,
+    );
+  }
+}
+
 class _Empty extends StatelessWidget {
-  const _Empty({required this.query});
+  const _Empty({required this.query, this.onImport, this.importing = false});
 
   final String query;
+
+  /// Null when this platform has no address book to read.
+  final Future<void> Function()? onImport;
+  final bool importing;
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +282,15 @@ class _Empty extends StatelessWidget {
               style: AstryxText.body(c.textSecondary),
               textAlign: TextAlign.center,
             ),
+            if (!searching && onImport != null) ...<Widget>[
+              const SizedBox(height: AstryxSpace.s5),
+              AceButton(
+                label: importing ? 'Reading your contacts…' : 'Import from this device',
+                icon: AceIcons.contacts,
+                variant: AceButtonVariant.tonal,
+                onPressed: importing ? null : onImport,
+              ),
+            ],
           ],
         ),
       ),

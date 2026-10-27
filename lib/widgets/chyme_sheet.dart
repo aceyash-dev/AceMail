@@ -3,10 +3,13 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../models/contact.dart';
 import '../models/full_message.dart';
 import '../models/message_summary.dart';
+import '../screens/compose_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/chyme.dart';
+import '../services/contacts.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
@@ -15,11 +18,11 @@ import '../util/ace_snack.dart';
 import '../util/dates.dart';
 import '../util/routes.dart';
 import 'ace_form_field.dart';
-import 'chyme_mark.dart';
-import 'markdown_view.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
-import '../screens/compose_screen.dart';
+import 'chyme_mark.dart';
+import 'chyme_pickers.dart';
+import 'markdown_view.dart';
 
 /// Chyme, as a sheet.
 ///
@@ -29,7 +32,9 @@ import '../screens/compose_screen.dart';
 /// What Chyme can see is assembled **here**, not fetched by the model. The app
 /// already knows what is on screen; a model with a tool that can ask for more
 /// mail is a model that can ask for all of it, and the difference matters more
-/// than the convenience.
+/// than the convenience. What it can *do*, though, it does through the same
+/// [MailController] the buttons use — one path, one set of rules, and the
+/// destructive half of it always asks first.
 class ChymeSheet extends StatefulWidget {
   const ChymeSheet({super.key, this.seed});
 
@@ -90,13 +95,10 @@ class _ChymeSheetState extends State<ChymeSheet> {
   /// A summary, and a deliberately short one: the sender, the subject and the
   /// date of the messages in view, and the body of the one that is open. Not the
   /// mailbox, not the attachments, not the other folders.
-  /// The mail, and only the mail.
   ///
-  /// Deliberately not "what is on screen": the folder, the filter, the sort and
-  /// the selection are all things the *app* knows and the model has no use for,
-  /// and describing them invites answers about the interface instead of about
-  /// the mail. What goes in is what a person would hand over — who wrote, what
-  /// they wrote, when, and the whole of the message that is open.
+  /// Each message carries its uid in brackets, because Chyme now acts on
+  /// messages and a tool needs to name one. The number is the only handle the
+  /// model is given, and it is the one the list is already keyed by.
   String _context(
     MailController controller,
     Preferences prefs,
@@ -113,9 +115,11 @@ class _ChymeSheetState extends State<ChymeSheet> {
       out.writeln('Their recent mail, newest first:');
       for (final MessageSummary message in visible.take(25)) {
         out.writeln(
-          '- ${message.fromName} <${message.fromEmail}> · ${message.subject}'
+          '- [${message.uid}] ${message.fromName} <${message.fromEmail}> · '
+          '${message.subject}'
           ' · ${formatListDate(message.date)}'
-          '${message.isSeen ? '' : ' · unread'}',
+          '${message.isSeen ? '' : ' · unread'}'
+          '${message.isFlagged ? ' · starred' : ''}',
         );
       }
     }
@@ -165,52 +169,17 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ..._turns,
       ];
 
-      // A loop now, not one request. The one tool it has is a search over the
-      // mail already in hand: read-only, instant, and enough to answer "what
-      // did the bank send me" without the model guessing. Deleting stays a
-      // separate proposal, because a tool that acts inside a loop is a tool
-      // that can act twice before anybody has read the first answer.
+      // A loop, not one request: Chyme asks for something, the app runs it, and
+      // the answer goes back into the conversation. Everything that changes
+      // anything goes through the controller, so a star from here is the same
+      // star as the toolbar's — and the three things that cannot be undone ask
+      // their own question before they happen.
       final ChymeRun run = await Chyme.run(
         endpoint: prefs.chymeEndpoint,
         apiKey: prefs.chymeKey,
         model: prefs.chymeModel,
         turns: request,
-        tools: <String, ChymeTool>{
-          // The message on screen, in full. The prompt already carries a
-          // shortened copy so a question about it needs no tool at all; this is
-          // for the long one, where the answer is further down than the excerpt.
-          'read': (String argument) async {
-            final FullMessage? open = controller.openMessage;
-            if (open == null) return 'No message is open.';
-            final String body = open.textBody.trim();
-            final String html = open.htmlSource ?? '';
-            final String text = body.isNotEmpty ? body : html;
-            if (text.isEmpty) return 'The message has no readable body.';
-            return 'From ${open.fromName} \u2014 ${open.subject}\n\n'
-                '${text.length > 6000 ? '${text.substring(0, 6000)}\u2026' : text}';
-          },
-          'search': (String argument) async {
-            final String needle = argument.toLowerCase().trim();
-            if (needle.isEmpty) return 'No words to search for.';
-            final List<MessageSummary> hits = controller.visibleMessages
-                .where(
-                  (MessageSummary message) =>
-                      message.subject.toLowerCase().contains(needle) ||
-                      message.fromName.toLowerCase().contains(needle) ||
-                      message.fromEmail.toLowerCase().contains(needle),
-                )
-                .take(8)
-                .toList();
-            if (hits.isEmpty) {
-              final String where =
-                  controller.selectedFolder?.name ?? 'this folder';
-              return 'Nothing in $where matches "$argument".';
-            }
-            return hits
-                .map((MessageSummary m) => '${m.fromName} — ${m.subject}')
-                .join('\n');
-          },
-        },
+        tools: _tools(controller),
       );
       if (!mounted) return;
       setState(() {
@@ -227,6 +196,238 @@ class _ChymeSheetState extends State<ChymeSheet> {
     }
   }
 
+  /// Everything Chyme may do, and what it is told afterwards.
+  ///
+  /// Read-only tools run silently, because reading is what it was asked to do.
+  /// The three that destroy something ask first, and say so when the answer is
+  /// no — a model told "declined" stops asking, and a model told nothing tries
+  /// again with a different number.
+  Map<String, ChymeTool> _tools(MailController controller) {
+    return <String, ChymeTool>{
+      // The message on screen, in full. The prompt already carries a shortened
+      // copy so a question about it needs no tool at all; this is for the long
+      // one, where the answer is further down than the excerpt.
+      'read': (String argument) async {
+        final MessageSummary? summary = _find(controller, argument);
+        final FullMessage? open = controller.openMessage;
+        if (summary == null && open == null) return 'No message is open.';
+        if (summary != null && open != null && summary.uid == open.uid) {
+          return _describe(open);
+        }
+        if (summary == null) return _describe(open!);
+        // A row that is not open has no body in memory; opening it is what the
+        // person would do, and it is what this does — through the controller,
+        // so the reader follows.
+        await controller.open(summary);
+        final FullMessage? loaded = controller.openMessage;
+        if (loaded == null) return 'That message could not be opened.';
+        return _describe(loaded);
+      },
+      'search': (String argument) async {
+        final String needle = argument.toLowerCase().trim();
+        if (needle.isEmpty) return 'No words to search for.';
+        final List<MessageSummary> hits = controller.visibleMessages
+            .where(
+              (MessageSummary message) =>
+                  message.subject.toLowerCase().contains(needle) ||
+                  message.fromName.toLowerCase().contains(needle) ||
+                  message.fromEmail.toLowerCase().contains(needle),
+            )
+            .take(8)
+            .toList();
+        if (hits.isEmpty) {
+          final String where = controller.selectedFolder?.name ?? 'this folder';
+          return 'Nothing in $where matches "$argument".';
+        }
+        return hits
+            .map((MessageSummary m) =>
+                '[${m.uid}] ${m.fromName} — ${m.subject}')
+            .join('\n');
+      },
+      'star': (String argument) async {
+        final MessageSummary? message = _find(controller, argument);
+        if (message == null) return 'No message with that number.';
+        if (message.isFlagged) return 'Already starred: ${message.subject}.';
+        await controller.toggleFlag(message);
+        return 'Starred "${message.subject}".';
+      },
+      'unstar': (String argument) async {
+        final MessageSummary? message = _find(controller, argument);
+        if (message == null) return 'No message with that number.';
+        if (!message.isFlagged) return 'Not starred: ${message.subject}.';
+        await controller.toggleFlag(message);
+        return 'Removed the star from "${message.subject}".';
+      },
+      'seen': (String argument) async {
+        final MessageSummary? message = _find(controller, argument);
+        if (message == null) return 'No message with that number.';
+        if (message.isSeen) return 'Already read: ${message.subject}.';
+        await controller.markRead(message);
+        return 'Marked "${message.subject}" read.';
+      },
+      'archive': (String argument) async {
+        final MessageSummary? message = _find(controller, argument);
+        if (message == null) return 'No message with that number.';
+        await controller.archive(message);
+        return 'Archived "${message.subject}".';
+      },
+      'delete': (String argument) async {
+        final MessageSummary? message = _find(controller, argument);
+        if (message == null) return 'No message with that number.';
+        if (!mounted) return 'The sheet closed; nothing was deleted.';
+        final bool yes = await _ask(
+          title: 'Delete this message?',
+          body: '\u201C${message.subject}\u201D goes to the trash. You can put '
+              'it back.',
+          confirm: 'Delete',
+          cancel: 'Keep',
+        );
+        if (!yes) return 'The person kept "${message.subject}".';
+        await controller.delete(message);
+        return 'Moved "${message.subject}" to the trash.';
+      },
+      'reply': (String argument) async {
+        final List<String> parts = argument.split('|');
+        final String body = parts.length > 1
+            ? parts.sublist(1).join('|').trim()
+            : '';
+        final MessageSummary? message = _find(controller, parts.first);
+        if (message == null) return 'No message with that number.';
+        if (body.isEmpty) {
+          return 'A reply needs a message number and a body, like: '
+              'reply 12 | Thanks, I will look at it today.';
+        }
+        if (!mounted) return 'The sheet closed; no draft was opened.';
+        final FullMessage? open = controller.openMessage;
+        final bool threaded = open != null && open.uid == message.uid;
+        await openComposeSheet(
+          context,
+          initialTo: message.fromEmail,
+          initialSubject: message.subject.toLowerCase().startsWith('re:')
+              ? message.subject
+              : 'Re: ${message.subject}',
+          initialBody: body,
+          inReplyTo: threaded ? open.messageId : null,
+          references: threaded ? open.references : null,
+        );
+        return 'Opened a reply to ${message.fromName}, in their composer, with '
+            'that draft. They read it and send it.';
+      },
+      'contacts': (String argument) async {
+        final String needle = argument.trim().toLowerCase();
+        if (needle.isEmpty) return 'No name to look for.';
+        final List<Contact> hits = Contacts.search(needle).take(8).toList();
+        if (hits.isEmpty) return 'Nobody in their contacts matches "$argument".';
+        return hits
+            .map((Contact c) =>
+                '${c.label} <${c.email}>'
+                '${c.saved ? ' · saved' : ''}'
+                '${Contacts.isBlocked(c.email) ? ' · blocked' : ''}')
+            .join('\n');
+      },
+      'contact_add': (String argument) async {
+        final List<String> parts = argument.split('|');
+        final String name = parts.first.trim();
+        final String email =
+            (parts.length > 1 ? parts[1] : parts.first).trim().toLowerCase();
+        if (!email.contains('@')) {
+          return 'That is not an address. Use: contact_add Name | a@b.com';
+        }
+        final Contact contact = await Contacts.add(
+          email: email,
+          name: email == name ? '' : name,
+        );
+        return 'Saved ${contact.label} <${contact.email}>.';
+      },
+      'contact_block': (String argument) async {
+        final String email = argument.trim().toLowerCase();
+        if (!email.contains('@')) return 'That is not an address.';
+        if (Contacts.isBlocked(email)) return '$email is already blocked.';
+        if (!mounted) return 'The sheet closed; nothing was blocked.';
+        final bool yes = await _ask(
+          title: 'Block this address?',
+          body: 'Mail from $email stops appearing in the list. Nothing is '
+              'deleted, and unblocking brings it all back.',
+          confirm: 'Block',
+          cancel: 'Cancel',
+        );
+        if (!yes) return 'The person did not block $email.';
+        await Contacts.block(email);
+        return 'Blocked $email. Their mail is hidden from the list.';
+      },
+      'contact_delete': (String argument) async {
+        final String email = argument.trim().toLowerCase();
+        if (!email.contains('@')) return 'That is not an address.';
+        if (!mounted) return 'The sheet closed; nothing was removed.';
+        final bool yes = await _ask(
+          title: 'Forget this contact?',
+          body: '$email is removed from your contacts here. Mail from them is '
+              'untouched.',
+          confirm: 'Forget',
+          cancel: 'Cancel',
+        );
+        if (!yes) return 'The person kept $email.';
+        await Contacts.remove(email);
+        return 'Removed $email from their contacts.';
+      },
+    };
+  }
+
+  /// The message a tool argument names, or null.
+  ///
+  /// Tolerant on purpose: a model will write `12`, `#12`, `[12]` and
+  /// `uid 12`, and all four mean the same message. "open" means the one on
+  /// screen, which is the only name that survives a list that has moved.
+  MessageSummary? _find(MailController controller, String argument) {
+    final String cleaned = argument.trim().toLowerCase();
+    final MessageSummary? open = controller.openSummary;
+    if (cleaned == 'open' || cleaned == 'current') return open;
+    final String digits = cleaned.replaceAll(RegExp(r'[^0-9]'), '');
+    final int? uid = int.tryParse(digits);
+    if (uid == null) return open;
+    if (open?.uid == uid) return open;
+    for (final MessageSummary message in controller.visibleMessages) {
+      if (message.uid == uid) return message;
+    }
+    return null;
+  }
+
+  String _describe(FullMessage message) {
+    final String body = message.textBody.trim();
+    final String html = message.htmlSource ?? '';
+    final String text = body.isNotEmpty ? body : html;
+    if (text.isEmpty) return 'The message has no readable body.';
+    return 'From ${message.fromName} \u2014 ${message.subject}\n\n'
+        '${text.length > 6000 ? '${text.substring(0, 6000)}\u2026' : text}';
+  }
+
+  /// A question with the detail in it, answered before anything is destroyed.
+  Future<bool> _ask({
+    required String title,
+    required String body,
+    required String confirm,
+    required String cancel,
+  }) async {
+    final bool? yes = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialog) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: Text(confirm),
+          ),
+        ],
+      ),
+    );
+    return yes == true;
+  }
+
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
@@ -241,14 +442,40 @@ class _ChymeSheetState extends State<ChymeSheet> {
   /// Runs the search the reply asked for — after the person taps it, not
   /// instead of them asking.
   void _applySearch(String query) {
+    final NavigatorState navigator = Navigator.of(context);
     context.read<MailController>().search(query);
-    Navigator.of(context).pop();
+    navigator.pop();
     AceSnack.show(context, 'Searching for “$query”');
   }
 
+  /// Starts a reply to the open message with what Chyme wrote in it.
+  Future<void> _replyWith(String body) async {
+    final MailController controller = context.read<MailController>();
+    final MessageSummary? summary = controller.openSummary;
+    final FullMessage? open = controller.openMessage;
+    if (summary == null) {
+      AceSnack.show(context, 'Open a message first — there is nobody to reply to.');
+      return;
+    }
+    await openComposeSheet(
+      context,
+      initialTo: summary.fromEmail,
+      initialSubject: summary.subject.toLowerCase().startsWith('re:')
+          ? summary.subject
+          : 'Re: ${summary.subject}',
+      initialBody: body,
+      inReplyTo: open?.messageId,
+      references: open?.references,
+    );
+  }
+
+  /// Settings, opened at the Chyme card rather than at the top of the list.
   Future<void> _openSettings() async {
-    Navigator.of(context).pop();
-    await Navigator.of(context).push(aceRoute(const SettingsScreen()));
+    final NavigatorState navigator = Navigator.of(context);
+    navigator.pop();
+    await navigator.push(
+      aceRoute(const SettingsScreen(focus: SettingsFocus.chyme)),
+    );
   }
 
   @override
@@ -316,12 +543,28 @@ class _ChymeSheetState extends State<ChymeSheet> {
                           'Chyme',
                           style: AstryxText.heading3(c.textPrimary),
                         ),
-                        Text(
-                          prefs.chymeModel.isEmpty
-                              ? 'Not set up yet'
-                              : '${prefs.chymeModel} · ${prefs.chymeTone.label}',
-                          overflow: TextOverflow.ellipsis,
-                          style: AstryxText.supporting(c.textSecondary),
+                        const SizedBox(height: AstryxSpace.s0_5),
+                        // The two settings that change what an answer is, in
+                        // the header, one tap from the conversation. Going to
+                        // Settings to change the tone and coming back is four
+                        // taps to answer a question asked in the middle of
+                        // typing.
+                        Row(
+                          children: <Widget>[
+                            _SettingChip(
+                              label: prefs.chymeModel.isEmpty
+                                  ? 'Choose a model'
+                                  : prefs.chymeModel,
+                              icon: AceIcons.chyme,
+                              onTap: () => chooseChymeModel(context, prefs),
+                            ),
+                            const SizedBox(width: AstryxSpace.s1_5),
+                            _SettingChip(
+                              label: prefs.chymeTone.label,
+                              icon: AceIcons.signature,
+                              onTap: () => chooseChymeTone(context, prefs),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -358,9 +601,17 @@ class _ChymeSheetState extends State<ChymeSheet> {
                         AstryxSpace.s4,
                       ),
                       children: <Widget>[
-                        if (_turns.isEmpty) _suggestions(c, context.read<MailController>()),
+                        if (_turns.isEmpty)
+                          _suggestions(c, context.read<MailController>()),
                         for (final ChymeTurn turn in _turns)
-                          _Bubble(turn: turn),
+                          _Bubble(
+                            turn: turn,
+                            onReply: _replyWith,
+                            canReply: context
+                                    .watch<MailController>()
+                                    .openSummary !=
+                                null,
+                          ),
                         if (_search != null)
                           _SearchOffer(
                             query: _search!,
@@ -426,18 +677,20 @@ class _ChymeSheetState extends State<ChymeSheet> {
     final List<String> prompts = <String>[
       if (hasOpen) 'What is this actually asking me for?',
       if (hasOpen) 'Draft a reply saying I will look at it tomorrow.',
-      if (hasOpen) 'Turn this into a polite decline.',
+      if (hasOpen) 'Star this and mark it read.',
       'What needs answering today?',
       'Find the last invoice or receipt.',
       'Anything from my bank this week?',
+      'Add this sender to my contacts.',
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Chyme reads what is on screen and nothing else. It can summarise, '
-          'draft and find — and it will tell you when it cannot see something.',
+          'Chyme reads the mail in front of you, and can act on it: star, '
+          'archive, delete, reply, and keep your contacts. It never sends '
+          'anything itself — a reply it writes opens in your composer.',
           style: AstryxText.supporting(c.textSecondary),
         ),
         const SizedBox(height: AstryxSpace.s4),
@@ -463,11 +716,75 @@ class _ChymeSheetState extends State<ChymeSheet> {
   }
 }
 
+/// One of the header's two settings, as a chip.
+class _SettingChip extends StatelessWidget {
+  const _SettingChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final AceIcon icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AstryxRadius.full),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AstryxSpace.s2,
+          vertical: AstryxSpace.s0_5,
+        ),
+        decoration: BoxDecoration(
+          color: c.backgroundMuted,
+          borderRadius: BorderRadius.circular(AstryxRadius.full),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            AceIconView(icon: icon, size: 13, color: c.textSecondary),
+            const SizedBox(width: AstryxSpace.s1),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 150),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AstryxText.supporting(c.textSecondary),
+              ),
+            ),
+            AceIconView(
+              icon: AceIcons.chevronDown,
+              size: 13,
+              color: c.textDisabled,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// One turn, as a bubble.
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.turn});
+  const _Bubble({
+    required this.turn,
+    required this.onReply,
+    this.canReply = false,
+  });
 
   final ChymeTurn turn;
+
+  /// Opens the composer with this text in it, as a reply to the open message.
+  final Future<void> Function(String body) onReply;
+
+  /// Whether there is a message to reply to.
+  final bool canReply;
 
   @override
   Widget build(BuildContext context) {
@@ -484,9 +801,10 @@ class _Bubble extends StatelessWidget {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: <Widget>[
-          // What Chyme wrote is the useful part, and there are only ever two
-          // things anybody wants to do with it: keep it, or start a message with
-          // it. Both are one tap rather than a selection and a long press.
+          // What Chyme wrote is the useful part, and there are only ever three
+          // things anybody wants to do with it: keep it, reply with it, or
+          // start a new message with it. All are one tap rather than a
+          // selection and a long press.
           if (!mine)
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -499,6 +817,12 @@ class _Bubble extends StatelessWidget {
                     if (context.mounted) AceSnack.show(context, 'Copied.');
                   },
                 ),
+                if (canReply)
+                  AceIconButton(
+                    icon: AceIcons.reply,
+                    tooltip: 'Reply with this',
+                    onPressed: () => onReply(text),
+                  ),
                 AceIconButton(
                   icon: AceIcons.edit,
                   tooltip: 'Start a message with this',
@@ -640,9 +964,9 @@ class _NotSetUp extends StatelessWidget {
 
 /// Asks before it deletes, then moves the open message to the trash.
 ///
-/// Chyme cannot delete anything. It can say it would, and this is what happens
-/// next: a question with the subject in it, and a way to say no. Everything
-/// here is reversible — it goes to the trash, not away.
+/// Chyme cannot delete anything by itself. It can say it would, and this is what
+/// happens next: a question with the subject in it, and a way to say no.
+/// Everything here is reversible — it goes to the trash, not away.
 Future<void> _confirmDelete(BuildContext context) async {
   final MailController controller = context.read<MailController>();
   final MessageSummary? open = controller.openSummary;

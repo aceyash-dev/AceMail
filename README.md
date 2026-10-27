@@ -120,6 +120,14 @@ a custom theme, not a departure.
 - Swipe a message either way to act on it — archive, delete, read/unread or
   flag — with both directions configurable in settings.
 - Messages open as HTML, with a per-message toggle to the plain-text version.
+- **Contacts**, built from your mail as it loads, and importable from the
+  device's own address book behind a button — permission asked for at that
+  moment, nothing written back to the device, nothing sent anywhere.
+- **Chyme can act, not only read**: search, read, star, mark read, archive,
+  delete, reply, and the address book, all through the same controller the
+  buttons use. It never sends — a reply it writes opens in your composer — and
+  deleting, blocking or forgetting a contact asks first. The model and the tone
+  are two chips in its own header.
 - Credentials are sealed with AES-256-GCM in one file on the device — never in
   plain text. The key lives in the platform keychain, with a `0600` key file
   beside the record for the machines where the keychain will not answer.
@@ -382,6 +390,9 @@ lib/
     account_store.dart      the sealed credential record (AES-256-GCM)
   models/                   account, folder, summary, full message
   services/mail_service.dart  IMAP + SMTP over enough_mail
+  services/chyme.dart       the assistant's prompt, tools and parsing
+  services/contacts.dart    the addresses the app has seen, and the saved ones
+  services/device_contacts.dart  the device's address book, read on request
   state/mail_controller.dart  session and screen state
   screens/                  sign-in, mailbox, compose
   widgets/                  Astryx primitives and the three panes

@@ -143,16 +143,8 @@ class MailSession extends ChangeNotifier {
   ///
   /// Never negative — a server count that started too low, plus a local
   /// subtraction, must not leave a folder owing mail.
-  void _adjustUnseen(String? path, int delta) {
-    if (delta == 0 || path == null) return;
-    final int index = folders.indexWhere((MailFolder f) => f.path == path);
-    if (index == -1) return;
-    final MailFolder folder = folders[index];
-    final int next = folder.unseen + delta;
-    if (next == folder.unseen) return;
-    folders = List<MailFolder>.of(folders)
-      ..[index] = folder.copyWith(unseen: next < 0 ? 0 : next);
-  }
+  void _adjustUnseen(String? path, int delta) =>
+      _countUnread(delta, folderPath: path);
 
   /// Puts this session on its own inbox.
   ///
@@ -1129,6 +1121,33 @@ class MailSession extends ChangeNotifier {
     final int index = messages.indexWhere((MessageSummary m) => m.uid == uid);
     if (index == -1) return;
     messages = List<MessageSummary>.of(messages)..[index] = updated;
+  }
+
+  /// Moves a folder's unread count by [delta].
+  ///
+  /// The count the rail, the greeting and the app badge show comes from the
+  /// server's STATUS at connect time, and it used to stay there: read five
+  /// messages and the folder still said five unread until the next connection.
+  /// The page already knows which of those messages it just marked seen, so it
+  /// says so here.
+  ///
+  /// Clamped at zero rather than allowed to go negative: a count that is wrong
+  /// by one is a bug, and a count that reads "-1 unread" is a worse one.
+  void _countUnread(int delta, {String? folderPath}) {
+    if (delta == 0) return;
+    final String? path = folderPath ?? selectedFolder?.path;
+    if (path == null) return;
+    final int index = folders.indexWhere((MailFolder f) => f.path == path);
+    if (index == -1) return;
+    final MailFolder folder = folders[index];
+    final int next = (folder.unseen + delta).clamp(0, 1 << 24);
+    if (next == folder.unseen) return;
+    final MailFolder updated = folder.copyWith(unseen: next);
+    folders = List<MailFolder>.of(folders)..[index] = updated;
+    // The selected folder is its own reference, and it is the one the greeting
+    // and the list read. Updating only the list left the number above the mail
+    // saying something different from the badge beside the folder.
+    if (selectedFolder?.path == path) selectedFolder = updated;
   }
 
   /// Never notify after disposal: listeners are gone and ChangeNotifier throws

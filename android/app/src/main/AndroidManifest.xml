@@ -11,6 +11,11 @@
     <!-- The background check needs to survive the device sleeping. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- The address book, for the Contacts tab. Read only: the app imports
+         addresses into its own list and never writes back to the device. Asked
+         for when somebody taps Import in Contacts, never at launch. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <application
         android:label="Ace Mail"
         android:name="${applicationName}"

@@ -697,7 +697,12 @@ class AceToolbar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      // Scrollable, so a toolbar that has grown a button does not overflow a
+      // narrow phone: the row is wider than 360dp once there are seven of
+      // them, and a RenderFlex overflow is a red bar across the message.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           for (final AceToolbarAction action in actions)
@@ -713,6 +718,7 @@ class AceToolbar extends StatelessWidget {
                       : AceIconButtonVariant.standard),
             ),
         ],
+        ),
       ),
     );
   }

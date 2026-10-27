@@ -13,7 +13,6 @@ import '../data/local_store.dart';
 import '../data/preferences.dart';
 import '../models/glass_mode.dart';
 import '../services/app_lock.dart';
-import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
 import '../services/platform_caps.dart';
@@ -31,6 +30,7 @@ import '../widgets/ace_glass.dart';
 import '../models/chyme_template.dart';
 import '../widgets/diagnostics_sheet.dart';
 import '../widgets/chyme_mark.dart';
+import '../widgets/chyme_pickers.dart';
 import '../widgets/legal_sheet.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/astryx_widgets.dart';
@@ -39,9 +39,47 @@ import '../widgets/settings_group.dart';
 import '../widgets/ace_icon_view.dart';
 import '../widgets/ace_slider.dart';
 
+/// A part of the settings screen that something else can open it at.
+///
+/// Chyme's own sheet has a settings button, and a button called "Chyme
+/// settings" that lands at the top of Settings makes the person scroll past
+/// fourteen unrelated rows to reach the five they asked for. The name is a
+/// promise; this is what keeps it.
+enum SettingsFocus { chyme }
+
 /// The app's settings. Every row here changes something real.
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key, this.focus});
+
+  /// The card to open at, when the caller is opening this screen *for* it.
+  final SettingsFocus? focus;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  /// Anchors the Chyme card, so the screen can be scrolled to it.
+  final GlobalKey _chymeKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.focus == null) return;
+    // After the first frame: the card does not exist until it has been built,
+    // and a context that is not in the tree yet cannot be scrolled to.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final BuildContext? target = _chymeKey.currentContext;
+      if (target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        duration: AstryxMotion.of(const Duration(milliseconds: 420)),
+        curve: AstryxMotion.emphasized,
+        alignment: 0.02,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -499,6 +537,7 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
             SettingsSection(
+              key: _chymeKey,
               title: 'Chyme',
               children: <Widget>[
                 SettingsSwitchRow(
@@ -585,24 +624,15 @@ class SettingsScreen extends StatelessWidget {
                     title: 'Tone',
                     subtitle: 'How it writes when you ask it to draft something.',
                     value: prefs.chymeTone.label,
-                    onTap: () async {
-                      final ChymeTone? chosen = await showChoiceSheet<ChymeTone>(
-                        context,
-                        title: 'Tone',
-                        current: prefs.chymeTone,
-                        choices: <SettingsChoice<ChymeTone>>[
-                          for (final ChymeTone tone in ChymeTone.values)
-                            SettingsChoice<ChymeTone>(tone, tone.label),
-                        ],
-                      );
-                      if (chosen != null) await prefs.setChymeTone(chosen);
-                    },
+                    onTap: () => chooseChymeTone(context, prefs),
                   ),
                   SettingsRow(
                     icon: AceIcons.chyme,
                     title: 'Model',
+                    subtitle: 'What answers. The list is whatever the endpoint '
+                        'offers.',
                     value: prefs.chymeModel.isEmpty ? 'None chosen' : prefs.chymeModel,
-                    onTap: () => _chooseChymeModel(context, prefs),
+                    onTap: () => chooseChymeModel(context, prefs),
                   ),
                   SettingsSwitchRow(
                     icon: AceIcons.mail,
@@ -724,36 +754,6 @@ class SettingsScreen extends StatelessWidget {
     );
     controller.dispose();
     if (value != null) await save(value.trim());
-  }
-
-  /// Fetches what the endpoint offers and lets one be picked.
-  ///
-  /// The fetch is the point: a model name typed from memory is a model name
-  /// that does not exist, and the error that follows blames the key.
-  Future<void> _chooseChymeModel(
-    BuildContext context,
-    Preferences prefs,
-  ) async {
-    if (prefs.chymeEndpoint.trim().isEmpty) {
-      AceSnack.show(context, 'Set the endpoint first.');
-      return;
-    }
-
-    List<String> models;
-    try {
-      models = await Chyme.models(
-        endpoint: prefs.chymeEndpoint,
-        apiKey: prefs.chymeKey,
-      );
-    } catch (error) {
-      if (!context.mounted) return;
-      AceSnack.show(context, '$error');
-      return;
-    }
-    if (!context.mounted) return;
-
-    final String? chosen = await _chooseModel(context, models, prefs.chymeModel);
-    if (chosen != null) await prefs.setChymeModel(chosen);
   }
 
   Future<void> _setCaching(
@@ -1353,128 +1353,6 @@ Future<void> _choosePageSize(BuildContext context, Preferences prefs) async {
 /// An endpoint can offer a hundred models and the list arrived unsorted and
 /// unfiltered, so finding one meant scrolling past every embedding model to
 /// reach the chat one. Typing three characters is faster than reading a hundred.
-Future<String?> _chooseModel(
-  BuildContext context,
-  List<String> models,
-  String current,
-) {
-  final AstryxColors c = context.astryx;
-  final TextEditingController filter = TextEditingController();
-
-  return showModalBottomSheet<String>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (BuildContext sheetContext) => SafeArea(
-      child: StatefulBuilder(
-        builder: (BuildContext sheetContext, StateSetter setSheetState) {
-          final String needle = filter.text.trim().toLowerCase();
-          final List<String> shown = needle.isEmpty
-              ? models
-              : models
-                  .where((String m) => m.toLowerCase().contains(needle))
-                  .toList();
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(sheetContext).size.height * 0.8,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AstryxSpace.s5,
-                      0,
-                      AstryxSpace.s5,
-                      AstryxSpace.s3,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          'Model',
-                          style: AstryxText.heading4(c.textPrimary),
-                        ),
-                        const SizedBox(height: AstryxSpace.s2),
-                        TextField(
-                          controller: filter,
-                          autofocus: true,
-                          onChanged: (_) => setSheetState(() {}),
-                          style: AstryxText.body(c.textPrimary),
-                          decoration: InputDecoration(
-                            hintText: 'Search ${models.length} models',
-                            prefixIcon: AceIconView(
-                              icon: AceIcons.search,
-                              size: 18,
-                              color: c.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (shown.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(AstryxSpace.s5),
-                      child: Text(
-                        'Nothing matches that.',
-                        style: AstryxText.body(c.textSecondary),
-                      ),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: shown.length,
-                        itemBuilder: (BuildContext context, int i) {
-                          final String model = shown[i];
-                          final bool isCurrent = model == current;
-                          return InkWell(
-                            onTap: () =>
-                                Navigator.of(sheetContext).pop(model),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AstryxSpace.s5,
-                                vertical: AstryxSpace.s3,
-                              ),
-                              child: Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Text(
-                                      model,
-                                      style: AstryxText.body(
-                                        isCurrent ? c.accent : c.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isCurrent)
-                                    AceIconView(
-                                      icon: AceIcons.checkCircle,
-                                      size: 18,
-                                      color: c.accent,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    ),
-  ).whenComplete(filter.dispose);
-}
-
 /// How long undo stays offered, as a slider.
 ///
 /// The same reasoning as page size: the number is the thing being chosen, so

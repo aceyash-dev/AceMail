@@ -3,6 +3,43 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+80
+
+### Added
+- **Chyme acts, not only reads.** It has twelve tools — search the loaded mail,
+  read a message, star and unstar, mark read, archive, delete, reply, and look
+  up, add, block and forget contacts — and every one of them goes through the
+  same `MailController` the buttons use, so a star from Chyme is the same star as
+  the toolbar's. Each message in the list it is shown carries its uid, which is
+  the only handle it needs to name one.
+- **Reply with Chyme.** A button in the reader asks for a reply in the tone you
+  are set to; the draft opens in the composer, addressed to the sender and
+  threaded under the message with `In-Reply-To` and `References` set. Every answer
+  in the sheet has *Reply with this* beside Copy. Chyme never sends anything: a
+  reply it writes waits for your finger on Send, and the three things that cannot
+  be undone — delete, block, forget a contact — ask first, with the subject or the
+  address in the question.
+- **The model and the tone are in Chyme's own header.** Two chips, one tap each:
+  the model list is whatever the endpoint offers, the tone is the register it
+  writes in. Going to Settings to change either and coming back was four taps to
+  answer a question asked in the middle of typing.
+- **Chyme settings opens at the Chyme card.** The sheet's settings button used to
+  land at the top of Settings; it now opens the screen and scrolls to the card it
+  named.
+- **Import contacts from the device.** The Contacts tab reads the address book
+  behind a button — permission asked for at that moment, after a line saying what
+  is read and what is kept, and nothing written back. Imported addresses arrive
+  marked as saved, because a contact on the device is a decision already made.
+  New dependency `flutter_contacts`, and `READ_CONTACTS` in the manifest; the
+  button hides where there is no address book to read.
+
+### Fixed
+- **The tone list scrolls.** Nine tones in a sheet that sized itself to its
+  content overflowed on a short screen, which put the last two out of reach.
+- **The reader's toolbar scrolls rather than overflowing** now that it carries
+  seven actions.
+- **A contact can be forgotten outright**, not only un-saved or blocked.
+
 ## 0.6.0+79
 
 ### Changed

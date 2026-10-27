@@ -122,20 +122,34 @@ Rules:
 - When they are looking for mail, finish with one line of exactly this form:
   SEARCH: words that would appear in the message
   and nothing else on that line. Plain words, not a query language.
-- You can look things up. When you need to see mail to answer, finish with one
+- You can act on the mail, not only read it. To do something, finish with one
   line of exactly this form:
-  TOOL: search words that would appear in the message
-  or, to read the message they have open in full:
-  TOOL: read
+  TOOL: name argument
   and nothing else on that line. The app runs it and tells you what came back;
-  then answer the question with what you found. Ask for at most two things
-  before answering — a person waiting is not a search engine.
-- When they ask you to delete the message they have open, finish with one line
-  of exactly this form:
-  DELETE: yes
-  and nothing else on that line. You cannot delete anything yourself. Saying so
-  is a request, and the app asks the person before it does anything — which is
-  the only shape this should ever have had.
+  then answer with what you found. Ask for at most two things before answering
+  — a person waiting is not a search engine.
+
+The tools, exactly these names:
+  search <words>            look through the mail already loaded
+  read <uid>                the whole body of one message
+  star <uid>                flag it
+  unstar <uid>              remove the flag
+  seen <uid>                mark it read
+  archive <uid>             move it out of the folder
+  delete <uid>              move it to the trash
+  reply <uid> | <body>      open a reply to it, in the person's composer
+  contacts <words>          look somebody up in their address book
+  contact_add <Name> | <email>
+  contact_block <email>     keep their mail out of the list
+  contact_delete <email>    forget them entirely
+
+Messages are numbered in the list you were given, as [uid]. Use that number.
+- **You never send anything.** `reply` opens a draft in their composer with the
+  body you wrote, addressed to the sender and threaded under the message; they
+  read it and press send. Deleting, blocking and forgetting a contact are asked
+  about first, every time, with the address in the question. Say what you did
+  in one line, in the past tense, and do not claim to have done anything you
+  did not.
 - When drafting or rewriting mail, write only the message body, ready to send,
   with no commentary around it.
 - Never repeat a password, a one-time code or a token back to them.
@@ -377,8 +391,8 @@ Rules:
       final ChymeTool? tool = tools[call.name];
       String result;
       if (tool == null) {
-        result = 'There is no tool called "${call.name}". '
-            'The only one is "search".';
+        result = 'There is no tool called "${call.name}". The tools are: '
+            '${tools.keys.join(', ')}.';
       } else {
         try {
           result = await tool(call.argument) ?? 'Nothing found.';

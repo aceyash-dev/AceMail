@@ -216,6 +216,18 @@ class _MessageReaderState extends State<MessageReader> {
           tooltip: 'Reply',
           onPressed: () => _reply(context, message),
         ),
+        // Reply, but with Chyme writing it. The draft lands in the composer,
+        // addressed and threaded, and nothing is sent without a tap on Send.
+        AceToolbarAction(
+          icon: AceIcons.chyme,
+          tooltip: 'Reply with Chyme',
+          onPressed: () => ChymeSheet.show(
+            context,
+            seed: 'Write a reply to this message. Only the body, ready to send, '
+                'in the tone you are set to. Do not send it — use the reply '
+                'tool with this message so I can read it first.',
+          ),
+        ),
         AceToolbarAction(
           icon: AceIcons.replyAll,
           tooltip: 'Reply all',
