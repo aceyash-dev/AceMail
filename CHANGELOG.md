@@ -5,6 +5,9 @@ after the `+` is the Android version code.
 
 ## 0.6.0+82
 
+The build that goes with the `v0.6.0+82` release: everything below is in it, and
+the release notes on the release page are generated from this section.
+
 ### Added
 - **Forward.** The reader sends a message on with its headers quoted under a
   `---------- Forwarded message ----------` line, and **carries the attachments
@@ -25,7 +28,6 @@ after the `+` is the Android version code.
 - **Select all**, in the selection bar, for the page on screen.
 - **Empty junk**, the same command as emptying the trash and behind the same
   question.
-
 - **Address suggestions while typing.** The composer completes To, Cc and Bcc
   from the contacts the app already has: two characters and the people whose
   name or address matches appear as chips under the field you are typing in, a
