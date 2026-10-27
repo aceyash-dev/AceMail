@@ -365,6 +365,10 @@ ThemeData buildAstryxTheme(
     // 2024 progress indicator (track gap, rounded cap). Set here rather than on
     // each widget so there is one answer, and so a widget added later is the
     // same control as the rest.
+    // The flag is deprecated because Flutter intends to flip the default; until
+    // it does, asking for the 2024 appearance is the only way to get it. When
+    // the default flips, this line and the ignore go.
+    // ignore: deprecated_member_use
     sliderTheme: const SliderThemeData(year2023: false),
     chipTheme: ChipThemeData(
       shape: const StadiumBorder(),
@@ -431,7 +435,9 @@ ThemeData buildAstryxTheme(
       linearTrackColor: c.surfaceHighest,
       circularTrackColor: Colors.transparent,
       // The 2024 indicator: a gap between the track and the cap, and a rounded
-      // cap. Off by default until Flutter flips it, so it is asked for here.
+      // cap. Off by default until Flutter flips it, so it is asked for here —
+      // and the flag is deprecated for the same reason.
+      // ignore: deprecated_member_use
       year2023: false,
     ),
     dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
