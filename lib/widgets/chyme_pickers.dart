@@ -7,7 +7,6 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import 'ace_icon_view.dart';
-import 'astryx_widgets.dart';
 import 'settings_group.dart';
 
 /// Choosing how Chyme writes, and which model writes it.
