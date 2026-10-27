@@ -40,6 +40,14 @@ abstract final class Contacts {
   static bool _loaded = false;
   static File? _file;
 
+  /// Bumped whenever the book changes in a way a cached list would not see.
+  ///
+  /// The message list filters blocked senders and is cached between rebuilds;
+  /// without a counter, blocking somebody would leave their mail on screen
+  /// until something else moved. One integer is cheaper than invalidating every
+  /// cache by hand.
+  static int revision = 0;
+
   /// Whether anything has been loaded or seen. The screen uses this to tell
   /// "no contacts yet" from "not read yet".
   static bool get isEmpty => _byEmail.isEmpty;
@@ -75,6 +83,7 @@ abstract final class Contacts {
     await _ensureBlocked();
     final String key = email.trim().toLowerCase();
     if (key.isEmpty || !_blocked.add(key)) return;
+    revision++;
     await _persistBlocked();
   }
 
@@ -82,6 +91,7 @@ abstract final class Contacts {
   static Future<void> unblock(String email) async {
     await _ensureBlocked();
     if (!_blocked.remove(email.trim().toLowerCase())) return;
+    revision++;
     await _persistBlocked();
   }
 
@@ -222,7 +232,10 @@ abstract final class Contacts {
     for (final MessageSummary message in messages) {
       changed |= _record(message.fromEmail, message.fromName, message.date);
     }
-    if (changed) _schedulePersist();
+    if (changed) {
+      revision++;
+      _schedulePersist();
+    }
   }
 
   /// Records who an opened message was sent to.
@@ -242,7 +255,10 @@ abstract final class Contacts {
     for (final String email in addresses) {
       changed |= _record(email, '', when);
     }
-    if (changed) _schedulePersist();
+    if (changed) {
+      revision++;
+      _schedulePersist();
+    }
   }
 
   static void observeRecipients(FullMessage message) {
@@ -253,7 +269,10 @@ abstract final class Contacts {
     ]) {
       changed |= _record(email, '', message.date);
     }
-    if (changed) _schedulePersist();
+    if (changed) {
+      revision++;
+      _schedulePersist();
+    }
   }
 
   static bool _record(String email, String name, DateTime? when) {
@@ -310,6 +329,7 @@ abstract final class Contacts {
     final Contact contact = (_byEmail[key] ?? Contact(email: key))
         .copyWith(name: name.trim(), saved: true);
     _byEmail[key] = contact;
+    revision++;
     await _persist();
     return contact;
   }
@@ -325,6 +345,7 @@ abstract final class Contacts {
     final bool had = _byEmail.remove(key) != null;
     final bool blocked = _blocked.remove(key);
     if (!had && !blocked) return;
+    revision++;
     if (blocked) await _persistBlocked();
     await _persist();
   }
@@ -363,13 +384,17 @@ abstract final class Contacts {
         changed++;
       }
     }
-    if (changed > 0) await _persist();
+    if (changed > 0) {
+      revision++;
+      await _persist();
+    }
     return changed;
   }
 
   /// Drops the addresses the app merely saw, keeping the saved ones.
   static Future<void> forgetSeen() async {
     _byEmail.removeWhere((_, Contact c) => !c.saved);
+    revision++;
     await _persist();
   }
 }

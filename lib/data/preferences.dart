@@ -86,6 +86,8 @@ class Preferences extends ChangeNotifier {
       : _storage = storage ?? const FlutterSecureStorage();
 
   static const String _keyAvatars = 'ace.showAvatars';
+  static const String _keyUpdateCheck = 'ace.updateCheck';
+  static const String _keyLastUpdateCheck = 'ace.lastUpdateCheck';
   static const String _keyTheme = 'ace.themeMode';
   static const String _keyTextSize = 'ace.textSize';
   static const String _keyConfirmExit = 'ace.confirmExit';
@@ -254,6 +256,14 @@ class Preferences extends ChangeNotifier {
   /// that is off and mentions an endpoint you do not have is a feature you
   /// never turn on. It is on, the settings offer a provider, and the sheet says
   /// plainly when there is not one yet.
+  /// Whether the app looks for a newer release. On by default: a build that
+  /// cannot be updated from anywhere else is a build that should at least say
+  /// when there is a new one.
+  bool _updateCheck = true;
+
+  /// When it last asked. Stored so a launch does not ask again an hour later.
+  DateTime? _lastUpdateCheck;
+
   bool _chymeEnabled = true;
   String _chymeEndpoint = '';
   String _chymeModel = '';
@@ -415,6 +425,29 @@ class Preferences extends ChangeNotifier {
 
   /// Whether opening the app asks for a fingerprint or a face first.
   bool get appLock => _appLock;
+
+  /// Whether the app may look for a newer release.
+  bool get updateCheck => _updateCheck;
+
+  /// When it last asked, or null when it never has.
+  DateTime? get lastUpdateCheck => _lastUpdateCheck;
+
+  Future<void> setUpdateCheck(bool value) =>
+      _write(_keyUpdateCheck, '$value', () => _updateCheck = value);
+
+  Future<void> setLastUpdateCheck(DateTime when) => _write(
+        _keyLastUpdateCheck,
+        when.toIso8601String(),
+        () => _lastUpdateCheck = when,
+      );
+
+  /// Whether it is worth asking now: on, and not asked in the last day.
+  bool get shouldCheckForUpdates {
+    if (!_updateCheck) return false;
+    final DateTime? last = _lastUpdateCheck;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= const Duration(hours: 24);
+  }
 
   /// Whether Chyme is available at all.
   bool get chymeEnabled => _chymeEnabled;
@@ -660,6 +693,8 @@ class Preferences extends ChangeNotifier {
     _appLock = _decodeBool(raw[_keyAppLock], _appLock);
     _privatePreviews =
         _decodeBool(raw[_keyPrivatePreviews], _privatePreviews);
+    _updateCheck = _decodeBool(raw[_keyUpdateCheck], _updateCheck);
+    _lastUpdateCheck = DateTime.tryParse(raw[_keyLastUpdateCheck] ?? '');
     _chymeEnabled = _decodeBool(raw[_keyChymeEnabled], _chymeEnabled);
     _chymeEndpoint = raw[_keyChymeEndpoint] ?? _chymeEndpoint;
     _chymeModel = raw[_keyChymeModel] ?? _chymeModel;

@@ -26,6 +26,38 @@ after the `+` is the Android version code.
 - **Empty junk**, the same command as emptying the trash and behind the same
   question.
 
+- **Address suggestions while typing.** The composer completes To, Cc and Bcc
+  from the contacts the app already has: two characters and the people whose
+  name or address matches appear as chips under the field you are typing in, a
+  tap drops in `Name <address>, ` and the next one is ready. Prefix matches come
+  first, saved people before ones the mail merely mentioned, the addresses
+  already in the line are never offered twice, and the account you are writing
+  from is never suggested to itself. There was a picker sheet before this, which
+  is fine when you cannot remember a name and useless when you can remember the
+  first three letters.
+- **An update checker.** Settings → Support now has *Check for updates*: once a
+  day, on launch, the app asks GitHub for the latest release and — only when it
+  is newer than what is installed — shows the release notes with a link to the
+  page. Off means no request is ever made; nothing about the person or the
+  install is sent, because it is a plain request for a public list. *Check now*
+  is the same thing on demand, and it answers either way: newer, up to date, or
+  could not reach the list. Versions are compared by name and then by build
+  number, so 0.6.0+83 is an update on 0.6.0+82 — and a version it cannot read is
+  never an update.
+
+### Smoother
+- **The page is filtered and sorted once, not per read.** The list, the
+  selection bar and the assistant all ask for the visible messages, several
+  times a frame, and each ask was a filter and a sort over the whole page. It is
+  cached now, keyed on the list and the four things that change the answer —
+  including a contacts revision, so blocking a sender still shows at once.
+- **The composer only rebuilds when the suggestions change.** A keystroke that
+  leaves the same five people on screen no longer rebuilds the form; moving
+  between fields always does, because the chips belong under the field with the
+  cursor.
+- **A Bcc controller that was never disposed.** It leaked with every composer
+  that was opened.
+
 ### Fixed
 - **A snack raised from the reader after filing the open message.** Moving the
   open message closes the reader, and the confirmation was being raised from a

@@ -1,4 +1,6 @@
 import 'package:ace_mail/models/mail_folder.dart';
+import 'package:ace_mail/models/message_sort.dart';
+import 'package:ace_mail/services/contacts.dart';
 import 'package:ace_mail/models/message_summary.dart';
 import 'package:ace_mail/state/mail_session.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +32,37 @@ MailSession sessionOn(FakeTransport transport) => MailSession(
     );
 
 void main() {
+  group('the page is worked out once', () {
+    test('the same list comes back without filtering it again', () async {
+      final FilingTransport transport = FilingTransport()..uids.addAll(uidRange(50));
+      final MailSession session = sessionOn(transport);
+      await session.connect();
+
+      final List<MessageSummary> first = session.visibleMessages;
+      expect(identical(session.visibleMessages, first), isTrue,
+          reason: 'the list, the bar and the assistant all read this per frame');
+
+      // A filter is a different answer, so it is a different list.
+      session.setFilter(MessageFilter.unread);
+      final List<MessageSummary> filtered = session.visibleMessages;
+      expect(identical(filtered, first), isFalse);
+      expect(identical(session.visibleMessages, filtered), isTrue);
+    });
+
+    test('blocking a sender shows at once, not on the next refresh', () async {
+      final FilingTransport transport = FilingTransport()..uids.addAll(uidRange(3));
+      final MailSession session = sessionOn(transport);
+      await session.connect();
+
+      final int before = session.visibleMessages.length;
+      await Contacts.block('sender2@example.com');
+
+      expect(session.visibleMessages.length, before - 1);
+      await Contacts.unblock('sender2@example.com');
+      expect(session.visibleMessages.length, before);
+    });
+  });
+
   group('select all', () {
     test('picks everything on the page, and says so', () async {
       final FakeTransport transport = FakeTransport()..uids.addAll(uidRange(5));

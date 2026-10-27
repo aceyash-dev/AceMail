@@ -17,6 +17,7 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
+import '../util/recipient_suggest.dart';
 import '../util/addresses.dart';
 import '../util/attach_plan.dart';
 import '../util/files.dart';
@@ -128,6 +129,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
   LocalStore? _store;
   Timer? _draftTimer;
 
+  /// Whose keyboard is up. The address suggestions belong to the field that
+  /// has the cursor, and a chip under the wrong field is a chip that puts an
+  /// address in a line you were not typing in.
+  final FocusNode _toFocus = FocusNode();
+  final FocusNode _ccFocus = FocusNode();
+  final FocusNode _bccFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -156,6 +164,110 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
     // A forward arrives with the message it is forwarding already attached.
     _attachments.addAll(widget.initialAttachments);
+
+    // Every keystroke can change what is worth suggesting, and moving between
+    // fields changes which field the suggestions belong to.
+    for (final TextEditingController field in <TextEditingController>[_to, _cc, _bcc]) {
+      field.addListener(_refreshSuggestions);
+    }
+    for (final FocusNode node in <FocusNode>[_toFocus, _ccFocus, _bccFocus]) {
+      node.addListener(() => _refreshSuggestions(force: true));
+    }
+
+    // The address book, if the contacts tab has not already read it. A
+    // suggestion list built from nothing is a suggestion list that is never
+    // there.
+    if (Contacts.isEmpty) {
+      Contacts.load().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  /// What was last offered, so a keystroke that changes nothing on screen does
+  /// not rebuild the composer.
+  List<Contact> _offered = const <Contact>[];
+
+  void _refreshSuggestions({bool force = false}) {
+    if (!mounted) return;
+    final TextEditingController? field = _focusedRecipient;
+    final List<Contact> next =
+        field == null ? const <Contact>[] : _suggestionsFor(field);
+
+    // Moving between fields always rebuilds, even when the same people are
+    // suggested: the chips belong under the field with the cursor, and a list
+    // that stayed put would put an address in the wrong line.
+    if (!force && _samePeople(next, _offered)) return;
+    setState(() => _offered = next);
+  }
+
+  static bool _samePeople(List<Contact> a, List<Contact> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].email != b[i].email) return false;
+    }
+    return true;
+  }
+
+  /// The recipient field with the cursor in it, if any.
+  TextEditingController? get _focusedRecipient {
+    if (_ccFocus.hasFocus) return _cc;
+    if (_bccFocus.hasFocus) return _bcc;
+    if (_toFocus.hasFocus) return _to;
+    return null;
+  }
+
+  /// What to offer for [controller]'s half-typed address.
+  List<Contact> _suggestionsFor(TextEditingController controller) {
+    if (Contacts.isEmpty) return const <Contact>[];
+    return RecipientSuggest.forText(
+      controller.text,
+      contacts: Contacts.all,
+      // Writing to yourself is not what the To line is for, and your own
+      // addresses are in the book because your mail mentions them.
+      exclude: accounts.toSet(),
+    );
+  }
+
+  /// Drops [contact] into [controller] in place of what was being typed.
+  void _applySuggestion(TextEditingController controller, Contact contact) {
+    final String next = RecipientSuggest.replaceToken(
+      controller.text,
+      RecipientSuggest.format(contact),
+    );
+    controller.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+    setState(() {});
+  }
+
+  /// The suggestions for one field, as chips. Nothing when there is nothing to
+  /// offer, so the form does not grow a row of blank space while you type.
+  Widget _suggestions(TextEditingController controller) {
+    final List<Contact> people = controller == _focusedRecipient
+        ? _offered
+        : _suggestionsFor(controller);
+    if (people.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AstryxSpace.s2),
+      child: Wrap(
+        spacing: AstryxSpace.s2,
+        runSpacing: AstryxSpace.s2,
+        children: <Widget>[
+          for (final Contact person in people)
+            Tooltip(
+              message: person.email,
+              child: AceChip(
+                label: person.label,
+                icon: AceIcons.user,
+                onTap: () => _applySuggestion(controller, person),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -228,6 +340,10 @@ class _ComposeScreenState extends State<ComposeScreen> {
     _saveDraftNow();
     _to.dispose();
     _cc.dispose();
+    _bcc.dispose();
+    for (final FocusNode node in <FocusNode>[_toFocus, _ccFocus, _bccFocus]) {
+      node.dispose();
+    }
     _subject.dispose();
     _body.dispose();
     super.dispose();
@@ -704,6 +820,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     child: AceFormField(
                       label: 'To',
                       controller: _to,
+                      focusNode: _toFocus,
                       hint: 'name@example.com',
                       error: _toError,
                       keyboard: TextInputType.emailAddress,
@@ -726,22 +843,29 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   ),
                 ],
               ),
+              // The suggestions sit under the field they belong to, so a tap
+              // cannot put an address in a line nobody was typing in.
+              if (_focusedRecipient == _to) _suggestions(_to),
               if (_showCc) ...<Widget>[
                 const SizedBox(height: AstryxSpace.s2),
                 AceFormField(
                   label: 'Cc',
                   controller: _cc,
+                  focusNode: _ccFocus,
                   hint: 'optional',
                   error: _ccError,
                   keyboard: TextInputType.emailAddress,
                 ),
+                if (_focusedRecipient == _cc) _suggestions(_cc),
                 const SizedBox(height: AstryxSpace.s2),
                 AceFormField(
                   label: 'Bcc',
                   controller: _bcc,
+                  focusNode: _bccFocus,
                   hint: 'optional',
                   keyboard: TextInputType.emailAddress,
                 ),
+                if (_focusedRecipient == _bcc) _suggestions(_bcc),
               ],
               const SizedBox(height: AstryxSpace.s2),
               Divider(height: 1, color: c.border),

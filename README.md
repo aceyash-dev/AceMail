@@ -120,6 +120,11 @@ a custom theme, not a departure.
   they thread correctly in every other client.
 - **File a message into any folder**, from the reader or from a selection, and
   **mark as spam** / **not spam** in one action.
+- **Address suggestions** while you type a recipient, from the contacts the app
+  already has — prefix matches first, nobody offered twice, and never your own
+  address back to you.
+- **An update checker** that asks GitHub once a day for the newest release and
+  shows what changed, with the build number compared as well as the name.
 - **Mark a whole folder read**, and **select all** on the page, so a full inbox
   is two taps rather than forty.
 - Swipe a message either way to act on it — archive, delete, read/unread or

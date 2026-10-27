@@ -29,6 +29,7 @@ import 'changelog_screen.dart';
 import '../widgets/ace_glass.dart';
 import '../models/chyme_template.dart';
 import '../widgets/diagnostics_sheet.dart';
+import '../widgets/update_sheet.dart';
 import '../widgets/chyme_mark.dart';
 import '../widgets/chyme_pickers.dart';
 import '../widgets/legal_sheet.dart';
@@ -672,6 +673,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   // that reaches somebody than by a screen that reaches nobody.
                   onTap: () => _mailSupport(context),
                 ),
+                SettingsSwitchRow(
+                  icon: AceIcons.refresh,
+                  title: 'Check for updates',
+                  subtitle: 'Asks GitHub once a day for the newest release and '
+                      'shows what changed. Nothing about you is sent — it is a '
+                      'plain request for a public list.',
+                  value: prefs.updateCheck,
+                  onChanged: prefs.setUpdateCheck,
+                ),
+                if (prefs.updateCheck)
+                  SettingsRow(
+                    icon: AceIcons.info,
+                    title: 'Check now',
+                    subtitle: prefs.lastUpdateCheck == null
+                        ? 'Not checked yet'
+                        : 'Last checked ${_shortDate(prefs.lastUpdateCheck!)}',
+                    onTap: () => checkForUpdatesNow(context),
+                  ),
                 SettingsRow(
                   icon: AceIcons.restore,
                   title: 'Changelog',
@@ -1412,4 +1431,16 @@ Future<void> _chooseUndoWindow(
       ),
     ),
   );
+}
+
+/// `3 Oct 2026, 09:12` — enough to answer "when did it last look?" without a
+/// clock somebody has to read twice.
+String _shortDate(DateTime when) {
+  const List<String> months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final String hour = when.hour.toString().padLeft(2, '0');
+  final String minute = when.minute.toString().padLeft(2, '0');
+  return '${when.day} ${months[when.month - 1]} ${when.year}, $hour:$minute';
 }

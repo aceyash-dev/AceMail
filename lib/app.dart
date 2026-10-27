@@ -11,6 +11,7 @@ import 'state/mail_controller.dart';
 import 'theme/astryx_theme.dart';
 import 'theme/astryx_tokens.dart';
 import 'widgets/app_lock_gate.dart';
+import 'widgets/update_sheet.dart';
 import 'widgets/whats_new.dart';
 import 'util/haptics.dart';
 
@@ -27,6 +28,10 @@ class AceMailApp extends StatelessWidget {
       await context
           .read<Preferences>()
           .setLastSeenVersion(AppInfo.fullVersion);
+      // After the release notes, and never in front of them: what changed in
+      // *this* build comes before what has changed since.
+      if (!context.mounted) return;
+      await announceUpdateIfAny(context);
     });
   }
 

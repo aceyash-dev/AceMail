@@ -367,8 +367,34 @@ class MailSession extends ChangeNotifier {
   /// The order the page is shown in, from the user's setting.
   MessageSort get sort => _preferences?.messageSort ?? MessageSort.newest;
 
+  /// What the last [visibleMessages] was built from, so it is not rebuilt for
+  /// every read.
+  ///
+  /// It is read several times per frame — the list, the selection bar, the
+  /// assistant's context — and each read was a filter and a sort over the whole
+  /// page. On a folder of two thousand messages that is three sorts a frame for
+  /// the same answer. The cache is keyed on the identity of the list and on the
+  /// four things that change the answer, so it cannot go stale without one of
+  /// them having moved.
+  List<MessageSummary>? _visibleCache;
+  List<MessageSummary>? _visibleSource;
+  MessageFilter? _visibleFilter;
+  MessageSort? _visibleSort;
+  String? _visibleQuery;
+  int _visibleContacts = -1;
+
   /// The page, filtered and sorted. What the list actually renders.
   List<MessageSummary> get visibleMessages {
+    final List<MessageSummary>? cached = _visibleCache;
+    if (cached != null &&
+        identical(_visibleSource, messages) &&
+        _visibleFilter == filter &&
+        _visibleSort == sort &&
+        _visibleQuery == searchQuery &&
+        _visibleContacts == Contacts.revision) {
+      return cached;
+    }
+
     // One reading of the clock for the whole pass, not one per message.
     final DateTime now = DateTime.now();
     // Blocked senders are dropped first, and always: a block that only applied
@@ -381,7 +407,15 @@ class MailSession extends ChangeNotifier {
         : allowed
             .where((MessageSummary m) => filter.matches(m, now: now))
             .toList();
-    return sort.apply(matching);
+    final List<MessageSummary> result = sort.apply(matching);
+
+    _visibleSource = messages;
+    _visibleFilter = filter;
+    _visibleSort = sort;
+    _visibleQuery = searchQuery;
+    _visibleContacts = Contacts.revision;
+    _visibleCache = result;
+    return result;
   }
 
   void setFilter(MessageFilter value) {

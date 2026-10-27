@@ -23,6 +23,7 @@ class AceFormField extends StatelessWidget {
     this.onTap,
     this.readOnly = false,
     this.background,
+    this.focusNode,
   });
 
   final String label;
@@ -49,6 +50,11 @@ class AceFormField extends StatelessWidget {
   /// than an input.
   final Color? background;
 
+  /// Whose keyboard this is. The composer needs it: the address suggestions
+  /// belong to the field that has the cursor, and there is no way to ask a
+  /// [TextField] that from outside without one.
+  final FocusNode? focusNode;
+
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
@@ -56,6 +62,7 @@ class AceFormField extends StatelessWidget {
     final Widget field = TextField(
       onTap: onTap,
       readOnly: readOnly,
+      focusNode: focusNode,
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboard,
