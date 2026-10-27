@@ -241,6 +241,24 @@ cp -R /tmp/ace_scaffold/macos /tmp/ace_scaffold/windows .
 Doing it this way (rather than `flutter create .`) avoids overwriting
 `lib/main.dart` and `pubspec.yaml`.
 
+## Downloads
+
+Every release carries one file per platform, in the format that platform
+installs:
+
+| Platform | File | How it installs |
+| --- | --- | --- |
+| Android | `AceMail-<version>-arm64-v8a.apk` (and `armeabi-v7a`) | Sideload, or `adb install` |
+| iOS | `AceMail-<version>-ios-unsigned.ipa` | Unsigned — re-sign with your own certificate, or use a sideloading tool |
+| macOS | `AceMail-<version>-macos-unsigned.dmg` | Open the disk image, drag the app to Applications |
+| Windows | `AceMail-<version>-windows-x64-setup.exe` | Run the installer: Start-menu entry, uninstaller, optional desktop shortcut |
+| Linux | `AceMail-<version>-x86_64.AppImage` | `chmod +x` and run. Any distribution — it carries its own libraries. A `.tar.gz` of the same bundle is there too. |
+
+The Apple builds are unsigned: signing needs a certificate and a provisioning
+profile this repository does not hold. The AppImage is the Linux one to take —
+a `.deb` would only install on the Debian family, and an AppImage runs on
+Ubuntu, Fedora and Arch alike.
+
 ## Building the APK
 
 Locally:
