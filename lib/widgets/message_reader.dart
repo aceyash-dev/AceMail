@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,20 +8,26 @@ import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
 import '../models/full_message.dart';
+import '../models/mail_folder.dart';
+import '../models/message_summary.dart';
 import '../screens/compose_screen.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import '../util/ace_snack.dart';
 import '../util/addresses.dart';
 import '../util/dates.dart';
+import '../util/file_names.dart';
 import '../util/files.dart';
 import '../util/links.dart';
 import '../util/text.dart';
 import 'astryx_widgets.dart';
+import 'folder_picker.dart';
 import 'message_html.dart';
 import 'avatar.dart';
 import 'skeleton.dart';
+import 'settings_group.dart';
 import 'ace_icon_view.dart';
 import 'chyme_sheet.dart';
 import 'chyme_mark.dart';
@@ -234,6 +241,11 @@ class _MessageReaderState extends State<MessageReader> {
           onPressed: () => _reply(context, message, all: true),
         ),
         AceToolbarAction(
+          icon: AceIcons.forward,
+          tooltip: 'Forward',
+          onPressed: () => _forward(context, message),
+        ),
+        AceToolbarAction(
           // Two glyphs, not one. The fill said which state it was in, but a
           // star and a star look the same at a glance, and the icon set has the
           // other one.
@@ -256,8 +268,159 @@ class _MessageReaderState extends State<MessageReader> {
           destructive: true,
           onPressed: () => _confirmDelete(context),
         ),
+        // The rest, where the toolbar has run out of room: filing, and spam.
+        AceToolbarAction(
+          icon: AceIcons.more,
+          tooltip: 'More',
+          onPressed: () => _more(context, message),
+        ),
       ],
     );
+  }
+
+  /// Everything that is a place to put the message rather than a thing to do
+  /// with it.
+  Future<void> _more(BuildContext context, FullMessage message) async {
+    final AstryxColors c = context.astryx;
+    final MailController controller = context.read<MailController>();
+    final bool junk = controller.inJunk;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                0,
+                AstryxSpace.s5,
+                AstryxSpace.s2,
+              ),
+              child: Text(
+                'This message',
+                style: AstryxText.heading3(c.textPrimary),
+              ),
+            ),
+            SettingsRow(
+              icon: AceIcons.folder,
+              title: 'Move to…',
+              subtitle: 'File it in another folder.',
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final MessageSummary? summary = controller.openSummary;
+                if (summary == null) return;
+                final MailFolder? target = await showFolderPicker(
+                  context,
+                  folders: controller.filingFolders,
+                  currentPath: summary.folderPath ??
+                      controller.currentFolderPath,
+                );
+                if (target == null || !context.mounted) return;
+                // The messenger is taken before the move: filing the open
+                // message closes the reader, and a snack raised from a context
+                // that has just gone is a snack raised at nothing.
+                final ScaffoldMessengerState? messenger =
+                    ScaffoldMessenger.maybeOf(context);
+                await controller.moveMessageTo(summary, target);
+                messenger?.showSnackBar(
+                  SnackBar(content: Text('Moved to ${target.label}.')),
+                );
+              },
+            ),
+            SettingsRow(
+              icon: junk ? AceIcons.inbox : AceIcons.warning,
+              title: junk ? 'Not spam' : 'Mark as spam',
+              subtitle: junk
+                  ? 'Put it back in the inbox.'
+                  : 'Move it to Junk. Nothing is reported to anybody.',
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final MessageSummary? summary = controller.openSummary;
+                if (summary == null) return;
+                final ScaffoldMessengerState? messenger =
+                    ScaffoldMessenger.maybeOf(context);
+                if (junk) {
+                  await controller.markNotSpam(summary);
+                } else {
+                  await controller.markSpam(summary);
+                }
+                messenger?.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      junk ? 'Moved back to the inbox.' : 'Moved to Junk.',
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AstryxSpace.s3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Sends the message on: the body quoted under its own headers, and whatever
+  /// was attached carried across.
+  ///
+  /// The attachments are the part most clients quietly drop and most people
+  /// expect. They are written to a temporary directory so the composer can take
+  /// them the same way it takes a file from the picker — one path for an
+  /// attachment, whoever chose it.
+  Future<void> _forward(BuildContext context, FullMessage message) async {
+    final String subject = message.subject.toLowerCase().startsWith('fwd:')
+        ? message.subject
+        : 'Fwd: ${message.subject}';
+
+    final StringBuffer quoted = StringBuffer()
+      ..writeln()
+      ..writeln('---------- Forwarded message ----------')
+      ..writeln('From: ${message.fromName} <${message.fromEmail}>')
+      ..writeln('Date: ${formatFullDate(message.date)}')
+      ..writeln('Subject: ${message.subject}');
+    if (message.toLine.isNotEmpty) quoted.writeln('To: ${message.toLine}');
+    if (message.ccLine.isNotEmpty) quoted.writeln('Cc: ${message.ccLine}');
+    quoted
+      ..writeln()
+      ..write(message.textBody);
+
+    final List<File> carried = await _forwardAttachments(message);
+    if (!context.mounted) return;
+    await openComposeSheet(
+      context,
+      initialSubject: subject,
+      initialBody: quoted.toString(),
+      initialAttachments: carried,
+    );
+  }
+
+  /// The message's attachments, as files the composer can take.
+  ///
+  /// Best effort, and silently so: a message whose attachments cannot be
+  /// written is still worth forwarding, and a forward that refused because one
+  /// attachment would not land would be worse than one that arrived with the
+  /// text.
+  Future<List<File>> _forwardAttachments(FullMessage message) async {
+    if (message.attachments.isEmpty) return const <File>[];
+    try {
+      final Directory directory =
+          await Directory.systemTemp.createTemp('ace-forward');
+      final List<File> files = <File>[];
+      for (final MailAttachment attachment in message.attachments) {
+        final File file = File(
+          '${directory.path}/${sanitizeFileName(attachment.fileName)}',
+        );
+        await file.writeAsBytes(attachment.bytes, flush: true);
+        files.add(file);
+      }
+      return files;
+    } catch (_) {
+      return const <File>[];
+    }
   }
 
   Widget _meta(AstryxColors c, FullMessage message) {

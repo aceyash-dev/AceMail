@@ -60,6 +60,21 @@ abstract final class AceIcons {
   static const AceIcon list = HugeIcons.strokeRoundedLeftToRightListBullet;
   static const AceIcon menu = HugeIcons.strokeRoundedMenu01;
 
+  /// Forwarding a message on. An arrow turning forward, not a mail glyph: the
+  /// two reply arrows already look like each other, and a third mail icon would
+  /// be a third one to tell apart.
+  static const AceIcon forward = HugeIcons.strokeRoundedArrowTurnForward;
+
+  /// The rest of a menu, where the toolbar has run out of room.
+  static const AceIcon more = HugeIcons.strokeRoundedMoreHorizontal;
+
+  /// Picking everything in the list.
+  static const AceIcon selectAll = HugeIcons.strokeRoundedCheckmarkSquare01;
+
+  /// Marking a whole folder read, which is an open envelope, not a tick: the
+  /// tick in this app already means "picked".
+  static const AceIcon markAllRead = HugeIcons.strokeRoundedMailOpen02;
+
   /// The drawer toggle. A hamburger says "a menu"; this says "the sidebar",
   /// which is what it opens.
   static const AceIcon sidebar = HugeIcons.strokeRoundedSidebarLeft;

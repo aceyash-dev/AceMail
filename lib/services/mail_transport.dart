@@ -34,6 +34,12 @@ abstract interface class MailTransport {
 
   Future<void> setFlagged(MessageSummary summary, bool flagged);
 
+  /// Flags every message in [messages] read, in one command where the server
+  /// takes a set of UIDs. All of them must be in the same folder. This is what
+  /// "mark all read" is: a folder of four hundred messages should be one
+  /// command, not four hundred.
+  Future<void> markManySeen(List<MessageSummary> messages);
+
   /// The first [bytes] of a message body.
   ///
   /// Only used to look for a one-time code in mail whose subject does not carry

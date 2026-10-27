@@ -412,6 +412,24 @@ class MailService implements MailTransport {
       );
 
   @override
+  Future<void> markManySeen(List<MessageSummary> messages) {
+    if (messages.isEmpty) return Future<void>.value();
+    return _queue.run(
+      () => _guard(
+        () async {
+          await _selectSummaryFolder(messages.first);
+          await _client.uidStore(
+            _sequenceOf(messages),
+            <String>[MessageFlags.seen],
+            action: StoreAction.add,
+          );
+        },
+        fallback: 'The messages could not be marked read.',
+      ),
+    );
+  }
+
+  @override
   Future<void> setFlagged(MessageSummary summary, bool flagged) => _store(
         summary,
         <String>[MessageFlags.flagged],

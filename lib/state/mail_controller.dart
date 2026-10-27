@@ -208,8 +208,10 @@ class MailController extends ChangeNotifier {
 
   bool get selecting => active?.selecting ?? false;
   int get selectedCount => active?.selected.length ?? 0;
+  bool get allSelected => active?.allSelected ?? false;
   bool isSelected(int uid) => active?.isSelected(uid) ?? false;
   void toggleSelect(int uid) => active?.toggleSelect(uid);
+  void selectAll() => active?.selectAll();
   void clearSelection() => active?.clearSelection();
   Future<void> forEachSelected(
     Future<void> Function(MessageSummary message) action,
@@ -239,6 +241,8 @@ class MailController extends ChangeNotifier {
       active?.restore(message);
 
   Future<void> emptyTrash() async => active?.emptyTrash();
+
+  Future<void> emptyJunk() async => active?.emptyJunk();
 
   /// The folder the user is looking at, for an undo to put a message back into.
   String? get currentFolderPath => active?.selectedFolder?.path;
@@ -474,6 +478,46 @@ class MailController extends ChangeNotifier {
 
   Future<void> archive(MessageSummary summary) async =>
       active?.archive(summary);
+
+  /// Files one message into [target].
+  Future<void> moveMessageTo(MessageSummary summary, MailFolder target) async =>
+      active?.moveMessageTo(summary, target);
+
+  /// Files everything picked into [target].
+  Future<void> moveSelectedTo(MailFolder target) async =>
+      active?.moveSelectedTo(target);
+
+  /// Whether the folder on screen is this account's spam folder.
+  bool get inJunk => active?.inJunk ?? false;
+
+  Future<void> markSpam(MessageSummary summary) async =>
+      active?.markSpam(summary);
+
+  Future<void> markNotSpam(MessageSummary summary) async =>
+      active?.markNotSpam(summary);
+
+  /// Marks everything in the folder read. Returns how many were waiting.
+  ///
+  /// In the unified view that means every account's inbox, one account at a
+  /// time: the button sits above a list that merges them, and marking only the
+  /// account that happens to be first would leave the number it was pressed to
+  /// clear still on screen.
+  Future<int> markFolderRead() async {
+    if (!_unified) return await active?.markFolderRead() ?? 0;
+    int total = 0;
+    for (final MailSession session in _sessions) {
+      total += await session.markFolderRead();
+    }
+    _notify();
+    return total;
+  }
+
+  /// The folders a message can be filed into: everything but the unified row,
+  /// which is a view rather than a mailbox.
+  List<MailFolder> get filingFolders => <MailFolder>[
+        for (final MailFolder folder in folders)
+          if (folder.role != FolderRole.unified) folder,
+      ];
 
   Future<void> toggleRead(MessageSummary summary) async =>
       active?.toggleRead(summary);

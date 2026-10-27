@@ -223,6 +223,25 @@ class MailSession extends ChangeNotifier {
     _notify();
   }
 
+  /// Whether everything on screen is picked.
+  bool get allSelected =>
+      visibleMessages.isNotEmpty &&
+      visibleMessages.every((MessageSummary m) => selected.contains(m.uid));
+
+  /// Picks everything on screen.
+  ///
+  /// The page, not the folder: a list of two thousand UIDs that has only been
+  /// fetched forty at a time is a list where "select all" would promise more
+  /// than anybody can see. What is picked is what is in front of you, which is
+  /// also what every other client's "select all" means in a paged list.
+  void selectAll() {
+    bool changed = false;
+    for (final MessageSummary message in visibleMessages) {
+      changed |= selected.add(message.uid);
+    }
+    if (changed) _notify();
+  }
+
   /// The picked messages, in the order they appear on screen.
   List<MessageSummary> get selectedMessages =>
       visibleMessages.where((MessageSummary m) => selected.contains(m.uid)).toList();
@@ -899,33 +918,44 @@ class MailSession extends ChangeNotifier {
   ///
   /// This one does not come back: an expunged message is gone from the server,
   /// not moved. The caller asks first.
-  Future<void> emptyTrash() async {
+  Future<void> emptyTrash() => _emptyFolder(FolderRole.trash);
+
+  /// Empties the spam folder.
+  ///
+  /// The same command as emptying the trash, and for the same reason: mail that
+  /// was filed as spam is the mail nobody is going to open, and leaving it to be
+  /// deleted one row at a time is how a spam folder becomes a second inbox.
+  Future<void> emptyJunk() => _emptyFolder(FolderRole.junk);
+
+  Future<void> _emptyFolder(FolderRole role) async {
     if (!_connected) return;
 
-    final String? path = trashPath;
+    final String? path = _folderPathFor(role);
     if (path == null) {
-      errorMessage = 'This account has no Trash folder.';
+      errorMessage = role == FolderRole.junk
+          ? 'This account has no Junk folder.'
+          : 'This account has no Trash folder.';
       _notify();
       return;
     }
 
-    MailFolder? trash;
+    MailFolder? target;
     for (final MailFolder f in folders) {
-      if (f.role == FolderRole.trash) {
-        trash = f;
+      if (f.role == role) {
+        target = f;
         break;
       }
     }
-    if (trash == null) return;
+    if (target == null) return;
 
     // Read the folder rather than trusting what is on screen: the list may be
-    // filtered, and emptying the trash must empty the trash.
+    // filtered, and emptying a folder must empty the folder.
     loadingMessages = true;
     errorMessage = null;
     _notify();
     try {
-      await _transport.selectFolder(trash);
-      final List<int> uids = await _transport.listMessageUids(trash);
+      await _transport.selectFolder(target);
+      final List<int> uids = await _transport.listMessageUids(target);
       for (final int uid in uids) {
         if (!_connected) break;
         await _transport.deleteMessage(
@@ -944,15 +974,15 @@ class MailSession extends ChangeNotifier {
         );
       }
     } catch (error) {
-      errorMessage = 'Could not empty the trash.';
-      debugPrint('Ace Mail: emptyTrash failed (${Redact.safe(error)})');
+      errorMessage = 'Could not empty ${target.label}.';
+      debugPrint('Ace Mail: emptyFolder failed (${Redact.safe(error)})');
     } finally {
       loadingMessages = false;
       _notify();
     }
 
     // And then show it, so the folder is not left claiming to have messages.
-    if (_connected) await openFolder(trash, refresh: true);
+    if (_connected) await openFolder(target, refresh: true);
   }
 
   /// Moves a message out of the way. Needs an Archive folder to move it to.
@@ -965,6 +995,136 @@ class MailSession extends ChangeNotifier {
     }
     await _runOn(summary, () => _transport.moveMessage(summary, path),
         remove: true, unseenDelta: summary.isSeen ? 0 : -1);
+  }
+
+  /// Files one message into [target].
+  ///
+  /// A move, not a copy: the message leaves the folder it was in, because that
+  /// is what filing means everywhere else. The row goes with it, and an unread
+  /// one takes its unread count out of the folder it left.
+  Future<void> moveMessageTo(MessageSummary summary, MailFolder target) async {
+    final String? from = summary.folderPath ?? selectedFolder?.path;
+    if (from != null && from == target.path) return;
+    await _runOn(
+      summary,
+      () => _transport.moveMessage(summary, target.path),
+      remove: true,
+      unseenDelta: summary.isSeen ? 0 : -1,
+    );
+  }
+
+  /// Files everything picked into [target], a folder at a time.
+  Future<void> moveSelectedTo(MailFolder target) async {
+    final String? from = selectedFolder?.path;
+    if (from != null && from == target.path) {
+      errorMessage = 'Those messages are already in ${target.label}.';
+      _notify();
+      return;
+    }
+    await _removeSelected(
+      (List<MessageSummary> group) =>
+          _transport.moveMessages(group, target.path),
+    );
+  }
+
+  /// The folder this account calls spam, when it has one.
+  String? get junkPath => _folderPathFor(FolderRole.junk);
+
+  /// Whether the folder on screen is the spam folder.
+  bool get inJunk => selectedFolder?.role == FolderRole.junk;
+
+  /// Files a message as spam: moved to Junk, and read.
+  ///
+  /// Moving it is all this app can honestly do — teaching a server's own filter
+  /// is a per-provider API, and reporting a sender to anybody is not a thing a
+  /// mail client should do on a tap without saying so. What every client does
+  /// offer is this: get it out of the inbox, in one action, reversibly.
+  Future<void> markSpam(MessageSummary summary) async {
+    final String? path = junkPath;
+    if (path == null) {
+      errorMessage = 'This account has no Junk folder to move it to.';
+      _notify();
+      return;
+    }
+    await _runOn(
+      summary,
+      () => _transport.moveMessage(summary, path),
+      remove: true,
+      unseenDelta: summary.isSeen ? 0 : -1,
+    );
+  }
+
+  /// Takes a message back out of Junk, into the inbox.
+  Future<void> markNotSpam(MessageSummary summary) async {
+    final String? path =
+        _folderPathFor(FolderRole.inbox) ?? _folderPathFor(FolderRole.archive);
+    if (path == null) {
+      errorMessage = 'This account has no Inbox folder to move it back to.';
+      _notify();
+      return;
+    }
+    await _runOn(
+      summary,
+      () => _transport.moveMessage(summary, path),
+      remove: true,
+      unseenDelta: summary.isSeen ? 0 : -1,
+    );
+  }
+
+  /// Marks everything in the folder read, and says how much it was.
+  ///
+  /// The whole folder, not the page: a count that keeps saying "12 unread" after
+  /// "mark all read" is a count that did not do what it said. The UIDs come from
+  /// one SEARCH, are flagged a batch at a time, and the count is zeroed once the
+  /// server has agreed.
+  Future<int> markFolderRead() async {
+    final MailFolder? folder = selectedFolder;
+    if (folder == null || !_connected) return 0;
+    final int waiting = folder.unseen;
+
+    try {
+      final List<int> uids = await _transport.listMessageUids(folder);
+      if (uids.isEmpty) return 0;
+
+      // Batched: a STORE with two thousand UIDs is a command line no server
+      // wants, and a failure part-way through is a failure of that batch only.
+      const int batchSize = 200;
+      for (int start = 0; start < uids.length; start += batchSize) {
+        final List<int> batch =
+            uids.skip(start).take(batchSize).toList(growable: false);
+        await _transport.markManySeen(<MessageSummary>[
+          for (final int uid in batch)
+            MessageSummary(
+              uid: uid,
+              sequenceId: uid,
+              subject: '',
+              fromName: '',
+              fromEmail: '',
+              date: null,
+              isSeen: false,
+              isFlagged: false,
+              folderPath: folder.path,
+            ),
+        ]);
+      }
+
+      // The rows on screen, then the count: only after the server agreed, so a
+      // failed command does not leave the list claiming mail is read.
+      messages = <MessageSummary>[
+        for (final MessageSummary message in messages)
+          message.isSeen ? message : message.copyWith(isSeen: true),
+      ];
+      _adjustUnseen(folder.path, -waiting);
+      _notify();
+      // What the server was actually told, not the count that was on screen:
+      // a folder whose count was stale still marked every message in it.
+      return uids.length;
+    } catch (error) {
+      errorMessage = 'Could not mark ${folder.label} read.';
+      debugPrint('Ace Mail: markFolderRead failed (${Redact.safe(error)})');
+      _notify();
+      return 0;
+    }
   }
 
   /// Flips a message's read state from the list.

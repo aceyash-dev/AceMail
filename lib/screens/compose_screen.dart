@@ -46,6 +46,7 @@ Future<void> openComposeSheet(
   String? inReplyTo,
   String? references,
   String? from,
+  List<File> initialAttachments = const <File>[],
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -60,6 +61,7 @@ Future<void> openComposeSheet(
       inReplyTo: inReplyTo,
       references: references,
       from: from,
+      initialAttachments: initialAttachments,
     ),
   );
 }
@@ -74,6 +76,7 @@ class ComposeScreen extends StatefulWidget {
     this.inReplyTo,
     this.references,
     this.from,
+    this.initialAttachments = const <File>[],
   });
 
   final String initialTo;
@@ -88,6 +91,10 @@ class ComposeScreen extends StatefulWidget {
   /// Threading headers, so a reply lands in the same conversation.
   final String? inReplyTo;
   final String? references;
+
+  /// Files that come with the message already attached — what a forward carries
+  /// over from the message it is forwarding.
+  final List<File> initialAttachments;
 
   @override
   State<ComposeScreen> createState() => _ComposeScreenState();
@@ -106,6 +113,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       TextEditingController(text: widget.initialBody);
 
   final List<File> _attachments = <File>[];
+
   bool _sending = false;
 
   /// Whether Cc and Bcc are showing. Folded by default: they are the two fields
@@ -145,6 +153,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
     ]) {
       field.addListener(_scheduleDraft);
     }
+
+    // A forward arrives with the message it is forwarding already attached.
+    _attachments.addAll(widget.initialAttachments);
   }
 
   @override

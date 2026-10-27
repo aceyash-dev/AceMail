@@ -15,6 +15,7 @@ class FakeTransport implements MailTransport {
     this.failConnect = false,
     this.trash = true,
     this.archiveFolder = true,
+    this.junk = false,
   });
 
   final bool failConnect;
@@ -24,6 +25,10 @@ class FakeTransport implements MailTransport {
 
   /// Whether this account has an Archive folder.
   final bool archiveFolder;
+
+  /// Whether this account has a Junk folder. Off by default so the folders a
+  /// test sees are the ones it asked for.
+  final bool junk;
 
   final List<int> uids = <int>[];
   final Set<int> unread = <int>{};
@@ -83,6 +88,13 @@ class FakeTransport implements MailTransport {
         unseen: 0,
       );
 
+  MailFolder get junkFolder => const MailFolder(
+        name: 'Junk',
+        path: 'Junk',
+        role: FolderRole.junk,
+        unseen: 0,
+      );
+
   MailFolder get sentFolder => const MailFolder(
         name: 'Sent',
         path: 'Sent',
@@ -113,6 +125,7 @@ class FakeTransport implements MailTransport {
     return <MailFolder>[
       inbox,
       if (trash) trashFolder,
+      if (junk) junkFolder,
       sentFolder,
       if (archiveFolder) archive,
     ];
@@ -180,6 +193,18 @@ class FakeTransport implements MailTransport {
   @override
   Future<void> markUnread(MessageSummary summary) async =>
       unread.add(summary.uid);
+
+  /// The UIDs a "mark all read" covered, in the batches it was sent in.
+  final List<List<int>> markedReadBatches = <List<int>>[];
+
+  @override
+  Future<void> markManySeen(List<MessageSummary> messages) async {
+    final List<int> batch = messages.map((MessageSummary m) => m.uid).toList();
+    markedReadBatches.add(batch);
+    for (final int uid in batch) {
+      unread.remove(uid);
+    }
+  }
 
   @override
   Future<void> setFlagged(MessageSummary summary, bool value) async {

@@ -115,8 +115,13 @@ a custom theme, not a departure.
   or unread first; all, unread, flagged, or only the mail carrying a code.
 - Delete moves to Trash. When a provider has no Trash folder, the app says so
   and asks before deleting permanently — it never quietly destroys mail.
-- Reply and reply-all, with `In-Reply-To` and `References` set so the reply
-  threads correctly in every other client.
+- Reply, reply-all and **forward** — a forward quotes the original's headers and
+  carries its attachments across. Replies set `In-Reply-To` and `References` so
+  they thread correctly in every other client.
+- **File a message into any folder**, from the reader or from a selection, and
+  **mark as spam** / **not spam** in one action.
+- **Mark a whole folder read**, and **select all** on the page, so a full inbox
+  is two taps rather than forty.
 - Swipe a message either way to act on it — archive, delete, read/unread or
   flag — with both directions configurable in settings.
 - Messages open as HTML, with a per-message toggle to the plain-text version.

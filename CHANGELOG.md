@@ -3,6 +3,36 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+82
+
+### Added
+- **Forward.** The reader sends a message on with its headers quoted under a
+  `---------- Forwarded message ----------` line, and **carries the attachments
+  across** — they are written to a temporary directory so the composer takes them
+  the same way it takes a file from the picker. A subject that already says
+  `Fwd:` is not prefixed twice.
+- **Move to a folder.** Filing was the one thing this app could not do: archive
+  went to one fixed folder and everything else was the app's decision. The
+  reader's More menu and the selection bar now offer every folder the account
+  has, minus the one the message is already in.
+- **Mark as spam, and Not spam.** One action moves a message to Junk; from Junk
+  the same action puts it back in the inbox. Nothing is reported to anybody — the
+  move is all this app can honestly do, and it says so.
+- **Mark all read.** The whole folder, not the page: one SEARCH for the UIDs,
+  then one STORE per two hundred of them, and the count goes to zero only after
+  the server has agreed. In the all-inboxes view it marks every account's inbox,
+  because that is the number the button sits above.
+- **Select all**, in the selection bar, for the page on screen.
+- **Empty junk**, the same command as emptying the trash and behind the same
+  question.
+
+### Fixed
+- **A snack raised from the reader after filing the open message.** Moving the
+  open message closes the reader, and the confirmation was being raised from a
+  context that had just gone. The messenger is taken before the move now.
+- **Mark all read in the all-inboxes view** would have marked only the first
+  account's inbox while the merged count on screen was the sum.
+
 ## 0.6.0+81
 
 ### Fixed

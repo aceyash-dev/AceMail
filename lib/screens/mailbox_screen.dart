@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/preferences.dart';
+import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import '../services/voice_input.dart';
 import '../state/mail_controller.dart';
@@ -19,6 +20,7 @@ import '../widgets/chyme_sheet.dart';
 import '../widgets/ace_floating_nav.dart';
 import '../widgets/confirm_exit.dart';
 import '../widgets/contacts_panel.dart';
+import '../widgets/folder_picker.dart';
 import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
@@ -372,6 +374,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   style: AstryxText.heading3(c.textPrimary),
                 ),
                 actions: <Widget>[
+                  if (!controller.allSelected)
+                    AceIconButton(
+                      icon: AceIcons.selectAll,
+                      tooltip: 'Select all',
+                      onPressed: () =>
+                          context.read<MailController>().selectAll(),
+                    ),
                   if (controller.inTrash)
                     AceIconButton(
                       icon: AceIcons.restore,
@@ -396,6 +405,12 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       icon: AceIcons.archive,
                       tooltip: 'Archive',
                       onPressed: () => _archiveSelected(context),
+                    ),
+                  if (!controller.inTrash)
+                    AceIconButton(
+                      icon: AceIcons.folder,
+                      tooltip: 'Move to a folder',
+                      onPressed: () => _moveSelected(context),
                     ),
                   AceIconButton(
                     icon: AceIcons.trash,
@@ -458,11 +473,22 @@ class _MailboxScreenState extends State<MailboxScreen> {
             // Emptying the trash lives where the trash does, and nowhere else:
             // an action that destroys everything should not be one tap away
             // from a folder where it means nothing.
-            if (controller.inTrash && !_searching)
+            if ((controller.inTrash || controller.inJunk) && !_searching)
               AceIconButton(
                 icon: AceIcons.deleteSweep,
-                tooltip: 'Empty trash',
-                onPressed: () => _confirmEmptyTrash(context),
+                tooltip: controller.inJunk ? 'Empty junk' : 'Empty trash',
+                onPressed: () =>
+                    _confirmEmpty(context, junk: controller.inJunk),
+              ),
+            // Only where there is something to mark: a button that can only do
+            // nothing is a button that teaches people to ignore buttons.
+            if (!controller.inTrash &&
+                !_searching &&
+                (controller.selectedFolder?.unseen ?? 0) > 0)
+              AceIconButton(
+                icon: AceIcons.markAllRead,
+                tooltip: 'Mark all read',
+                onPressed: () => _markAllRead(context),
               ),
             // One button for the choices that used to take a row of the list:
             // the filters and the order. It wears the accent when something
@@ -730,13 +756,14 @@ class _MailboxScreenState extends State<MailboxScreen> {
   /// Asks, then empties. An expunged message is gone from the server rather
   /// than moved, so this is the one action in the app that cannot be undone and
   /// the one that must ask.
-  Future<void> _confirmEmptyTrash(BuildContext context) async {
+  Future<void> _confirmEmpty(BuildContext context, {bool junk = false}) async {
     final MailController controller = context.read<MailController>();
+    final String name = junk ? 'junk' : 'trash';
     final bool? go = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Empty the trash?'),
-        content: const Text(
+        title: Text('Empty the $name?'),
+        content: Text(
           'Every message in it is deleted from the server. This cannot be '
           'undone.',
         ),
@@ -754,9 +781,13 @@ class _MailboxScreenState extends State<MailboxScreen> {
     );
     if (go != true || !context.mounted) return;
 
-    await controller.emptyTrash();
+    if (junk) {
+      await controller.emptyJunk();
+    } else {
+      await controller.emptyTrash();
+    }
     if (!context.mounted) return;
-    AceSnack.show(context, 'Trash emptied.');
+    AceSnack.show(context, junk ? 'Junk emptied.' : 'Trash emptied.');
   }
 
   /// Deletes everything picked.
@@ -774,6 +805,37 @@ class _MailboxScreenState extends State<MailboxScreen> {
     }
 
     await controller.deleteSelected(permanently: permanent);
+  }
+
+  /// Files everything picked into a folder the person chooses.
+  Future<void> _moveSelected(BuildContext context) async {
+    final MailController controller = context.read<MailController>();
+    final MailFolder? target = await showFolderPicker(
+      context,
+      folders: controller.filingFolders,
+      currentPath: controller.currentFolderPath,
+      title: 'Move ${controller.selectedCount == 1 ? 'this message' : '${controller.selectedCount} messages'}',
+    );
+    if (target == null || !context.mounted) return;
+    await controller.moveSelectedTo(target);
+    if (!context.mounted) return;
+    AceSnack.show(context, 'Moved to ${target.label}.');
+  }
+
+  /// Marks the whole folder read.
+  ///
+  /// No question first: it is the one bulk action that changes nothing anyone
+  /// has to lose — every message is still there, and marking one unread is a
+  /// swipe away.
+  Future<void> _markAllRead(BuildContext context) async {
+    final MailController controller = context.read<MailController>();
+    final String folder = controller.selectedFolder?.label ?? 'this folder';
+    final int marked = await controller.markFolderRead();
+    if (!context.mounted || marked == 0) return;
+    AceSnack.show(
+      context,
+      '$marked ${marked == 1 ? 'message' : 'messages'} in $folder marked read.',
+    );
   }
 
   /// Archives everything picked, asking first when the setting is on.
