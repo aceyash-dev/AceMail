@@ -245,59 +245,68 @@ jobs:
           tar -czf "$GITHUB_WORKSPACE/AceMail-$VERSION-linux-x64.tar.gz" bundle
           ls -l "$GITHUB_WORKSPACE"/AceMail-*.tar.gz
 
-      # A tarball is a folder you have to know what to do with. A .deb is what
-      # a Linux desktop installs: one file, one command, an entry in the menu.
-      - name: Build a .deb
+      # One file that runs on any distribution, which is the point: a .deb only
+      # installs on the Debian family, and an RPM only on Red Hat's. The AppImage
+      # carries its own libraries, so it is the same download on Ubuntu, Fedora
+      # and Arch.
+      - name: Build an AppImage
         run: |
           VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
-          ROOT="pkgroot"
-          rm -rf "$ROOT"
-          mkdir -p "$ROOT/DEBIAN" "$ROOT/opt/ace-mail" \
-                   "$ROOT/usr/bin" "$ROOT/usr/share/applications" \
-                   "$ROOT/usr/share/icons/hicolor/512x512/apps"
-          cp -r build/linux/x64/release/bundle/. "$ROOT/opt/ace-mail/"
+          APPDIR="AppDir"
+          rm -rf "$APPDIR"
+          mkdir -p "$APPDIR/usr/bin" \
+                   "$APPDIR/usr/share/applications" \
+                   "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 
-          cat > "$ROOT/DEBIAN/control" <<CONTROL
-          Package: ace-mail
-          Version: $VERSION
-          Section: mail
-          Priority: optional
-          Architecture: amd64
-          Depends: libgtk-3-0, libsecret-1-0, libstdc++6
-          Maintainer: Ace Mail <hello@ace-base.cc>
-          Description: A fast, native IMAP/SMTP mail client.
-           Ace Mail talks to your mail provider directly over IMAP and SMTP.
-          CONTROL
+          # The Flutter bundle, kept whole: ace_mail finds lib/ and data/ beside
+          # itself, so they travel together.
+          cp -r build/linux/x64/release/bundle/. "$APPDIR/usr/bin/"
 
-          printf '#!/bin/sh\nexec /opt/ace-mail/ace_mail "$@"\n' > "$ROOT/usr/bin/ace-mail"
-          chmod 755 "$ROOT/usr/bin/ace-mail"
-          cp assets/brand/mark.png "$ROOT/usr/share/icons/hicolor/512x512/apps/ace-mail.png"
+          cp assets/brand/mark.png "$APPDIR/ace-mail.png"
+          cp assets/brand/mark.png \
+             "$APPDIR/usr/share/icons/hicolor/512x512/apps/ace-mail.png"
 
-          cat > "$ROOT/usr/share/applications/ace-mail.desktop" <<DESKTOP
+          cat > "$APPDIR/ace-mail.desktop" <<DESKTOP
           [Desktop Entry]
           Type=Application
           Name=Ace Mail
           Comment=Fast, native mail over IMAP and SMTP
-          Exec=ace-mail
+          Exec=ace_mail
           Icon=ace-mail
           Terminal=false
           Categories=Network;Email;
           StartupWMClass=ace_mail
           DESKTOP
+          cp "$APPDIR/ace-mail.desktop" "$APPDIR/usr/share/applications/"
 
-          # The directory, the file modes, then the package.
-          find "$ROOT" -type d -exec chmod 755 {} +
-          dpkg-deb --build --root-owner-group "$ROOT" \
-            "$GITHUB_WORKSPACE/AceMail-$VERSION-linux-amd64.deb"
-          ls -l "$GITHUB_WORKSPACE"/AceMail-*.deb
+          cat > "$APPDIR/AppRun" <<'APPRUN'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/ace_mail" "$@"
+          APPRUN
+          chmod +x "$APPDIR/AppRun"
+          chmod +x "$APPDIR/usr/bin/ace_mail"
+
+          # The tool, from the project that maintains it. The older AppImageKit
+          # URL is the fallback for a day the new one moves.
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+          || curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+          # --appimage-extract-and-run, because a runner has no FUSE.
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APPDIR" \
+            "$GITHUB_WORKSPACE/AceMail-$VERSION-x86_64.AppImage"
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.AppImage
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ace-mail-linux
           path: |
+            AceMail-*-x86_64.AppImage
             AceMail-*-linux-x64.tar.gz
-            AceMail-*-linux-amd64.deb
           if-no-files-found: error
 
   ios:
@@ -386,19 +395,65 @@ jobs:
       - name: Build
         run: flutter build windows --release
 
-      - name: Pack the app
-        shell: bash
+      # An installer, not a folder to unzip: Start-menu entry, uninstaller, and
+      # no "which of these .exe files is the app?" at the end.
+      - name: Build the installer
+        shell: pwsh
         run: |
-          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
-          cd build/windows/x64/runner/Release
-          powershell -Command "Compress-Archive -Path * -DestinationPath \"$GITHUB_WORKSPACE/AceMail-$VERSION-windows-x64.zip\""
-          ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version: *(.+)$').Matches[0].Groups[1].Value.Split('+')[0]
+
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+
+          # `flutter create` writes this icon, but a setup that failed to
+          # would otherwise fail the whole Windows job over a picture.
+          $icon = "windows\runner\resources\app_icon.ico"
+          $iconLine = if (Test-Path $icon) { "SetupIconFile=$icon" } else { "" }
+
+          $iss = @"
+          [Setup]
+          AppName=Ace Mail
+          AppVersion=$version
+          AppPublisher=Ace Mail
+          AppPublisherURL=https://github.com/tab-gl/AceMail
+          DefaultDirName={autopf}\Ace Mail
+          DefaultGroupName=Ace Mail
+          DisableProgramGroupPage=yes
+          OutputDir=$($env:GITHUB_WORKSPACE)
+          OutputBaseFilename=AceMail-$version-windows-x64-setup
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          ArchitecturesAllowed=x64
+          ArchitecturesInstallIn64BitMode=x64
+          $iconLine
+          UninstallDisplayIcon={app}\ace_mail.exe
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
+
+          [Icons]
+          Name: "{group}\Ace Mail"; Filename: "{app}\ace_mail.exe"
+          Name: "{autodesktop}\Ace Mail"; Filename: "{app}\ace_mail.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\ace_mail.exe"; Description: "Open Ace Mail"; Flags: postinstall nowait skipifsilent
+          "@
+
+          Set-Content -Path installer.iss -Value $iss -Encoding ASCII
+          & $iscc installer.iss
+          Get-ChildItem "$env:GITHUB_WORKSPACE\AceMail-*-setup.exe" | Format-Table Name, Length
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ace-mail-windows
-          path: AceMail-*-windows-x64.zip
+          path: AceMail-*-windows-x64-setup.exe
           if-no-files-found: error
 
   macos:
@@ -529,10 +584,10 @@ jobs:
           body_path: release-notes.md
           files: |
             apk/AceMail-*.apk
-            linux/AceMail-*.deb
+            linux/AceMail-*-x86_64.AppImage
             linux/AceMail-*.tar.gz
             ios/AceMail-*.ipa
-            windows/AceMail-*.zip
+            windows/AceMail-*-windows-x64-setup.exe
             macos/AceMail-*.dmg
           fail_on_unmatched_files: false
           prerelease: false
@@ -547,7 +602,7 @@ jobs:
             Built automatically from `${{ github.sha }}`.
           files: |
             apk/AceMail-*.apk
-            linux/AceMail-*.deb
+            linux/AceMail-*-x86_64.AppImage
             ios/AceMail-*.ipa
           fail_on_unmatched_files: false
           prerelease: true
