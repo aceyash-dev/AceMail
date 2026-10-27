@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
+import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
 
 /// A labelled text field, the pattern every form in the app builds by hand.
@@ -24,6 +25,9 @@ class AceFormField extends StatelessWidget {
     this.readOnly = false,
     this.background,
     this.focusNode,
+    this.autocorrect = true,
+    this.textCapitalization = TextCapitalization.sentences,
+    this.onChanged,
   });
 
   final String label;
@@ -55,6 +59,15 @@ class AceFormField extends StatelessWidget {
   /// [TextField] that from outside without one.
   final FocusNode? focusNode;
 
+  /// Off for addresses and server names: a keyboard that "corrects"
+  /// `imap.example.com` into `imp.example.com` is a keyboard that breaks a
+  /// sign-in and blames the person.
+  final bool autocorrect;
+
+  final TextCapitalization textCapitalization;
+
+  final ValueChanged<String>? onChanged;
+
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
@@ -70,10 +83,19 @@ class AceFormField extends StatelessWidget {
       maxLines: obscure ? 1 : maxLines,
       minLines: minLines,
       onSubmitted: onSubmitted,
+      onChanged: onChanged,
+      autocorrect: autocorrect,
+      enableSuggestions: autocorrect,
+      textCapitalization: textCapitalization,
       style: AstryxText.body(c.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        errorText: error,
+        // The text itself is drawn below the field, with an icon and a live
+        // region, rather than left to the decoration's own red line: a message
+        // that appears without being announced is a message a screen reader
+        // never gets.
+        errorText: ' ',
+        errorStyle: const TextStyle(height: 0, fontSize: 0),
         fillColor: background,
       ),
     );
@@ -97,6 +119,37 @@ class AceFormField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AstryxSpace.s1_5),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AstryxSpace.s1,
+              top: AstryxSpace.s1,
+            ),
+            child: Semantics(
+              liveRegion: true,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: AceIconView(
+                      icon: AceIcons.error,
+                      size: 15,
+                      color: c.error,
+                    ),
+                  ),
+                  const SizedBox(width: AstryxSpace.s1_5),
+                  Expanded(
+                    child: Text(
+                      error!,
+                      style: AstryxText.supporting(c.error),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (error != null) const SizedBox(height: AstryxSpace.s1_5),
         if (trailing == null)
           labelled
         else

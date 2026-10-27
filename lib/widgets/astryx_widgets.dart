@@ -750,30 +750,42 @@ class BrandMark extends StatelessWidget {
 
 
 
-/// The Material 3 Expressive loading indicator.
+/// The Material 3 progress indicator.
 ///
-/// Expressive loading is not a spinner: it is one form that morphs through
-/// Material's shape families, holding each briefly before moving on. The engine
-/// lives in `shape_morph.dart`; this is the app-facing name for it.
+/// This used to be a hand-drawn morph through Material's shape families — a
+/// replication of the Expressive loading indicator, which Flutter does not ship.
+/// A replication is a thing that drifts: it does not get the framework's timing,
+/// its reduced-motion behaviour, or its accessibility, and it was the app's own
+/// painter doing the work a component should do.
 ///
-/// It is deliberately not the envelope — at 18px inside a button there is no
-/// room for a mark, and a morphing shape reads as "working" at any size.
+/// What it is now is `CircularProgressIndicator`, with the 2024 appearance
+/// opted into once on the theme (`ProgressIndicatorThemeData.year2023: false`):
+/// a track gap, a rounded cap, and a shape that reads as progress rather than as
+/// a spinner. When [progress] is set it is determinate — a drag that scrubs the
+/// indicator is a determinate value, which is also what the M3 spec asks for.
 class AceLoader extends StatelessWidget {
   const AceLoader({super.key, this.size = 40, this.color, this.progress});
 
   final double size;
   final Color? color;
 
-  /// When set (0..1), the morph is scrubbed by that value instead of looping —
-  /// which is how pull-to-refresh turns a drag into a shape change.
+  /// When set (0..1), the indicator shows that value instead of looping —
+  /// which is how pull-to-refresh turns a drag into progress.
   final double? progress;
 
   @override
-  Widget build(BuildContext context) => AceShapeMorph(
-        size: size,
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CircularProgressIndicator(
+        value: progress,
         color: color,
-        progress: progress,
-      );
+        strokeWidth: size < 24 ? 2.5 : 4,
+        constraints: BoxConstraints.tightFor(width: size, height: size),
+      ),
+    );
+  }
 }
 
 

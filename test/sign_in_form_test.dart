@@ -48,7 +48,9 @@ void main() {
 
       final SignInOutcome outcome = form.build();
       expect(outcome.isReady, isFalse);
-      expect(outcome.error, contains('email'));
+      // The message names the fault rather than the field: a space where an
+      // address should be, and what to do about it.
+      expect(outcome.error, contains('space'));
       form.dispose();
     });
 
@@ -119,7 +121,7 @@ void main() {
       form.dispose();
     });
 
-    test('a non-numeric port falls back to the default', () {
+    test('a port that is not a number is refused, not defaulted', () {
       final SignInFormModel form = SignInFormModel();
       form.username.text = 'me';
       form.customDomain = true;
@@ -130,7 +132,12 @@ void main() {
       form.smtpHost.text = 'smtp.self-hosted.example';
       form.imapPort.text = 'not-a-port';
 
-      expect(form.build().account?.imapPort, 993);
+      // Silently using 993 here is how a wrong port became a connection
+      // failure that blamed the password.
+      final SignInOutcome outcome = form.build();
+      expect(outcome.account, isNull);
+      expect(outcome.error, contains('not a number'));
+      expect(outcome.needsAdvanced, isTrue);
       form.dispose();
     });
   });

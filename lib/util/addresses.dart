@@ -61,13 +61,45 @@ abstract final class MailAddresses {
 
   static bool isValid(String entry) => _pattern.hasMatch(emailOf(entry));
 
-  /// Returns null when every entry looks like an address, otherwise a message
-  /// naming the first one that does not.
+  /// Returns null when every entry looks like an address, otherwise a sentence
+  /// saying what is wrong with the first one that is not.
+  ///
+  /// "Not a valid email address" is the message that helps nobody: the person
+  /// already knows it is not valid — that is why the field is red. What they
+  /// cannot see is *which* of the six things it is, so this says which.
   static String? validate(String value, {String field = 'To'}) {
     final List<String> entries = split(value);
+    // Emptiness is a different question, and the caller asks it: a To line with
+    // nothing in it says "add a recipient", which is not the same sentence as
+    // "this address is wrong".
+    if (entries.isEmpty) return null;
+
     for (final String entry in entries) {
+      final String email = emailOf(entry);
+      if (email.isEmpty) {
+        return '$field: “$entry” has no address in it — try name@example.com.';
+      }
+      final int ats = '@'.allMatches(email).length;
+      if (ats == 0) {
+        return '$field: “$email” needs an @ — like name@example.com.';
+      }
+      if (ats > 1) {
+        return '$field: “$email” has more than one @. If that is two addresses, '
+            'separate them with a comma.';
+      }
+      if (email.contains(' ')) {
+        return '$field: “$email” has a space in it. If that is two addresses, '
+            'separate them with a comma.';
+      }
+      final String domain = email.split('@').last;
+      if (domain.isEmpty) {
+        return '$field: “$email” stops at the @ — add the domain.';
+      }
+      if (!domain.contains('.')) {
+        return '$field: “$domain” needs a dot in it — like example.com.';
+      }
       if (!isValid(entry)) {
-        return '$field: “$entry” is not a valid email address.';
+        return '$field: “$email” does not look like an address.';
       }
     }
     return null;

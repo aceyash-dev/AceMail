@@ -165,9 +165,9 @@ class SignInFormModel {
     if (customDomain && domainField.text.trim().isEmpty) {
       return 'Enter your domain.';
     }
-    if (MailAddresses.validate(email, field: 'Email') != null) {
-      return 'Enter a valid email address.';
-    }
+    final String? address =
+        MailAddresses.validate(email, field: 'Email');
+    if (address != null) return address;
     return null;
   }
 
@@ -182,8 +182,9 @@ class SignInFormModel {
     if (customDomain && domainField.text.trim().isEmpty) {
       return const SignInOutcome(error: 'Enter your domain.');
     }
-    if (MailAddresses.validate(address, field: 'Email') != null) {
-      return const SignInOutcome(error: 'Enter a valid email address.');
+    final String? addressProblem = MailAddresses.validate(address, field: 'Email');
+    if (addressProblem != null) {
+      return SignInOutcome(error: addressProblem);
     }
     // A Google account has no password to ask for: it signs in on Google's own
     // screen, and the button that does it is not this form.
@@ -195,6 +196,41 @@ class SignInFormModel {
         error: 'Enter the IMAP and SMTP servers for your provider.',
         needsAdvanced: true,
       );
+    }
+    // A server name is a host, not a URL: people paste `imaps://imap.x.com/`
+    // from a provider's help page, and the connection then fails with
+    // something that blames the password.
+    for (final (String label, TextEditingController field) in <(String, TextEditingController)>[
+      ('IMAP server', imapHost),
+      ('SMTP server', smtpHost),
+    ]) {
+      final String value = field.text.trim();
+      if (value.contains('://') || value.contains('/') || value.contains(' ')) {
+        return SignInOutcome(
+          error: '$label: use the host on its own, like imap.example.com — '
+              'not a URL and no spaces.',
+          needsAdvanced: true,
+        );
+      }
+    }
+    for (final (String label, TextEditingController field) in <(String, TextEditingController)>[
+      ('IMAP port', imapPort),
+      ('SMTP port', smtpPort),
+    ]) {
+      final String value = field.text.trim();
+      final int? port = int.tryParse(value);
+      if (port == null) {
+        return SignInOutcome(
+          error: '$label: “$value” is not a number. Ports look like 993 or 587.',
+          needsAdvanced: true,
+        );
+      }
+      if (port < 1 || port > 65535) {
+        return SignInOutcome(
+          error: '$label: $port is outside 1–65535.',
+          needsAdvanced: true,
+        );
+      }
     }
 
     return SignInOutcome(

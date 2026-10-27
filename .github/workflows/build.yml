@@ -245,11 +245,59 @@ jobs:
           tar -czf "$GITHUB_WORKSPACE/AceMail-$VERSION-linux-x64.tar.gz" bundle
           ls -l "$GITHUB_WORKSPACE"/AceMail-*.tar.gz
 
+      # A tarball is a folder you have to know what to do with. A .deb is what
+      # a Linux desktop installs: one file, one command, an entry in the menu.
+      - name: Build a .deb
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
+          ROOT="pkgroot"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT/DEBIAN" "$ROOT/opt/ace-mail" \
+                   "$ROOT/usr/bin" "$ROOT/usr/share/applications" \
+                   "$ROOT/usr/share/icons/hicolor/512x512/apps"
+          cp -r build/linux/x64/release/bundle/. "$ROOT/opt/ace-mail/"
+
+          cat > "$ROOT/DEBIAN/control" <<CONTROL
+          Package: ace-mail
+          Version: $VERSION
+          Section: mail
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0, libsecret-1-0, libstdc++6
+          Maintainer: Ace Mail <hello@ace-base.cc>
+          Description: A fast, native IMAP/SMTP mail client.
+           Ace Mail talks to your mail provider directly over IMAP and SMTP.
+          CONTROL
+
+          printf '#!/bin/sh\nexec /opt/ace-mail/ace_mail "$@"\n' > "$ROOT/usr/bin/ace-mail"
+          chmod 755 "$ROOT/usr/bin/ace-mail"
+          cp assets/brand/mark.png "$ROOT/usr/share/icons/hicolor/512x512/apps/ace-mail.png"
+
+          cat > "$ROOT/usr/share/applications/ace-mail.desktop" <<DESKTOP
+          [Desktop Entry]
+          Type=Application
+          Name=Ace Mail
+          Comment=Fast, native mail over IMAP and SMTP
+          Exec=ace-mail
+          Icon=ace-mail
+          Terminal=false
+          Categories=Network;Email;
+          StartupWMClass=ace_mail
+          DESKTOP
+
+          # The directory, the file modes, then the package.
+          find "$ROOT" -type d -exec chmod 755 {} +
+          dpkg-deb --build --root-owner-group "$ROOT" \
+            "$GITHUB_WORKSPACE/AceMail-$VERSION-linux-amd64.deb"
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.deb
+
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ace-mail-linux
-          path: AceMail-*-linux-x64.tar.gz
+          path: |
+            AceMail-*-linux-x64.tar.gz
+            AceMail-*-linux-amd64.deb
           if-no-files-found: error
 
   ios:
@@ -286,20 +334,27 @@ jobs:
       - name: Build
         run: flutter build ios --release --no-codesign
 
+      # An .ipa is a zip with one folder in it called Payload, holding the
+      # .app. Same bytes as before, in the shape the tooling expects — an
+      # unsigned one, because signing needs a certificate this repository does
+      # not have.
       - name: Pack the app
         run: |
           VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
           cd build/ios/iphoneos
+          rm -rf Payload
+          mkdir Payload
           # -y keeps the symlinks: a .app that has been dereferenced is a much
           # bigger file, and one Xcode may refuse.
-          zip -qry "$GITHUB_WORKSPACE/AceMail-$VERSION-ios-unsigned.zip" Runner.app
-          ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
+          cp -R Runner.app Payload/
+          zip -qry "$GITHUB_WORKSPACE/AceMail-$VERSION-ios-unsigned.ipa" Payload
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.ipa
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ace-mail-ios
-          path: AceMail-*-ios-unsigned.zip
+          path: AceMail-*-ios-unsigned.ipa
           if-no-files-found: error
 
   # Windows and macOS. Neither runner is committed; tool/desktop/setup_desktop.sh
@@ -373,18 +428,27 @@ jobs:
       - name: Build
         run: flutter build macos --release
 
-      - name: Pack the app
+      # A disk image, because that is what a Mac opens: drag the app to
+      # Applications, eject. A zip leaves the person to work out that the .app
+      # inside it has to be moved somewhere before it will launch.
+      - name: Pack a disk image
         run: |
           VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | head -1 | cut -d+ -f1)
           cd build/macos/Build/Products/Release
-          zip -qry "$GITHUB_WORKSPACE/AceMail-$VERSION-macos-unsigned.zip" "ace_mail.app"
-          ls -l "$GITHUB_WORKSPACE"/AceMail-*.zip
+          hdiutil create \
+            -volname "Ace Mail" \
+            -srcfolder "ace_mail.app" \
+            -fs HFS+ \
+            -format UDZO \
+            -ov \
+            "$GITHUB_WORKSPACE/AceMail-$VERSION-macos-unsigned.dmg"
+          ls -l "$GITHUB_WORKSPACE"/AceMail-*.dmg
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: ace-mail-macos
-          path: AceMail-*-macos-unsigned.zip
+          path: AceMail-*-macos-unsigned.dmg
           if-no-files-found: error
 
   release:
@@ -465,10 +529,11 @@ jobs:
           body_path: release-notes.md
           files: |
             apk/AceMail-*.apk
+            linux/AceMail-*.deb
             linux/AceMail-*.tar.gz
-            ios/AceMail-*.zip
+            ios/AceMail-*.ipa
             windows/AceMail-*.zip
-            macos/AceMail-*.zip
+            macos/AceMail-*.dmg
           fail_on_unmatched_files: false
           prerelease: false
 
@@ -482,7 +547,7 @@ jobs:
             Built automatically from `${{ github.sha }}`.
           files: |
             apk/AceMail-*.apk
-            linux/AceMail-*.tar.gz
-            ios/AceMail-*.zip
+            linux/AceMail-*.deb
+            ios/AceMail-*.ipa
           fail_on_unmatched_files: false
           prerelease: true

@@ -34,6 +34,10 @@ abstract final class AceGlass {
           ? 'This device does not report its version, so the blur is off.'
           : 'Android 12 or later is needed for the blur. This is API $api.';
     }
+    if (Platform.isLinux || Platform.isWindows) {
+      return 'The blur is an iOS, macOS and Android 12+ effect. This build '
+          'draws a flat surface.';
+    }
     return 'This platform has no hardware backdrop blur.';
   }
 

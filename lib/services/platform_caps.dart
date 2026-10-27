@@ -16,6 +16,8 @@ abstract final class PlatformCaps {
 
   static bool get isIOS => Platform.isIOS;
 
+  static bool get isMacOS => Platform.isMacOS;
+
   static bool get isDesktop =>
       Platform.isLinux || Platform.isMacOS || Platform.isWindows;
 
@@ -24,9 +26,13 @@ abstract final class PlatformCaps {
   /// Android 12 added `RenderEffect`, which is what a real backdrop blur needs;
   /// before that the only way to fake it is to read the pixels behind the
   /// widget, which is both slow and wrong the moment anything moves. iOS has had
-  /// it since 13. Everywhere else the app draws a flat surface, which is what
-  /// the desktop builds already did.
-  static bool get supportsBlur => isIOS || (isAndroid && androidSdk >= 31);
+  /// it since 13, and macOS has had `NSVisualEffectView` since long before that.
+  ///
+  /// macOS was missing from this answer, which is why the glass never appeared
+  /// there: the setting was on, the surfaces were built, and the capability said
+  /// no.
+  static bool get supportsBlur =>
+      isIOS || isMacOS || (isAndroid && androidSdk >= 31);
 
   /// Whether the launcher will re-tint a monochrome icon layer.
   ///

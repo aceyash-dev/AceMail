@@ -557,6 +557,7 @@ class MailSession extends ChangeNotifier {
 
     final int token = ++_folderToken;
     _messageToken++; // a body fetch from the previous folder is now stale
+    loadingMessage = false; // and so is the skeleton it was holding up
     final bool sameFolder = selectedFolder?.path == folder.path;
     // Reloading the folder already on screen keeps its contents until the new
     // ones arrive; switching folders starts clean, because the old rows belong
@@ -894,6 +895,10 @@ class MailSession extends ChangeNotifier {
     _messageToken++; // anything in flight for the old message is now stale
     openMessage = null;
     openSummary = null;
+    // The stale fetch will not clear this — it checks the token before it
+    // touches anything — so closing during a load left the reader loading for
+    // ever. That is the skeleton that never resolves.
+    loadingMessage = false;
     _notify();
   }
 

@@ -360,6 +360,12 @@ ThemeData buildAstryxTheme(
         borderSide: BorderSide(color: c.error, width: 1.6),
       ),
     ),
+    // The updated Material 3 appearance, opted into once for the whole app:
+    // the 2024 slider (stop indicator, gap either side of the handle) and the
+    // 2024 progress indicator (track gap, rounded cap). Set here rather than on
+    // each widget so there is one answer, and so a widget added later is the
+    // same control as the rest.
+    sliderTheme: const SliderThemeData(year2023: false),
     chipTheme: ChipThemeData(
       shape: const StadiumBorder(),
       side: BorderSide.none,
@@ -424,6 +430,9 @@ ThemeData buildAstryxTheme(
       color: c.accent,
       linearTrackColor: c.surfaceHighest,
       circularTrackColor: Colors.transparent,
+      // The 2024 indicator: a gap between the track and the cap, and a rounded
+      // cap. Off by default until Flutter flips it, so it is asked for here.
+      year2023: false,
     ),
     dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
     tooltipTheme: TooltipThemeData(

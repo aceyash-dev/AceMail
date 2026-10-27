@@ -3,6 +3,44 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+84
+
+### Changed
+- **Material 3's own slider and progress indicator.** Both were hand-drawn
+  replications — `AceSlider` copied the Expressive slider, `AceLoader` morphed
+  through Material's shape families — because Flutter's widgets were the older
+  design. Flutter's slider has been the updated M3 one since 3.29, and a second
+  implementation of a component the framework owns is the one that goes stale: it
+  misses the framework's timing, its reduced-motion behaviour and its
+  accessibility. The 2024 appearance is now opted into once, on the theme
+  (`SliderThemeData` and `ProgressIndicatorThemeData`, `year2023: false`), and
+  `AceSlider`/`AceLoader` are thin names over `Slider` and
+  `CircularProgressIndicator`.
+- **Packages, not zips.** Linux now ships a **.deb** (installed with one command,
+  an entry in the menu) beside the tarball, macOS a **.dmg**, and iOS an
+  **.ipa** — the same bytes as the old zip, in the shape each platform's tooling
+  expects. Windows still ships a zip: there is no installer path I can verify
+  from here, and a build I cannot test is worse than an honest zip.
+
+### Fixed
+- **Liquid glass on macOS.** `supportsBlur` answered for iOS and Android 12+ and
+  not for macOS, so the setting was on, the surfaces were built, and the
+  capability said no. It answers for macOS now, and the "not supported" line
+  names what the platform actually is instead of claiming no hardware blur.
+- **A reader that stayed on its skeleton.** Closing a message while it was still
+  loading bumped the token, and the in-flight fetch then skipped the line that
+  clears `loadingMessage` — so the reader kept showing the skeleton. Closing a
+  message, and switching folders, now clear it.
+- **Errors that say what is wrong.** "Not a valid email address" told you nothing
+  you could act on. The validator now names the fault — no @, more than one @, a
+  space where a comma belongs, a domain with no dot — and the sign-in form says
+  which of its fields is at fault: a server that was pasted as a URL, a port that
+  is not a number, a port outside 1–65535.
+- **Fields that behave like fields.** Server names and addresses no longer get
+  autocorrected or auto-capitalised, and a field's error is drawn under it with
+  an icon and announced through a live region instead of being left to the
+  decoration's own red line.
+
 ## 0.6.0+83
 
 ### Changed
