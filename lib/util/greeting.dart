@@ -67,14 +67,14 @@ String greetingFor(DateTime now, {String? name}) {
   return '$greeting, $trimmed';
 }
 
-/// The folder, and what is waiting in it.
+/// The folder, under the greeting.
 ///
-/// "nothing unread" rather than "0 unread": a count of zero is a number to read
-/// and dismiss, and a sentence is not.
-String folderSummary(String folder, int unseen) {
-  if (unseen <= 0) return '$folder · nothing unread';
-  return '$folder · $unseen unread';
-}
+/// It used to say how much was unread — "Inbox · nothing unread". A hero that
+/// reports a count is a hero you read twice: the list below already says what
+/// is unread, and the number was the one part of the line that could be wrong
+/// (a folder whose STATUS had not been refreshed). The line names where you are
+/// and stops.
+String folderSummary(String folder, int unseen) => folder;
 
 /// The same line, while a search is running.
 ///

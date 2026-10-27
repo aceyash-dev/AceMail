@@ -158,6 +158,10 @@ class MailController extends ChangeNotifier {
           0,
           (int total, MailSession session) => total + session.inboxUnseen,
         ),
+        total: _sessions.fold<int>(
+          0,
+          (int total, MailSession session) => total + session.inboxTotal,
+        ),
       );
 
   MailFolder? get selectedFolder =>

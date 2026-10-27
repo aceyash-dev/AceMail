@@ -48,6 +48,14 @@ abstract final class AceGlass {
         GlassMode.auto => capable,
       };
 
+  /// The same colour, inverted: light becomes dark and the hue goes with it.
+  static Color _invert(Color colour) => Color.fromARGB(
+        colour.a > 0 ? 1 : 0,
+        255 - (colour.r * 255).round(),
+        255 - (colour.g * 255).round(),
+        255 - (colour.b * 255).round(),
+      );
+
   /// A translucent surface, blurred when the device can.
   ///
   /// [child] is laid out normally; the blur is applied to whatever is behind it,
@@ -64,6 +72,18 @@ abstract final class AceGlass {
     final GlassMode mode = context.select<Preferences, GlassMode>(
       (Preferences prefs) => prefs.glass,
     );
+    // The studio's dials, when it has been used. Null keeps the surface's own
+    // numbers, so a person who never opens the studio gets the design as drawn.
+    final double? studioBlur =
+        context.select<Preferences, double?>((Preferences p) => p.glassBlur);
+    final double? studioTint =
+        context.select<Preferences, double?>((Preferences p) => p.glassTint);
+    final bool invert =
+        context.select<Preferences, bool>((Preferences p) => p.glassInvert);
+
+    final double sigma = studioBlur ?? blur;
+    final double alpha = studioTint ??
+        (Platform.isIOS ? opacity - 0.14 : opacity);
     final BorderRadius shape =
         radius ?? BorderRadius.circular(AstryxRadius.container);
 
@@ -71,12 +91,13 @@ abstract final class AceGlass {
       decoration: BoxDecoration(
         color: enabled(mode)
             // Thinner on iOS: the material there is a sheet of light rather
-            // than a pane of smoked glass.
-            ? c.backgroundCard
-                .withValues(alpha: Platform.isIOS ? opacity - 0.14 : opacity)
+            // than a pane of smoked glass. Inverted flips the tint, which is
+            // the difference between frosted glass and smoked glass.
+            ? (invert ? _invert(c.backgroundCard) : c.backgroundCard)
+                .withValues(alpha: alpha.clamp(0.0, 1.0))
             // Opaque when it cannot blur. The colour is the same, so the layout
             // does not move when the material changes.
-            : c.backgroundCard,
+            : (invert ? _invert(c.backgroundCard) : c.backgroundCard),
         borderRadius: shape,
         border: bordered ? Border.all(color: c.border) : null,
       ),
@@ -89,8 +110,8 @@ abstract final class AceGlass {
       borderRadius: shape,
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: blur,
-          sigmaY: blur,
+          sigmaX: sigma,
+          sigmaY: sigma,
           // A tile mode keeps the edges from going transparent where the blur
           // reaches past the source.
           tileMode: TileMode.mirror,

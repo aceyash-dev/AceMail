@@ -88,6 +88,9 @@ class Preferences extends ChangeNotifier {
   static const String _keyAvatars = 'ace.showAvatars';
   static const String _keyUpdateCheck = 'ace.updateCheck';
   static const String _keyCollapsedSections = 'ace.collapsedSections';
+  static const String _keyGlassBlur = 'ace.glassBlur';
+  static const String _keyGlassTint = 'ace.glassTint';
+  static const String _keyGlassInvert = 'ace.glassInvert';
   static const String _keyLastUpdateCheck = 'ace.lastUpdateCheck';
   static const String _keyTheme = 'ace.themeMode';
   static const String _keyTextSize = 'ace.textSize';
@@ -257,6 +260,12 @@ class Preferences extends ChangeNotifier {
   /// that is off and mentions an endpoint you do not have is a feature you
   /// never turn on. It is on, the settings offer a provider, and the sheet says
   /// plainly when there is not one yet.
+  /// The glass, as the studio left it. Null means "whatever the surface asks
+  /// for", which is how the app looked before the studio existed.
+  double? _glassBlur;
+  double? _glassTint;
+  bool _glassInvert = false;
+
   /// The settings sections somebody has folded away, by title.
   ///
   /// Folding is a decision about *this* screen — which categories you never
@@ -434,6 +443,35 @@ class Preferences extends ChangeNotifier {
 
   /// Whether opening the app asks for a fingerprint or a face first.
   bool get appLock => _appLock;
+
+  /// The blur radius the glass should use, or null for each surface's own.
+  double? get glassBlur => _glassBlur;
+
+  /// The tint strength (0–1), or null for each surface's own.
+  double? get glassTint => _glassTint;
+
+  /// Whether the tint is inverted — a dark pane where the surface is light.
+  bool get glassInvert => _glassInvert;
+
+  Future<void> setGlassBlur(double value) =>
+      _write(_keyGlassBlur, '$value', () => _glassBlur = value);
+
+  Future<void> setGlassTint(double value) =>
+      _write(_keyGlassTint, '$value', () => _glassTint = value);
+
+  Future<void> setGlassInvert(bool value) =>
+      _write(_keyGlassInvert, '$value', () => _glassInvert = value);
+
+  /// Back to the defaults every surface was designed with.
+  Future<void> resetGlass() => _write(
+        _keyGlassBlur,
+        '',
+        () {
+          _glassBlur = null;
+          _glassTint = null;
+          _glassInvert = false;
+        },
+      );
 
   /// Whether [title]'s section was folded away last time.
   bool sectionCollapsed(String title) => _collapsedSections.contains(title);
@@ -724,6 +762,9 @@ class Preferences extends ChangeNotifier {
     _privatePreviews =
         _decodeBool(raw[_keyPrivatePreviews], _privatePreviews);
     _collapsedSections = _decodeStringSet(raw[_keyCollapsedSections]);
+    _glassBlur = double.tryParse(raw[_keyGlassBlur] ?? '');
+    _glassTint = double.tryParse(raw[_keyGlassTint] ?? '');
+    _glassInvert = _decodeBool(raw[_keyGlassInvert], _glassInvert);
     _updateCheck = _decodeBool(raw[_keyUpdateCheck], _updateCheck);
     _lastUpdateCheck = DateTime.tryParse(raw[_keyLastUpdateCheck] ?? '');
     _chymeEnabled = _decodeBool(raw[_keyChymeEnabled], _chymeEnabled);

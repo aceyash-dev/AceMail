@@ -29,6 +29,7 @@ import 'changelog_screen.dart';
 import '../widgets/ace_glass.dart';
 import '../models/chyme_template.dart';
 import '../widgets/diagnostics_sheet.dart';
+import '../widgets/glass_studio.dart';
 import '../widgets/update_sheet.dart';
 import '../widgets/chyme_mark.dart';
 import '../widgets/chyme_pickers.dart';
@@ -428,6 +429,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: 'Which mark it wears. The background is the accent, '
                       'and follows it.',
                   value: prefs.launcherMark.label,
+                  trailing: _MarkPreview(mark: prefs.launcherMark, accent: prefs.accent),
                   onTap: () async {
                     final LauncherMark? mark = await showChoiceSheet<LauncherMark>(
                       context,
@@ -439,6 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             m,
                             m.label,
                             description: m.description,
+                            leading: _MarkPreview(mark: m, accent: prefs.accent),
                           ),
                       ],
                     );
@@ -449,6 +452,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     await LauncherIcon.apply(prefs.accent, mark: mark);
                   },
                 ),
+                if (AceGlass.capable)
+                  SettingsRow(
+                    icon: AceIcons.blur,
+                    title: 'Glass studio',
+                    subtitle: 'Blur, tint, and smoked instead of frosted — with '
+                        'a preview of the real material.',
+                    onTap: () => GlassStudio.show(context),
+                  ),
                 SettingsRow(
                   icon: AceIcons.blur,
                   title: 'See-through surfaces',
@@ -1477,4 +1488,30 @@ String _shortDate(DateTime when) {
   final String hour = when.hour.toString().padLeft(2, '0');
   final String minute = when.minute.toString().padLeft(2, '0');
   return '${when.day} ${months[when.month - 1]} ${when.year}, $hour:$minute';
+}
+
+/// The mark as the launcher draws it, on the accent it will wear.
+///
+/// The picker used to offer four words. A launcher icon is a picture, and the
+/// only way to choose one is to see it — at the size and on the background it
+/// will actually appear.
+class _MarkPreview extends StatelessWidget {
+  const _MarkPreview({required this.mark, required this.accent});
+
+  final LauncherMark mark;
+  final AceAccent accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: accent.seed,
+        borderRadius: BorderRadius.circular(AstryxRadius.inner),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset(mark.asset, fit: BoxFit.cover),
+    );
+  }
 }

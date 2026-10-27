@@ -3,6 +3,45 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+86
+
+### Changed
+- **Chyme proposes; you decide.** Star, unstar, mark read, archive, delete,
+  reply, and the three contact actions are no longer carried out when it asks
+  for them. Each one arrives as a card — *Chyme wants to · Star "Re: invoice"* —
+  with **Do it** and **No**, and nothing touches the mail until one is pressed.
+  Reading (`search`, `read`, `contacts`) still runs, because reading is what it
+  was asked to do and changes nothing.
+- **Chyme's first screen is a hero, not a menu.** A mark, "What needs doing?",
+  and a row of cards to flick through — each with an icon, a title and what it
+  will do — instead of a paragraph of explanation and seven underlined prompts.
+- **The hero no longer counts.** "Inbox · nothing unread" is "Inbox": the list
+  below already says what is unread, and the count was the one part of the line
+  that could be stale.
+- **Folders show how much mail they hold**, capped at **999+**, in a pill that is
+  accent-coloured only when something in that folder is unread. A count is what
+  a list of folders is for; unread is already said by the rows.
+
+### Added
+- **Glass studio.** Blur, tint strength and an inverted tint — smoked glass
+  instead of frosted — with a preview that is the real material, drawn by the
+  same code as every other surface, over a backdrop worth blurring. Reachable
+  from Settings → Appearance, only on devices that can blur.
+- **The launcher marks are previewed.** The picker draws each mark at 38px on
+  the accent it will wear, in the row and in the list, instead of offering four
+  words.
+
+### Fixed
+- **A thousand messages are cached, not five hundred.** Opening a folder you have
+  read should not wait on the network; the byte bound went up with it, because
+  the count alone is not what keeps the cache honest.
+- **Credentials do not ride an automatic backup.** Android's backup can restore a
+  sealed record whose key — held in the device keystore — never came back, which
+  produces exactly one symptom: signed out, every launch. `allowBackup` is off.
+- **A save is now read back before it is called a save.** The store opens the
+  record it just wrote; if it does not open, the failure is reported then,
+  instead of appearing as a sign-in prompt at the next start.
+
 ## 0.6.0+85
 
 ### Changed

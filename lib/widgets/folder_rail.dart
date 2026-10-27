@@ -323,7 +323,7 @@ class _FolderTile extends StatelessWidget {
                           : AstryxText.body(foreground),
                     ),
                   ),
-                  if (showCounts && folder.unseen > 0)
+                  if (showCounts && folder.total > 0)
                     AnimatedContainer(
                       duration: AstryxMotion.fast,
                       padding: const EdgeInsets.symmetric(
@@ -331,15 +331,27 @@ class _FolderTile extends StatelessWidget {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        // Inverted on the selected tile, or the badge would be
-                        // an accent pill on an accent background.
-                        color: selected ? c.onAccent : c.accent,
+                        // Unread mail is the one thing a count should shout
+                        // about, so the pill is accent only when something is
+                        // waiting; otherwise it is a quiet grey.
+                        color: selected
+                            ? c.onAccent
+                            : (folder.unseen > 0
+                                ? c.accent
+                                : c.surfaceHighest),
                         borderRadius: BorderRadius.circular(AstryxRadius.full),
                       ),
                       child: Text(
-                        '${folder.unseen}',
+                        // Capped: a folder with 12,481 messages is a folder
+                        // with "lots", and four digits in a pill is a pill
+                        // that pushes the folder's name out of the rail.
+                        folder.total > 999 ? '999+' : '${folder.total}',
                         style: AstryxText.caption(
-                          selected ? c.accent : c.onAccent,
+                          selected
+                              ? c.accent
+                              : (folder.unseen > 0
+                                  ? c.onAccent
+                                  : c.textSecondary),
                         ),
                       ),
                     ),

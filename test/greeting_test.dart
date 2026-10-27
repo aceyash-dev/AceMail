@@ -87,14 +87,16 @@ void main() {
   });
 
   group('folderSummary', () {
-    test('names the folder and the count', () {
-      expect(folderSummary('Inbox', 3), 'Inbox · 3 unread');
-      expect(folderSummary('Inbox', 1), 'Inbox · 1 unread');
-    });
+    test('a folder with a name of its own keeps it', () {
+    expect(folderSummary('All inboxes', 3), 'All inboxes');
+  });
 
-    test('a count of zero is a sentence, not a number', () {
-      expect(folderSummary('Inbox', 0), 'Inbox · nothing unread');
-      expect(folderSummary('Archive', -1), 'Archive · nothing unread');
-    });
+    test('the line names the folder and nothing else', () {
+    // The hero used to report a count. It is the folder's name now: the list
+    // below already says what is unread, and a number that can be stale is a
+    // number that makes the whole screen look stale.
+    expect(folderSummary('Inbox', 0), 'Inbox');
+    expect(folderSummary('Inbox', 12), 'Inbox');
+  });
   });
 }

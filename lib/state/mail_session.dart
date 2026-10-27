@@ -442,6 +442,14 @@ class MailSession extends ChangeNotifier {
 
   bool get hasMore => searchQuery == null && messages.length < _uids.length;
 
+  /// How much mail the inbox holds, for the rail's count.
+  int get inboxTotal {
+    for (final MailFolder folder in folders) {
+      if (folder.role == FolderRole.inbox) return folder.total;
+    }
+    return 0;
+  }
+
   String? get trashPath => _folderPathFor(FolderRole.trash);
 
   String? get sentPath => _folderPathFor(FolderRole.sent);

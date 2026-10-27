@@ -35,6 +35,18 @@ enum LauncherMark {
   /// What the setting calls it.
   final String label;
 
+  /// The drawing, bundled for the picker's preview.
+  String get asset => switch (this) {
+        LauncherMark.ink =>
+          'android/app/src/main/res/drawable-nodpi/ic_launcher_mark_envelope.png',
+        LauncherMark.heart =>
+          'android/app/src/main/res/drawable-nodpi/ic_launcher_mark_a.png',
+        LauncherMark.bear =>
+          'android/app/src/main/res/drawable-nodpi/ic_launcher_mark_sealed.png',
+        LauncherMark.doodle =>
+          'android/app/src/main/res/drawable-nodpi/ic_launcher_mark_open.png',
+      };
+
   /// What the drawing actually is, for the picker.
   final String description;
 }

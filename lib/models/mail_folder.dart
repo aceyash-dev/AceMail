@@ -23,6 +23,7 @@ class MailFolder {
     required this.path,
     required this.role,
     required this.unseen,
+    this.total = 0,
     this.uidValidity,
   });
 
@@ -31,16 +32,25 @@ class MailFolder {
   final FolderRole role;
   final int unseen;
 
+  /// How many messages the folder holds, as the server last said.
+  ///
+  /// The rail shows this rather than the unread count: "how much mail is in
+  /// here" is the question a list of folders answers, and unread is already
+  /// said by the rows themselves. Zero means the server did not say, which is
+  /// shown as nothing rather than as "0".
+  final int total;
+
   /// The same folder with a different unread count.
   ///
   /// The count is the one thing about a folder that changes while it is on
   /// screen: reading a message makes it one less. [MailFolder] is immutable, so
   /// the session replaces the entry rather than mutating it.
-  MailFolder copyWith({int? unseen}) => MailFolder(
+  MailFolder copyWith({int? unseen, int? total}) => MailFolder(
         name: name,
         path: path,
         role: role,
         unseen: unseen ?? this.unseen,
+        total: total ?? this.total,
         uidValidity: uidValidity,
       );
 
@@ -57,6 +67,7 @@ class MailFolder {
         path: mailbox.path,
         role: _roleOf(mailbox),
         unseen: mailbox.messagesUnseen,
+        total: mailbox.messagesExists ?? 0,
         uidValidity: mailbox.uidValidity,
       );
 

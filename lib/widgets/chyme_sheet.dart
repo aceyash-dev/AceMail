@@ -169,11 +169,9 @@ class _ChymeSheetState extends State<ChymeSheet> {
         ..._turns,
       ];
 
-      // A loop, not one request: Chyme asks for something, the app runs it, and
-      // the answer goes back into the conversation. Everything that changes
-      // anything goes through the controller, so a star from here is the same
-      // star as the toolbar's — and the three things that cannot be undone ask
-      // their own question before they happen.
+      // A loop, not one request: Chyme asks to read something, the app reads it,
+      // and the answer goes back into the conversation. Anything that *changes*
+      // mail is proposed instead, and waits for a button below the answer.
       final ChymeRun run = await Chyme.run(
         endpoint: prefs.chymeEndpoint,
         apiKey: prefs.chymeKey,
@@ -196,13 +194,109 @@ class _ChymeSheetState extends State<ChymeSheet> {
     }
   }
 
+  /// What Chyme has proposed and the person has not answered yet.
+  final List<_Proposal> _pending = <_Proposal>[];
+
+  /// What was actually done, once somebody said yes.
+  final List<String> _done = <String>[];
+
+  /// Tools that change something. These are proposed, never taken: an assistant
+  /// that archives your mail while you read the sentence about archiving it is
+  /// an assistant you stop letting near your mail.
+  static const Set<String> _acts = <String>{
+    'star',
+    'unstar',
+    'seen',
+    'archive',
+    'delete',
+    'reply',
+    'contact_add',
+    'contact_block',
+    'contact_delete',
+  };
+
+  /// The tools Chyme is given: reads run, writes wait for a button.
+  Map<String, ChymeTool> _tools(MailController controller) {
+    final Map<String, ChymeTool> real = _perform(controller);
+    return <String, ChymeTool>{
+      for (final MapEntry<String, ChymeTool> entry in real.entries)
+        entry.key: _acts.contains(entry.key)
+            ? (String argument) async {
+                _propose(entry.key, argument);
+                return 'Proposed to the person. Nothing has been done yet — '
+                    'they have a button for it.';
+              }
+            : entry.value,
+    };
+  }
+
+  void _propose(String name, String argument) {
+    if (_pending.any((_Proposal p) => p.name == name && p.argument == argument)) {
+      return;
+    }
+    _pending.add(_Proposal(
+      name: name,
+      argument: argument,
+      label: _proposalLabel(name, argument),
+    ));
+  }
+
+  String _proposalLabel(String name, String argument) {
+    final String subject = _subjectFor(argument);
+    return switch (name) {
+      'star' => subject.isEmpty ? 'Star it' : 'Star “$subject”',
+      'unstar' => subject.isEmpty ? 'Remove the star' : 'Unstar “$subject”',
+      'seen' => subject.isEmpty ? 'Mark it read' : 'Mark “$subject” read',
+      'archive' => subject.isEmpty ? 'Archive it' : 'Archive “$subject”',
+      'delete' => subject.isEmpty ? 'Delete it' : 'Delete “$subject”',
+      'reply' => 'Open this reply in the composer',
+      'contact_add' => 'Save this address to contacts',
+      'contact_block' => 'Block ${argument.split('|').last.trim()}',
+      'contact_delete' => 'Forget ${argument.split('|').last.trim()}',
+      _ => name,
+    };
+  }
+
+  String _subjectFor(String argument) {
+    final MailController controller = context.read<MailController>();
+    final MessageSummary? message = _find(controller, argument);
+    final String subject = message?.subject.trim() ?? '';
+    if (subject.isEmpty) return '';
+    return subject.length > 34 ? '${subject.substring(0, 33)}…' : subject;
+  }
+
+  /// Runs one proposal, because somebody pressed its button.
+  Future<void> _confirmProposal(_Proposal proposal) async {
+    final MailController controller = context.read<MailController>();
+    setState(() {
+      _pending.remove(proposal);
+      _busy = true;
+    });
+    try {
+      final ChymeTool? tool = _perform(controller)[proposal.name];
+      final String result = (tool == null
+              ? 'There is no tool called ${proposal.name}.'
+              : await tool(proposal.argument)) ??
+          'Done.';
+      if (!mounted) return;
+      setState(() => _done.add(result));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _dismissProposal(_Proposal proposal) {
+    setState(() {
+      _pending.remove(proposal);
+      _done.add('Left it alone.');
+    });
+  }
+
   /// Everything Chyme may do, and what it is told afterwards.
   ///
   /// Read-only tools run silently, because reading is what it was asked to do.
-  /// The three that destroy something ask first, and say so when the answer is
-  /// no — a model told "declined" stops asking, and a model told nothing tries
-  /// again with a different number.
-  Map<String, ChymeTool> _tools(MailController controller) {
+  /// The rest are reached only through [_confirmProposal], which is a button.
+  Map<String, ChymeTool> _perform(MailController controller) {
     return <String, ChymeTool>{
       // The message on screen, in full. The prompt already carries a shortened
       // copy so a question about it needs no tool at all; this is for the long
@@ -615,6 +709,18 @@ class _ChymeSheetState extends State<ChymeSheet> {
                                     .openSummary !=
                                 null,
                           ),
+                        for (final _Proposal proposal in _pending) ...<Widget>[
+                          const SizedBox(height: AstryxSpace.s3),
+                          _ProposalCard(
+                            proposal: proposal,
+                            onConfirm: () => _confirmProposal(proposal),
+                            onDismiss: () => _dismissProposal(proposal),
+                          ),
+                        ],
+                        for (final String note in _done) ...<Widget>[
+                          const SizedBox(height: AstryxSpace.s2),
+                          _DoneNote(text: note),
+                        ],
                         if (_search != null)
                           _SearchOffer(
                             query: _search!,
@@ -672,35 +778,85 @@ class _ChymeSheetState extends State<ChymeSheet> {
   }
 
   /// What to ask, when somebody has opened Chyme and does not know what to ask.
+  ///
+  /// A hero and a row of cards, because the first thing this sheet says decides
+  /// whether it is an assistant or a settings page: a paragraph of explanation
+  /// and seven underlined prompts is a menu, and nobody reads a menu.
   Widget _suggestions(AstryxColors c, MailController controller) {
-    // Openers that ask for something the app cannot do by itself. "Summarise
-    // this" is a button; "what is this actually asking for" is the question
-    // somebody opens an assistant with.
     final bool hasOpen = controller.openMessage != null;
-    final List<String> prompts = <String>[
-      if (hasOpen) 'What is this actually asking me for?',
-      if (hasOpen) 'Draft a reply saying I will look at it tomorrow.',
-      if (hasOpen) 'Star this and mark it read.',
-      'What needs answering today?',
-      'Find the last invoice or receipt.',
-      'Anything from my bank this week?',
-      'Add this sender to my contacts.',
+
+    final List<_Prompt> prompts = <_Prompt>[
+      if (hasOpen)
+        _Prompt(
+          icon: AceIcons.mailOpen,
+          title: 'What is this asking for?',
+          subtitle: 'Read it, and tell me',
+          prompt: 'What is this actually asking me for?',
+        ),
+      if (hasOpen)
+        _Prompt(
+          icon: AceIcons.reply,
+          title: 'Draft a reply',
+          subtitle: 'Opens in your composer',
+          prompt: 'Draft a reply saying I will look at it tomorrow.',
+        ),
+      _Prompt(
+        icon: AceIcons.inbox,
+        title: 'What needs answering?',
+        subtitle: 'Today, in one list',
+        prompt: 'What needs answering today?',
+      ),
+      _Prompt(
+        icon: AceIcons.search,
+        title: 'Find an invoice',
+        subtitle: 'Search your mail',
+        prompt: 'Find the last invoice or receipt.',
+      ),
+      _Prompt(
+        icon: AceIcons.shield,
+        title: 'Anything from my bank?',
+        subtitle: 'This week',
+        prompt: 'Anything from my bank this week?',
+      ),
     ];
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        const SizedBox(height: AstryxSpace.s6),
+        Center(child: ChymeMark(size: 62, color: c.accent)),
+        const SizedBox(height: AstryxSpace.s4),
         Text(
-          'Chyme reads the mail in front of you, and can act on it: star, '
-          'archive, delete, reply, and keep your contacts. It never sends '
-          'anything itself — a reply it writes opens in your composer.',
+          'What needs doing?',
+          textAlign: TextAlign.center,
+          style: AstryxText.heading2(c.textPrimary),
+        ),
+        const SizedBox(height: AstryxSpace.s2),
+        Text(
+          'Chyme reads the mail in front of you. It can propose a star, an '
+          'archive, a reply — and it asks before any of them happens.',
+          textAlign: TextAlign.center,
           style: AstryxText.supporting(c.textSecondary),
         ),
-        const SizedBox(height: AstryxSpace.s4),
-        for (final String prompt in prompts) ...<Widget>[
-          _Opener(label: prompt, onTap: () => _send(prompt)),
-          const SizedBox(height: AstryxSpace.s2),
-        ],
+        const SizedBox(height: AstryxSpace.s5),
+        // Sideways, so the cards are a row to flick through rather than a
+        // column to scroll past.
+        SizedBox(
+          height: 132,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s1),
+            itemCount: prompts.length,
+            separatorBuilder: (_, __) => const SizedBox(width: AstryxSpace.s3),
+            itemBuilder: (BuildContext context, int index) {
+              final _Prompt item = prompts[index];
+              return _PromptCard(
+                prompt: item,
+                onTap: () => _send(item.prompt),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -1042,6 +1198,177 @@ class _Opener extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One thing worth asking, as a card.
+class _Prompt {
+  const _Prompt({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.prompt,
+  });
+
+  final AceIcon icon;
+  final String title;
+  final String subtitle;
+  final String prompt;
+}
+
+class _PromptCard extends StatelessWidget {
+  const _PromptCard({required this.prompt, required this.onTap});
+
+  final _Prompt prompt;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return SizedBox(
+      width: 196,
+      child: AceSpringy(
+        onTap: onTap,
+        semanticLabel: prompt.title,
+        builder: (BuildContext context, double press, bool hover) => Container(
+          padding: const EdgeInsets.all(AstryxSpace.s4),
+          decoration: BoxDecoration(
+            color: c.surfaceHighest,
+            borderRadius: BorderRadius.circular(AstryxRadius.lg),
+            border: Border.all(
+              color: hover ? c.accent : c.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: c.accentMuted,
+                  borderRadius: BorderRadius.circular(AstryxRadius.element),
+                ),
+                child: Center(
+                  child: AceIconView(icon: prompt.icon, size: 20, color: c.accent),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                prompt.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AstryxText.bodyStrong(c.textPrimary),
+              ),
+              const SizedBox(height: AstryxSpace.s0_5),
+              Text(
+                prompt.subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AstryxText.supporting(c.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Something Chyme wants to do, and has not done.
+class _Proposal {
+  const _Proposal({
+    required this.name,
+    required this.argument,
+    required this.label,
+  });
+
+  final String name;
+  final String argument;
+  final String label;
+}
+
+/// The button that stands between a proposal and the mail.
+class _ProposalCard extends StatelessWidget {
+  const _ProposalCard({
+    required this.proposal,
+    required this.onConfirm,
+    required this.onDismiss,
+  });
+
+  final _Proposal proposal;
+  final VoidCallback onConfirm;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return Container(
+      padding: const EdgeInsets.all(AstryxSpace.s3),
+      decoration: BoxDecoration(
+        color: c.accentMuted,
+        borderRadius: BorderRadius.circular(AstryxRadius.container),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              AceIconView(icon: AceIcons.chyme, size: 16, color: c.accent),
+              const SizedBox(width: AstryxSpace.s2),
+              Expanded(
+                child: Text(
+                  'Chyme wants to',
+                  style: AstryxText.caption(c.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AstryxSpace.s1),
+          Text(proposal.label, style: AstryxText.bodyStrong(c.textPrimary)),
+          const SizedBox(height: AstryxSpace.s3),
+          Row(
+            children: <Widget>[
+              AceButton(
+                label: 'Do it',
+                variant: AceButtonVariant.primary,
+                onPressed: onConfirm,
+              ),
+              const SizedBox(width: AstryxSpace.s2),
+              AceButton(
+                label: 'No',
+                variant: AceButtonVariant.ghost,
+                onPressed: onDismiss,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What happened after a button was pressed.
+class _DoneNote extends StatelessWidget {
+  const _DoneNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        AceIconView(icon: AceIcons.check, size: 15, color: c.textSecondary),
+        const SizedBox(width: AstryxSpace.s2),
+        Expanded(
+          child: Text(text, style: AstryxText.supporting(c.textSecondary)),
+        ),
+      ],
     );
   }
 }

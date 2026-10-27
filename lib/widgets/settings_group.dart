@@ -264,11 +264,20 @@ class SettingsSwitchRow extends StatelessWidget {
 
 /// One option in a [showChoiceSheet].
 class SettingsChoice<T> {
-  const SettingsChoice(this.value, this.label, {this.description});
+  const SettingsChoice(
+    this.value,
+    this.label, {
+    this.description,
+    this.leading,
+  });
 
   final T value;
   final String label;
   final String? description;
+
+  /// A picture or a colour beside the name. A list of drawings that shows only
+  /// their names is a list you have to guess from.
+  final Widget? leading;
 }
 
 /// A sheet of mutually exclusive options. Returns the chosen value, or null if
@@ -312,6 +321,7 @@ Future<T?> showChoiceSheet<T>(
                       onTap: () => Navigator.of(sheetContext).pop(choice.value),
                       title: choice.label,
                       subtitle: choice.description,
+                      leading: choice.leading,
                       selected: choice.value == current,
                       trailing: choice.value == current
                           ? AceIconView(icon: AceIcons.check, color: c.accent)

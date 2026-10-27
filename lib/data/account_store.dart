@@ -307,6 +307,16 @@ class AccountStore {
             },
         ],
       });
+
+      // Read it back. A save that returns success without the record opening
+      // again is the failure this whole file exists to prevent — and it is
+      // invisible until the next launch, when it looks like being signed out
+      // for no reason. One read is cheap next to that.
+      final Map<String, Object?>? check = await _readRecord();
+      if (check == null) {
+        return 'The account was saved but could not be read back. It may not '
+            'be remembered next time.';
+      }
       return null;
     } catch (_) {
       return 'This device could not save the account, so it will not be '

@@ -21,8 +21,8 @@ class LocalCache {
   LocalCache({
     required Directory directory,
     required AceVault vault,
-    this.maxEntries = 500,
-    this.maxBytes = 48 * 1024 * 1024,
+    this.maxEntries = 1000,
+    this.maxBytes = 96 * 1024 * 1024,
   })  : _directory = directory,
         _vault = vault;
 
@@ -30,6 +30,10 @@ class LocalCache {
   final AceVault _vault;
 
   /// How many records to keep before the oldest are dropped.
+  ///
+  /// A thousand: opening a folder you have already read should not wait on the
+  /// network, and a thousand bodies is roughly a month of ordinary mail. The
+  /// byte bound below is what actually keeps it honest.
   final int maxEntries;
 
   /// The other bound. [maxEntries] alone is not a bound on anything a person
