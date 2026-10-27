@@ -3,6 +3,39 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+85
+
+### Changed
+- **Linux ships an AppImage, Windows an .exe installer.** The .deb only installs
+  on the Debian family and an RPM only on Red Hat's; an AppImage carries its own
+  libraries and runs on any distribution, which is what "compatible" has to mean
+  for a download page. The Windows build is now an Inno Setup installer — a
+  Start-menu entry, an uninstaller and a desktop shortcut you can tick — instead
+  of a folder to unzip and a guess about which of the .exe files in it is the
+  app.
+
+### Added
+- **A download table in the README.** One file per platform, in the format that
+  platform installs, and what to do with it — including that the Apple builds
+  are unsigned and the AppImage is the Linux one to take.
+
+### Verified
+- **The AppImage recipe, end to end.** The AppDir assembly, the `AppRun` wrapper
+  and `appimagetool --appimage-extract-and-run` were run here against a stub
+  bundle: the tool produced a valid AppImage, and running it passed its
+  arguments through to the binary inside. That is the part of the packaging that
+  could not be checked by reading it.
+
+### Fixed
+- **The release page lists what it actually builds.** With the formats changed,
+  the file patterns the publish job attaches were pointing at a .deb and a .zip
+  that no longer exist.
+- **The Windows installer no longer fails over a missing icon.** `flutter create`
+  writes `windows/runner/resources/app_icon.ico`, and the Inno Setup script asked
+  for it unconditionally: a runner that generated the project differently would
+  have failed the whole Windows job over a picture. The line is included only
+  when the file is there.
+
 ## 0.6.0+84
 
 ### Changed
