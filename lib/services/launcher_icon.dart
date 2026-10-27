@@ -20,15 +20,23 @@ import '../data/accents.dart';
 /// named one thing in the picker and another in the manifest is a mark that
 /// silently does nothing.
 enum LauncherMark {
-  envelope('', 'Envelope'),
-  sealed('Sealed', 'Sealed'),
-  letterA('A', 'A'),
-  open('Open', 'Open envelope');
+  ink('', 'Ink', 'A plain, solid envelope. The quietest of the four.'),
+  heart('A', 'Heart', 'A cream envelope with a red heart on the flap.'),
+  bear('Sealed', 'Bear', 'A brown envelope sealed with a little bear.'),
+  doodle('Open', 'Doodle', 'An outlined envelope with a hand-drawn pink heart.');
 
-  const LauncherMark(this.suffix, this.label);
+  const LauncherMark(this.suffix, this.label, this.description);
 
+  /// What the Kotlin appends to the alias name. `A` and `Sealed` are what the
+  /// aliases have always been called; the names the picker shows were changed
+  /// to describe the drawings, and these are the drawings' old keys.
   final String suffix;
+
+  /// What the setting calls it.
   final String label;
+
+  /// What the drawing actually is, for the picker.
+  final String description;
 }
 
 abstract final class LauncherIcon {
@@ -41,7 +49,7 @@ abstract final class LauncherIcon {
   /// asked for. What is a choice is the mark.
   static Future<void> apply(
     AceAccent accent, {
-    LauncherMark mark = LauncherMark.envelope,
+    LauncherMark mark = LauncherMark.ink,
   }) async {
     try {
       await _channel.invokeMethod<bool>('setLauncherAccent', <String, Object?>{

@@ -3,6 +3,39 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+83
+
+### Changed
+- **The launcher marks are named for what they are.** The picker offered "A",
+  "Sealed" and "Open envelope" for drawings that are a red heart on a cream
+  envelope, a bear sticker on a brown one, and a hand-drawn pink heart — names
+  left over from artwork they no longer matched. They are **Ink**, **Heart**,
+  **Bear** and **Doodle** now, each with a line saying what the drawing is. The
+  alias suffixes are unchanged, so an icon already on a home screen stays where
+  it is.
+- **Long-press opens a message's actions instead of starting a selection.**
+  Reply, Forward, mark read or unread, star, archive, move to a folder, spam,
+  delete, *Ask Chyme about this*, and **Select** — picking is now something you
+  choose rather than something a press assumes. While a selection is up, a
+  long-press still picks, so the gesture that started it still works.
+
+### Added
+- **Chyme, from more places.** The message list's long-press sheet and the
+  reader's More menu both offer *Ask Chyme about this* — what the message wants,
+  and what a reply would say — without opening it first, because Chyme reads the
+  message itself by uid.
+
+### Smoother
+- **Unread is said in the ink, not in a bar.** The three-pixel accent strip down
+  the left of every card is gone: an unread sender's name is tinted and the
+  subject keeps its weight, which costs the layout nothing and stops every row
+  in the list from carrying a line down its edge.
+- **The row is a padded card again.** The clip and the stack around each message
+  existed only to round the corners of that strip.
+- **Settings remembers which sections you folded.** Folding a category was a
+  decision you had to make again on every visit; it is kept now, by title, and a
+  section that is renamed simply opens again.
+
 ## 0.6.0+82
 
 The build that goes with the `v0.6.0+82` release: everything below is in it, and

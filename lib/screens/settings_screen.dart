@@ -96,8 +96,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: AstryxSpace.s8),
           children: <Widget>[
-            SettingsSection(
-              title: 'Account',
+            _section(
+              prefs,
+              'Account',
               children: <Widget>[
                 SettingsRow(
                   icon: AceIcons.at,
@@ -155,8 +156,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Reading',
+            _section(
+              prefs,
+              'Reading',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.mailOpen,
@@ -232,8 +234,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Notifications',
+            _section(
+              prefs,
+              'Notifications',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.mailUnread,
@@ -275,8 +278,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Writing',
+            _section(
+              prefs,
+              'Writing',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.at,
@@ -306,8 +310,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Gestures',
+            _section(
+              prefs,
+              'Gestures',
               children: <Widget>[
                 SettingsRow(
                   icon: AceIcons.swipeRight,
@@ -348,8 +353,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Appearance',
+            _section(
+              prefs,
+              'Appearance',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.list,
@@ -429,7 +435,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       current: prefs.launcherMark,
                       choices: <SettingsChoice<LauncherMark>>[
                         for (final LauncherMark m in LauncherMark.values)
-                          SettingsChoice<LauncherMark>(m, m.label),
+                          SettingsChoice<LauncherMark>(
+                            m,
+                            m.label,
+                            description: m.description,
+                          ),
                       ],
                     );
                     if (mark == null) return;
@@ -506,8 +516,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Privacy',
+            _section(
+              prefs,
+              'Privacy',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.shield,
@@ -537,9 +548,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const _CacheRow(),
               ],
             ),
-            SettingsSection(
+            _section(
+              prefs,
+              'Chyme',
               key: _chymeKey,
-              title: 'Chyme',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.chyme,
@@ -647,8 +659,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ],
             ),
-            SettingsSection(
-              title: 'Accessibility',
+            _section(
+              prefs,
+              'Accessibility',
               children: <Widget>[
                 SettingsSwitchRow(
                   icon: AceIcons.visibility,
@@ -661,8 +674,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            SettingsSection(
-              title: 'Support',
+            _section(
+              prefs,
+              'Support',
               children: <Widget>[
                 SettingsRow(
                   icon: AceIcons.help,
@@ -729,6 +743,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// One settings card, with its folded state remembered.
+  ///
+  /// Every section goes through here, so "which categories do I keep closed?"
+  /// is answered in one place for all of them, and the answer survives the
+  /// screen being closed.
+  Widget _section(
+    Preferences prefs,
+    String title, {
+    Key? key,
+    required List<Widget> children,
+  }) {
+    return SettingsSection(
+      key: key,
+      title: title,
+      initiallyOpen: !prefs.sectionCollapsed(title),
+      onToggle: (bool open) => prefs.setSectionCollapsed(title, !open),
+      children: children,
     );
   }
 

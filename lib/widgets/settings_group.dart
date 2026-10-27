@@ -14,6 +14,7 @@ class SettingsSection extends StatefulWidget {
     required this.title,
     required this.children,
     this.initiallyOpen = true,
+    this.onToggle,
   });
 
   final String title;
@@ -22,6 +23,13 @@ class SettingsSection extends StatefulWidget {
   /// Open by default. A settings screen where every category starts folded is
   /// a list of headings you have to open one at a time to find anything in.
   final bool initiallyOpen;
+
+  /// Called with the new state when somebody folds or unfolds the section.
+  ///
+  /// The widget itself keeps no memory beyond its own build: where the decision
+  /// is written down is the screen's business, and a settings section that
+  /// reached into storage itself would be a widget that cannot be used twice.
+  final ValueChanged<bool>? onToggle;
 
   @override
   State<SettingsSection> createState() => _SettingsSectionState();
@@ -41,7 +49,10 @@ class _SettingsSectionState extends State<SettingsSection> {
         // you get from fourteen sections to the two you came here for.
         GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => setState(() => _open = !_open),
+          onTap: () {
+            setState(() => _open = !_open);
+            widget.onToggle?.call(_open);
+          },
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AstryxSpace.s6,

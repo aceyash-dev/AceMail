@@ -1,4 +1,5 @@
 import 'package:ace_mail/data/preferences.dart';
+import 'package:ace_mail/services/launcher_icon.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The keychain is not available in a test, which is exactly the case
@@ -101,6 +102,45 @@ void main() {
         expect(size.label, isNotEmpty);
         expect(size.scale, greaterThan(0));
       }
+    });
+  });
+
+  group('folded settings sections', () {
+    test('a folded section stays folded, and unfolds again', () async {
+      final Preferences prefs = Preferences();
+      expect(prefs.sectionCollapsed('Account'), isFalse);
+
+      await prefs.setSectionCollapsed('Account', true);
+      expect(prefs.sectionCollapsed('Account'), isTrue);
+      expect(prefs.sectionCollapsed('Reading'), isFalse,
+          reason: 'one section folding must not fold the rest');
+
+      await prefs.setSectionCollapsed('Account', false);
+      expect(prefs.sectionCollapsed('Account'), isFalse);
+    });
+  });
+
+  group('launcher marks', () {
+    test('are named for the drawing, over a suffix that does not move', () {
+      // The labels are what the picker shows; the suffixes are what the Kotlin
+      // appends to an alias name. Renaming a label must never re-point a
+      // suffix, or the setting would promise one drawing and deliver another.
+      expect(
+        LauncherMark.values.map((LauncherMark m) => m.label).toList(),
+        <String>['Ink', 'Heart', 'Bear', 'Doodle'],
+      );
+      expect(
+        LauncherMark.values.map((LauncherMark m) => m.suffix).toList(),
+        <String>['', 'A', 'Sealed', 'Open'],
+      );
+      for (final LauncherMark mark in LauncherMark.values) {
+        expect(mark.description, isNotEmpty,
+            reason: 'a mark with no description is a mark you pick blind');
+      }
+    });
+
+    test('the default is the plain one', () {
+      expect(Preferences().launcherMark, LauncherMark.ink);
     });
   });
 }

@@ -87,6 +87,7 @@ class Preferences extends ChangeNotifier {
 
   static const String _keyAvatars = 'ace.showAvatars';
   static const String _keyUpdateCheck = 'ace.updateCheck';
+  static const String _keyCollapsedSections = 'ace.collapsedSections';
   static const String _keyLastUpdateCheck = 'ace.lastUpdateCheck';
   static const String _keyTheme = 'ace.themeMode';
   static const String _keyTextSize = 'ace.textSize';
@@ -256,6 +257,14 @@ class Preferences extends ChangeNotifier {
   /// that is off and mentions an endpoint you do not have is a feature you
   /// never turn on. It is on, the settings offer a provider, and the sheet says
   /// plainly when there is not one yet.
+  /// The settings sections somebody has folded away, by title.
+  ///
+  /// Folding is a decision about *this* screen — which categories you never
+  /// touch — and forgetting it on every launch meant making the same decision
+  /// every time. Titles rather than indices: a section that is renamed is a
+  /// section that opens again, which is the harmless way to be wrong.
+  Set<String> _collapsedSections = <String>{};
+
   /// Whether the app looks for a newer release. On by default: a build that
   /// cannot be updated from anywhere else is a build that should at least say
   /// when there is a new one.
@@ -271,7 +280,7 @@ class Preferences extends ChangeNotifier {
   bool _chymeReadsMail = true;
   bool _warnMissingAttachment = true;
   GlassMode _glass = GlassMode.auto;
-  LauncherMark _launcherMark = LauncherMark.envelope;
+  LauncherMark _launcherMark = LauncherMark.ink;
 
   /// How Chyme writes. Neutral is the default: it answers in the register of
   /// whatever it was asked about, which is right more often than any one voice.
@@ -425,6 +434,27 @@ class Preferences extends ChangeNotifier {
 
   /// Whether opening the app asks for a fingerprint or a face first.
   bool get appLock => _appLock;
+
+  /// Whether [title]'s section was folded away last time.
+  bool sectionCollapsed(String title) => _collapsedSections.contains(title);
+
+  Future<void> setSectionCollapsed(String title, bool collapsed) {
+    final Set<String> next = <String>{..._collapsedSections};
+    if (collapsed) {
+      next.add(title);
+    } else {
+      next.remove(title);
+    }
+    if (next.length == _collapsedSections.length &&
+        next.containsAll(_collapsedSections)) {
+      return Future<void>.value();
+    }
+    return _write(
+      _keyCollapsedSections,
+      jsonEncode(next.toList()),
+      () => _collapsedSections = next,
+    );
+  }
 
   /// Whether the app may look for a newer release.
   bool get updateCheck => _updateCheck;
@@ -693,6 +723,7 @@ class Preferences extends ChangeNotifier {
     _appLock = _decodeBool(raw[_keyAppLock], _appLock);
     _privatePreviews =
         _decodeBool(raw[_keyPrivatePreviews], _privatePreviews);
+    _collapsedSections = _decodeStringSet(raw[_keyCollapsedSections]);
     _updateCheck = _decodeBool(raw[_keyUpdateCheck], _updateCheck);
     _lastUpdateCheck = DateTime.tryParse(raw[_keyLastUpdateCheck] ?? '');
     _chymeEnabled = _decodeBool(raw[_keyChymeEnabled], _chymeEnabled);
@@ -807,6 +838,17 @@ class Preferences extends ChangeNotifier {
       };
     } catch (_) {
       return <String, String>{};
+    }
+  }
+
+  static Set<String> _decodeStringSet(String? raw) {
+    if (raw == null || raw.isEmpty) return <String>{};
+    try {
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is! List) return <String>{};
+      return decoded.whereType<String>().toSet();
+    } catch (_) {
+      return <String>{};
     }
   }
 

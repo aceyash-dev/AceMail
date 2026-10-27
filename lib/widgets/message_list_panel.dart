@@ -25,6 +25,7 @@ import '../util/search_query.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 import 'confirm_exit.dart';
+import 'message_actions.dart';
 import 'settings_group.dart';
 import 'skeleton.dart';
 import 'swipe_action.dart';
@@ -247,8 +248,17 @@ class MessageListPanel extends StatelessWidget {
                 selected: controller.openSummary?.uid == summary.uid,
                 picked: controller.isSelected(summary.uid),
                 selecting: controller.selecting,
-                onLongPress: () =>
-                    context.read<MailController>().toggleSelect(summary.uid),
+                // Long-press opens the actions, or picks while picking. A
+                // press that always started picking assumed the rarer of the
+                // two; the sheet offers picking as one of its rows.
+                onLongPress: () {
+                  final MailController mail = context.read<MailController>();
+                  if (mail.selecting) {
+                    mail.toggleSelect(summary.uid);
+                  } else {
+                    showMessageActionsSheet(context, summary);
+                  }
+                },
                 onTap: () {
                   final MailController mail = context.read<MailController>();
                   // While picking, a tap picks; it does not open a message the
@@ -559,10 +569,6 @@ class MessageTile extends StatelessWidget {
   /// Whether the list is in selection mode at all.
   final bool selecting;
 
-  /// The unread mark, as a width. Zero for a message already read, so the
-  /// layout does not move — the border is always there, it is just invisible.
-  static const double _markWidth = 3;
-
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
@@ -606,18 +612,13 @@ class MessageTile extends StatelessWidget {
                 // No border. Forty outlined boxes is forty edges to look at
                 // before you have read a single subject — the list already
                 // separates rows by the space between them, and the card's
-                // fill is enough to say "this is one message". The unread mark
-                // still rides the left edge, which is now the only line in the
-                // row.
+                // fill is enough to say "this is one message". Unread is said
+                // in the ink of the row rather than by a line down its edge.
                 border: null,
               ),
-              child: ClipRRect(
-                // So the mark below follows the card's corner rather than
-                // squaring it off.
-                borderRadius: shape,
-                child: Stack(
-                  children: <Widget>[
-                    Padding(
+              // No clip and no stack any more: they existed to make the unread
+              // strip follow the card's corner, and the strip is gone.
+              child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         AstryxSpace.s3,
                         density.verticalPadding,
@@ -688,8 +689,14 @@ class MessageTile extends StatelessWidget {
                                       child: Text(
                                         summary.fromName,
                                         overflow: TextOverflow.ellipsis,
+                                        // Unread is said in the ink, not with
+                                        // a bar down the edge: the name is the
+                                        // first thing scanned, and a tint on it
+                                        // costs the layout nothing.
                                         style: AstryxText.supporting(
-                                          c.textSecondary,
+                                          unread
+                                              ? c.textAccent
+                                              : c.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -757,27 +764,6 @@ class MessageTile extends StatelessWidget {
                           ),
                         ],
                       ),
-                    ),
-                    if (unread)
-                      // Unread, as a strip down the edge. It is the one thing
-                      // worth seeing at a glance, and it says it without
-                      // spending a line of text or a dot in the corner. Drawn
-                      // over the card rather than beside the content, so an
-                      // unread row and a read one are laid out identically.
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        child: AnimatedContainer(
-                          duration: AstryxMotion.of(
-                            const Duration(milliseconds: 180),
-                          ),
-                          width: _markWidth,
-                          color: c.accent,
-                        ),
-                      ),
-                  ],
-                ),
               ),
             ),
           );
