@@ -5,7 +5,6 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import 'ace_icon_view.dart';
-import 'astryx_widgets.dart';
 import 'settings_group.dart';
 
 /// The folders a message can be filed into, as a sheet.
