@@ -67,7 +67,7 @@ class MailFolder {
         path: mailbox.path,
         role: _roleOf(mailbox),
         unseen: mailbox.messagesUnseen,
-        total: mailbox.messagesExists ?? 0,
+        total: mailbox.messagesExists,
         uidValidity: mailbox.uidValidity,
       );
 

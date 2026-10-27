@@ -1157,51 +1157,6 @@ Future<void> _confirmDelete(BuildContext context) async {
   if (context.mounted) AceSnack.show(context, 'Moved to the trash.');
 }
 
-/// One opener, as a card.
-///
-/// A chip is a filter; these are questions, and a question wants a row you can
-/// read rather than a pill you have to squint at. The mark on the left says who
-/// is offering it.
-class _Opener extends StatelessWidget {
-  const _Opener({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AstryxRadius.element),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AstryxSpace.s3,
-          vertical: AstryxSpace.s3,
-        ),
-        decoration: BoxDecoration(
-          color: c.surfaceHighest,
-          borderRadius: BorderRadius.circular(AstryxRadius.element),
-        ),
-        child: Row(
-          children: <Widget>[
-            ChymeMark(size: 18, color: c.textSecondary),
-            const SizedBox(width: AstryxSpace.s3),
-            Expanded(
-              child: Text(label, style: AstryxText.body(c.textPrimary)),
-            ),
-            AceIconView(
-              icon: AceIcons.chevronRight,
-              size: 16,
-              color: c.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// One thing worth asking, as a card.
 class _Prompt {
   const _Prompt({
