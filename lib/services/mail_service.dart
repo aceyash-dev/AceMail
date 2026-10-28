@@ -237,7 +237,12 @@ class MailService implements MailTransport {
         () => _guard(
           () async {
             final Mailbox status = await _client.statusMailbox(
-              Mailbox(folder.path, folder.name),
+              Mailbox(
+                encodedName: folder.name,
+                encodedPath: folder.path,
+                flags: <MailboxFlag>[],
+                pathSeparator: '/',
+              ),
               <StatusFlags>[StatusFlags.messages, StatusFlags.unseen],
             );
             return folder.copyWith(
