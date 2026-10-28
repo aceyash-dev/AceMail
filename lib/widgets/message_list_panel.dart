@@ -874,12 +874,14 @@ class _Greeting extends StatelessWidget {
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
     final String folder = controller.selectedFolder?.label ?? 'Mail';
-    final int unseen = controller.selectedFolder?.unseen ?? 0;
     final String? query = controller.searchQuery;
-    // Which line belongs here depends on what the list is showing: the folder's
-    // own count, or how much of it the search picked out.
-    final String summary = query == null
-        ? folderSummary(folder, unseen)
+    // Under the greeting there is a line only while a search is up, because a
+    // search needs saying: how much of the folder matched. Otherwise the hero is
+    // the greeting and nothing else — the folder's name was the line that read
+    // "Mail" before the first folder had loaded, and a heading that says "Mail"
+    // above a list of mail is a heading that says nothing.
+    final String? summary = query == null
+        ? null
         : searchSummary(folder, controller.visibleMessages.length, query);
 
     return TweenAnimationBuilder<double>(
@@ -911,11 +913,13 @@ class _Greeting extends StatelessWidget {
                     // greeting is the whole screen before any mail.
                     style: AstryxText.heading2(c.textPrimary),
                   ),
-                  const SizedBox(height: AstryxSpace.s0_5),
-                  Text(
-                    summary,
-                    style: AstryxText.body(c.textSecondary),
-                  ),
+                  if (summary != null) ...<Widget>[
+                    const SizedBox(height: AstryxSpace.s0_5),
+                    Text(
+                      summary,
+                      style: AstryxText.body(c.textSecondary),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -3,6 +3,26 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+89
+
+### Changed
+- **Sending is instant to the touch.** The composer closes the moment you press
+  Send; the handshake and the transfer happen behind the mail you are already
+  back in. A failure arrives as a bar with the reason in it and a **Retry** that
+  sends the same message again, and the draft is still on the device until the
+  server has taken it.
+- **The hero is the greeting.** The line under it — "Inbox", and "Mail" before
+  the first folder had loaded — is gone. It comes back only while a search is
+  running, because a search needs saying: how much of the folder matched.
+
+### Fixed
+- **Folders show their counts.** The rail asked for `messagesExists`, which a
+  plain LIST does not carry, so every folder said zero and the pill never
+  appeared. The listing now asks for the counts with LIST-STATUS — one command,
+  no extra round trips — and folders the server leaves out are filled in one at a
+  time in the background, so the rail fills in a moment after the mail does
+  rather than holding it up.
+
 ## 0.6.0+88
 
 ### Fixed

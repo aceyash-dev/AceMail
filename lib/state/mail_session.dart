@@ -520,6 +520,10 @@ class MailSession extends ChangeNotifier {
       // a second or two on a phone — before the screen was allowed to appear,
       // which is most of what "authenticating takes ages" was. The list shows
       // its skeleton, which is what it is for.
+      // Not awaited: the rail's counts fill in as the server answers, and the
+      // mail does not wait for them.
+      unawaited(_fillMissingCounts());
+
       final MailFolder? inbox =
           _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.inbox) ??
               _firstWhereOrNull(folders, (MailFolder _) => true);
@@ -534,6 +538,30 @@ class MailSession extends ChangeNotifier {
       _connecting = null; // let a later attempt try again
       _notify();
       return false;
+    }
+  }
+
+  /// Asks for the counts the listing did not carry.
+  ///
+  /// Ten at most: a mailbox with sixty folders should not spend sixty round
+  /// trips on a number in a pill, and the ones people look at are the first
+  /// ten after the sort.
+  Future<void> _fillMissingCounts() async {
+    int budget = 10;
+    for (final MailFolder folder in List<MailFolder>.of(folders)) {
+      if (budget <= 0 || _disposed) return;
+      if (folder.total > 0 || folder.path.isEmpty) continue;
+      budget--;
+      try {
+        final MailFolder counted = await _transport.refreshCount(folder);
+        if (_disposed) return;
+        final int index = folders.indexWhere((MailFolder f) => f.path == folder.path);
+        if (index == -1) continue;
+        folders = List<MailFolder>.of(folders)..[index] = counted;
+        _notify();
+      } catch (_) {
+        // A folder that will not answer simply has no number beside it.
+      }
     }
   }
 

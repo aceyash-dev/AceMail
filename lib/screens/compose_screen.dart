@@ -680,50 +680,97 @@ class _ComposeScreenState extends State<ComposeScreen> {
     // the part you feel rather than see, and sending mail is the one action in
     // this screen worth feeling.
     unawaited(HapticFeedback.mediumImpact());
+
+    // The sheet closes now, and the send happens behind it. Waiting on a TLS
+    // handshake with a form still on screen is what made sending feel slow: the
+    // message is written, validated and handed over, and the person is back in
+    // their mail while the server does its part. A failure comes back as a bar
+    // with the reason in it, and the draft is still there to retry from.
+    final MailController controller = context.read<MailController>();
+    final Preferences prefs = context.read<Preferences>();
+    final NavigatorState navigator = Navigator.of(context);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final String body = _body.text;
+    final String subject = _subject.text;
+    final String bccField = _bcc.text.trim();
+    final List<File> files = List<File>.of(_attachments);
+    final String? inReplyTo = widget.inReplyTo;
+    final String? references = widget.references;
+    final String? fromEmail = _chosenFrom;
+    final LocalStore? store = _store;
+    final String bccLine = <String>[
+      if (bccField.isNotEmpty) bccField,
+      if (prefs.bccSelf) _senderEmail,
+    ].join(', ');
+
+    _draftTimer?.cancel();
     setState(() => _sending = true);
+    navigator.pop();
+
     try {
-      await context.read<MailController>().send(
+      await controller.send(
             to: to,
             cc: cc,
             // The field and the self-copy are two different reasons to blind
             // copy somebody, and a Bcc field that went nowhere because the
             // setting was off was a field that did nothing.
-            bcc: <String>[
-              if (_bcc.text.trim().isNotEmpty) _bcc.text.trim(),
-              if (context.read<Preferences>().bccSelf) _senderEmail,
-            ].join(', '),
-            subject: _subject.text,
-            body: _body.text,
-            attachments: _attachments,
-            inReplyTo: widget.inReplyTo,
-            references: widget.references,
-            fromEmail: _chosenFrom,
+            bcc: bccLine,
+            subject: subject,
+            body: body,
+            attachments: files,
+            inReplyTo: inReplyTo,
+            references: references,
+            fromEmail: fromEmail,
           );
-      if (!mounted) return;
-      // Sent, so the draft is done. Clearing it before the pop also stops
-      // [dispose] from writing it straight back.
-      _draftTimer?.cancel();
-      await _store?.clearDraft();
-      if (!mounted) return;
-      // Said before the screen closes. The messenger is the app-wide one, so
-      // the bar survives the pop; saying it afterwards would use a context that
-      // no longer has a Scaffold.
-      AceSnack.show(context, 'Message sent.');
+      // Sent, so the draft is done.
+      await store?.clearDraft();
+      messenger.showSnackBar(const SnackBar(content: Text('Message sent.')));
       // Saved after it is sent, not before: an address somebody typed and then
       // backed out of is not somebody they write to.
-      Contacts.recordSent(<String>[
-        ..._to.text.split(','),
-        ..._cc.text.split(','),
-      ], when: DateTime.now());
-      Navigator.of(context).pop();
+      Contacts.recordSent(
+        <String>[...to.split(','), ...cc.split(',')],
+        when: DateTime.now(),
+      );
     } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error is MailException
-            ? error.message
-            : 'The message could not be sent.';
-        _sending = false;
-      });
+      // The sheet is gone, so this is said on the bar that survives it — and
+      // the draft is still on the device, because it was written on the way out.
+      final String why =
+          error is MailException ? error.message : 'The message could not be sent.';
+      messenger.showSnackBar(SnackBar(
+        content: Text('Not sent: $why'),
+        action: SnackBarAction(
+          label: 'Retry',
+          // Everything is captured: this screen is gone, and a retry that
+          // reached back into it would be reading a widget that no longer
+          // exists.
+          onPressed: () => unawaited(() async {
+            try {
+              await controller.send(
+                to: to,
+                cc: cc,
+                bcc: bccLine,
+                subject: subject,
+                body: body,
+                attachments: files,
+                inReplyTo: inReplyTo,
+                references: references,
+                fromEmail: fromEmail,
+              );
+              await store?.clearDraft();
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Message sent.')),
+              );
+            } catch (error) {
+              messenger.showSnackBar(SnackBar(
+                content: Text(
+                  'Still not sent: '
+                  '${error is MailException ? error.message : error}',
+                ),
+              ));
+            }
+          }()),
+        ),
+      ));
     }
   }
 

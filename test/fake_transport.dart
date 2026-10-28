@@ -138,6 +138,16 @@ class FakeTransport implements MailTransport {
   Future<void> selectFolder(MailFolder folder) async {}
 
   @override
+  Future<MailFolder> refreshCount(MailFolder folder) async {
+    countedFolders.add(folder.path);
+    return folder.copyWith(total: folder.total == 0 ? 7 : folder.total);
+  }
+
+  /// The folders a count was asked for, so a test can tell the background pass
+  /// from the listing.
+  final List<String> countedFolders = <String>[];
+
+  @override
   Future<List<int>> listMessageUids(MailFolder folder) async {
     final Completer<void>? gate = gates[folder.path];
     if (gate != null) await gate.future;

@@ -172,7 +172,15 @@ class MailService implements MailTransport {
     // Trash, All Mail — is a *child* of the "[Gmail]" container. So a Gmail
     // account listed exactly one folder, Inbox, while Yahoo listed six: the
     // difference was never the provider, it was the LIST.
-    final List<Mailbox> mailboxes = await client.listMailboxes(recursive: true);
+    // LIST-STATUS: the counts ride along with the listing instead of costing a
+    // STATUS per folder. A folder with no count in the answer is filled in
+    // afterwards, in the background, by [refreshCounts].
+    final List<Mailbox> mailboxes = await client.listMailboxes(
+      recursive: true,
+      returnOptions: <ReturnOption>[
+        ReturnOption.status(<String>['MESSAGES', 'UNSEEN']),
+      ],
+    );
     return mailboxes
         // Container folders such as Gmail's "[Gmail]" cannot be selected and
         // hold no messages of their own, so they never belong in the rail.
@@ -219,6 +227,28 @@ class MailService implements MailTransport {
 
   /// One cheap SEARCH, newest first, capped. A folder with two hundred thousand
   /// messages should not become a two-hundred-thousand element list in memory.
+  /// Counts for the folders the listing did not bring them for.
+  ///
+  /// One STATUS each, through the queue, so the mailbox stays usable while it
+  /// happens — a rail that fills in a moment later is better than a sign-in
+  /// that waits for ten round trips.
+  @override
+  Future<MailFolder> refreshCount(MailFolder folder) => _queue.run(
+        () => _guard(
+          () async {
+            final Mailbox status = await _client.statusMailbox(
+              Mailbox(folder.path, folder.name),
+              <StatusFlags>[StatusFlags.messages, StatusFlags.unseen],
+            );
+            return folder.copyWith(
+              unseen: status.messagesUnseen,
+              total: status.messagesExists,
+            );
+          },
+          fallback: 'Could not read the count for ${folder.name}.',
+        ),
+      );
+
   @override
   Future<List<int>> listMessageUids(MailFolder folder) => _queue.run(
         () => _guard(

@@ -15,6 +15,13 @@ abstract interface class MailTransport {
 
   Future<void> selectFolder(MailFolder folder);
 
+  /// The folder again, with its counts read from the server.
+  ///
+  /// Separate from [listFolders] because most servers answer the counts inside
+  /// the listing (LIST-STATUS) and the rest need one command per folder — which
+  /// belongs behind the screen, not in front of it.
+  Future<MailFolder> refreshCount(MailFolder folder);
+
   /// The newest message UIDs in [folder], newest first, capped.
   Future<List<int>> listMessageUids(MailFolder folder);
 
