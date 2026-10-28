@@ -66,6 +66,9 @@ Future<void> main() async {
   // setting says so.
   await NotificationSetup.initialise();
   if (preferences.notifyNewMail) {
+    // Registered, not asked: a permission prompt at launch is one nobody asked
+    // for, and this used to put one on screen every single start on a device
+    // that had already refused.
     await NotificationSetup.apply(enabled: true);
   }
 

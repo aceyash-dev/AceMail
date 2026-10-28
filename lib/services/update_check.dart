@@ -43,6 +43,17 @@ abstract final class UpdateCheck {
   static const String _api =
       'https://api.github.com/repos/tab-gl/AceMail/releases/latest';
 
+  /// The list, for when `/latest` has nothing to give.
+  ///
+  /// `/latest` skips drafts and pre-releases. That is right for "the newest
+  /// thing to offer", and it is also how the check can go quietly stale: if the
+  /// newest release is ever marked pre-release — which is what the rolling
+  /// `apk-latest` release is — `/latest` answers with something older, or with
+  /// nothing at all. Asking for the list and picking the newest real release
+  /// costs one request only in that case.
+  static const String _list =
+      'https://api.github.com/repos/tab-gl/AceMail/releases?per_page=10';
+
   static const Duration _timeout = Duration(seconds: 12);
 
   /// The latest published release, or null when there is nothing to say.
@@ -51,9 +62,16 @@ abstract final class UpdateCheck {
   /// An update check that interrupts somebody to tell them it could not check
   /// is worse than one that says nothing.
   static Future<UpdateRelease?> latest() async {
+    final UpdateRelease? single = await _get(_api, parse);
+    if (single != null) return single;
+    return _get(_list, parseList);
+  }
+
+  /// One JSON document from [url], read by [read]. Null on any failure.
+  static Future<T?> _get<T>(String url, T? Function(String body) read) async {
     final HttpClient client = HttpClient()..connectionTimeout = _timeout;
     try {
-      final HttpClientRequest request = await client.getUrl(Uri.parse(_api));
+      final HttpClientRequest request = await client.getUrl(Uri.parse(url));
       request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       request.headers.set(HttpHeaders.userAgentHeader, 'AceMail');
       final HttpClientResponse response =
@@ -61,12 +79,44 @@ abstract final class UpdateCheck {
       if (response.statusCode != 200) return null;
       final String body =
           await response.transform(utf8.decoder).join().timeout(_timeout);
-      return parse(body);
+      return read(body);
     } catch (_) {
       return null;
     } finally {
       client.close(force: true);
     }
+  }
+
+  /// The newest release out of a `/releases` list body, or null.
+  ///
+  /// Drafts and pre-releases are skipped for the same reason `/latest` skips
+  /// them: they are not things to offer somebody. The list arrives newest
+  /// first, so the first that reads is the answer.
+  static UpdateRelease? parseList(String body) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } catch (_) {
+      return null;
+    }
+    if (decoded is! List<Object?>) return null;
+    for (final Object? entry in decoded) {
+      if (entry is! Map<String, Object?>) continue;
+      if (entry['draft'] == true || entry['prerelease'] == true) continue;
+      final Object? tag = entry['tag_name'];
+      if (tag is! String || versionOf(tag).isEmpty) continue;
+      return UpdateRelease(
+        version: versionOf(tag),
+        name: (entry['name'] as String?)?.trim().isNotEmpty ?? false
+            ? (entry['name'] as String).trim()
+            : versionOf(tag),
+        notes: (entry['body'] as String?) ?? '',
+        url: (entry['html_url'] as String?) ??
+            'https://github.com/tab-gl/AceMail/releases',
+        published: DateTime.tryParse(entry['published_at'] as String? ?? ''),
+      );
+    }
+    return null;
   }
 
   /// The release out of a GitHub `/releases/latest` body, or null.

@@ -3,6 +3,35 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.1+92
+
+### Fixed
+- **The update check no longer goes quiet for a day on a failed request.** The
+  time of the check was recorded whether or not GitHub answered, so one launch
+  without a network — or one rate-limited request — silenced the check until the
+  next day. Only a real answer counts now, and the failure is retried at the next
+  launch.
+- **The update check asks for the release list when `/latest` has nothing.** That
+  endpoint skips drafts and pre-releases, which is right for "the newest thing to
+  offer" and is also how the check could sit on an old answer forever: the
+  rolling `apk-latest` release is a pre-release. The list is asked instead, and
+  the newest real release is picked out of it.
+- **A refused notification permission no longer switches the background check
+  off.** Scheduling and permission were one question, so declining the Android 13
+  prompt also stopped the fifteen-minute check — which is what also sends
+  scheduled mail and keeps the badge honest. They are separate now: the check is
+  registered either way, and permission is asked once, from the settings switch
+  that turns notifications on.
+- **Launching the app does not ask for notification permission.** It did, on
+  every start, on a device that had already refused. The switch asks; the launch
+  only registers.
+- **The notification switch says when the platform is blocking it.** Scheduled
+  but blocked in the system settings used to look identical to working.
+- **A dropped notification now says why.** A plugin that failed to initialise
+  meant every notification was discarded with no trace; that is one line in the
+  log now, and the background isolate registers its plugins explicitly before
+  using any.
+
 ## 0.6.0+91
 
 ### Changed

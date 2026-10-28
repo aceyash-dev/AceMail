@@ -19,6 +19,7 @@ import '../services/platform_caps.dart';
 import '../widgets/avatar.dart';
 import '../state/mail_controller.dart';
 import '../services/notification_setup.dart';
+import '../services/notifications.dart';
 import '../models/swipe_action.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
@@ -248,11 +249,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'the check talks to your provider and tells you.',
                   value: prefs.notifyNewMail,
                   onChanged: (bool value) async {
-                    final bool on =
-                        await NotificationSetup.apply(enabled: value);
-                    // The switch shows what happened, not what was asked for:
-                    // a refused permission must not look like it worked.
-                    await prefs.setNotifyNewMail(on);
+                    // Asked here, because here is where somebody said they
+                    // wanted notifications.
+                    final bool scheduled = await NotificationSetup.apply(
+                      enabled: value,
+                      askPermission: value,
+                    );
+                    await prefs.setNotifyNewMail(scheduled);
+                    if (scheduled && !await AceNotifications.hasPermission()) {
+                      // Scheduled, but the platform will not show it. Saying so
+                      // is the difference between "the app is broken" and
+                      // "notifications are off in the system settings".
+                      if (context.mounted) {
+                        AceSnack.show(
+                          context,
+                          'Notifications are blocked for Ace Mail in the '
+                          'system settings.',
+                        );
+                      }
+                    }
                   },
                 ),
 
@@ -265,7 +280,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: prefs.quietHours,
                   onChanged: (bool value) async {
                     await prefs.setQuietHours(value);
-                    await NotificationSetup.apply(enabled: prefs.notifyNewMail);
+                    // Re-registered, not re-asked: quiet hours have nothing to
+                    // do with permission, and this switch used to prompt for it.
+                    await NotificationSetup.apply(
+                      enabled: prefs.notifyNewMail,
+                    );
                   },
                 ),
                 SettingsSwitchRow(

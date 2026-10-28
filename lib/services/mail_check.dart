@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:ui' show DartPluginRegistrant;
+
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -27,6 +29,12 @@ const String kMailCheckTask = 'app.tab.mail.check';
 void mailCheckDispatcher() {
   Workmanager().executeTask((String task, Map<String, dynamic>? input) async {
     if (task != kMailCheckTask) return true;
+
+    // A background isolate starts with no plugins attached. WorkManager is
+    // supposed to do this itself, and when it does this is a no-op — but the
+    // failure mode if it does not is a notification that is silently never
+    // posted, which is exactly the thing that is hard to notice.
+    DartPluginRegistrant.ensureInitialized();
     await AceNotifications.initialise();
 
     // WorkManager retries a task that reports failure, on its own schedule.

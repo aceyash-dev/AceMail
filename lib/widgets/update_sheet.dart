@@ -156,10 +156,13 @@ Future<void> announceUpdateIfAny(BuildContext context) async {
   if (!prefs.shouldCheckForUpdates) return;
 
   final UpdateRelease? release = await UpdateCheck.latest();
-  // Recorded whether or not anything was found: "no update" is an answer, and
-  // asking again in an hour would be asking the same question.
+  // Only a real answer counts. Recording the time on a failed request meant one
+  // launch without a network — or one rate-limited request — silenced the check
+  // for a whole day, which is the shape of "the update checker does not work":
+  // it never asks again, and never says why.
+  if (release == null) return;
   await prefs.setLastUpdateCheck(DateTime.now());
-  if (release == null || !context.mounted) return;
+  if (!context.mounted) return;
   if (!UpdateCheck.isNewer(release.version, AppInfo.fullVersion)) return;
 
   await UpdateSheet.show(context, release);

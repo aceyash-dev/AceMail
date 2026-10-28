@@ -72,4 +72,44 @@ void main() {
       expect(UpdateCheck.isNewer('0.6.0+82', ''), isFalse);
     });
   });
+
+  group('the list fallback', () {
+    // `/latest` skips drafts and pre-releases, and answers with something older
+    // — or nothing — when the newest release is one. That is the shape of a
+    // check that has quietly stopped working, so the list is asked as well.
+    test('the newest real release wins', () {
+      final UpdateRelease? release = UpdateCheck.parseList('''
+          [{"tag_name":"v0.6.1","name":"v0.6.1","body":"notes",
+            "html_url":"https://example.test/1","draft":false,"prerelease":false},
+           {"tag_name":"v0.6.0+91","name":"","body":"","draft":false,"prerelease":false}]
+          ''');
+
+      expect(release, isNotNull);
+      expect(release!.version, '0.6.1');
+      expect(release.notes, 'notes');
+      expect(release.url, 'https://example.test/1');
+    });
+
+    test('drafts and pre-releases are skipped', () {
+      final UpdateRelease? release = UpdateCheck.parseList('''
+          [{"tag_name":"apk-latest","prerelease":true},
+           {"tag_name":"v0.7.0","draft":true},
+           {"tag_name":"v0.6.1","prerelease":false,"draft":false}]
+          ''');
+
+      expect(release?.version, '0.6.1');
+    });
+
+    test('a list of nothing usable is null, not a guess', () {
+      expect(UpdateCheck.parseList('[]'), isNull);
+      expect(UpdateCheck.parseList('not json'), isNull);
+      expect(UpdateCheck.parseList('{"tag_name":"v1.0.0"}'), isNull);
+      expect(UpdateCheck.parseList('[{"tag_name":""}]'), isNull);
+    });
+
+    test('0.6.1 is newer than a 0.6.0 build number, and equal to itself', () {
+      expect(UpdateCheck.isNewer('0.6.1', '0.6.0+91'), isTrue);
+      expect(UpdateCheck.isNewer('0.6.1', '0.6.1+92'), isFalse);
+    });
+  });
 }

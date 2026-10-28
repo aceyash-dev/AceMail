@@ -106,6 +106,36 @@ abstract final class AceNotifications {
     }
   }
 
+  /// Whether the platform will actually let one through, right now.
+  ///
+  /// Asked of the platform rather than remembered: a permission can be revoked
+  /// in the system settings while the app is closed, and a switch that says
+  /// "on" for notifications that will never appear is the failure this exists
+  /// to avoid.
+  static Future<bool> hasPermission() async {
+    await initialise();
+    try {
+      final AndroidFlutterLocalNotificationsPlugin? android =
+          _plugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.areNotificationsEnabled() ?? false;
+      }
+      final IOSFlutterLocalNotificationsPlugin? ios =
+          _plugin.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        final NotificationsEnabledOptions? options =
+            await ios.checkPermissions();
+        return options?.isEnabled ?? false;
+      }
+      return true;
+    } catch (error) {
+      debugPrint('Ace Mail: could not read permission (${Redact.safe(error)})');
+      return false;
+    }
+  }
+
   /// Says [count] messages arrived in [account].
   ///
   /// [privatePreviews] drops the sender and the subject. A notification is read
@@ -117,7 +147,13 @@ abstract final class AceNotifications {
     required String? subject,
     bool privatePreviews = true,
   }) async {
-    if (!_ready) return;
+    if (!_ready) {
+      // Silence here used to be total: a plugin that failed to initialise meant
+      // every notification was dropped with no trace anywhere. This is the one
+      // line that says which of the two it was.
+      debugPrint('Ace Mail: notification dropped — the plugin is not ready.');
+      return;
+    }
     try {
       final String title = privatePreviews
           ? 'New mail'

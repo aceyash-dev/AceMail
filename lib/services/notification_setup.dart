@@ -31,11 +31,19 @@ abstract final class NotificationSetup {
     await AceNotifications.initialise();
   }
 
-  /// Turns the background check on or off, asking for permission on the way in.
+  /// Turns the background check on or off.
   ///
-  /// Returns whether it ended up on, so the settings switch can tell the truth
-  /// rather than showing a state that did not happen.
-  static Future<bool> apply({required bool enabled}) async {
+  /// Scheduling and permission are two different questions, and this used to
+  /// treat them as one: a refused permission returned false and the task was
+  /// never registered at all — so the check that also sends scheduled mail and
+  /// keeps the badge honest stopped happening because a *notification* prompt
+  /// was declined. It now schedules regardless, and asks for permission only
+  /// when [askPermission] says so (the settings switch), reporting what the
+  /// platform actually allows rather than what was hoped for.
+  static Future<bool> apply({
+    required bool enabled,
+    bool askPermission = false,
+  }) async {
     await initialise();
 
     if (!enabled) {
@@ -47,8 +55,7 @@ abstract final class NotificationSetup {
       return false;
     }
 
-    final bool allowed = await AceNotifications.requestPermission();
-    if (!allowed) return false;
+    if (askPermission) await AceNotifications.requestPermission();
 
     try {
       await Workmanager().registerPeriodicTask(
