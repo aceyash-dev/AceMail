@@ -54,13 +54,19 @@ typedef _Read = ({String? value, bool unavailable});
 abstract final class GoogleAuth {
   /// The OAuth client this build is registered under.
   ///
-  /// It is the **web** client ID, which is what Android's Credential Manager
-  /// wants as `serverClientId` when the app is not configured through a
+  /// From the build rather than from the source, like the desktop client
+  /// already was: one configuration story for both platforms, and a fork can
+  /// point at its own Cloud project without editing a Dart file. The default is
+  /// this project's **web** client ID, which is what Android's Credential
+  /// Manager wants as `serverClientId` when the app is not configured through a
   /// `google-services.json`. The Android client that matches this app is
   /// registered against the package name and the signing certificate instead —
   /// see the README.
-  static const String clientId =
-      '919591212641-7m696qr165fh1ir4uo6d761jn7nnk4kg.apps.googleusercontent.com';
+  static const String clientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+    defaultValue:
+        '919591212641-7m696qr165fh1ir4uo6d761jn7nnk4kg.apps.googleusercontent.com',
+  );
 
   /// IMAP and SMTP, read and send.
   static const List<String> scopes = <String>['https://mail.google.com/'];
@@ -201,17 +207,6 @@ abstract final class GoogleAuth {
     }
   }
 
-  /// The account already signed in to this device, without showing anything.
-  ///
-  /// Read from the cache, never from the plugin: see [_keyEmail]. Null is the
-  /// ordinary answer — nobody has signed in yet, or the last grant was
-  /// withdrawn — and it is a fine one, because a name is only knowable for an
-  /// account that is actually signed in.
-  static Future<String?> knownEmail() async {
-    if (_desktop) return GoogleDesktopAuth.knownEmail();
-    return (await _read(_keyEmail)).value;
-  }
-
   /// The name Google has for the signed-in account, if there is one.
   ///
   /// Free — it comes back with the lightweight sign-in — and it is the only
@@ -321,8 +316,8 @@ abstract final class GoogleAuth {
   /// A token for the account already signed in, **without asking anybody**.
   ///
   /// This is the reconnect path — opening a folder, fetching a page — and it
-  /// runs without a person watching it. Every route here is silent: the session's
-  /// own account, the stored token, or nothing at all.
+  /// runs without a person watching it. Every route here is silent: the
+  /// session's own account, the stored token, or nothing at all.
   ///
   /// It used to fall back to the plugin, on the reasoning that a device with an
   /// address on file must have an account to find. It does — but finding it
@@ -334,8 +329,16 @@ abstract final class GoogleAuth {
   /// Null means the app needs a sign-in it cannot perform by itself, and the
   /// caller says so. That is a worse sentence than a sheet, and a much better
   /// one than a sheet nobody asked for.
+  ///
+  /// [email] is required in practice — every caller has one, and the cache is
+  /// keyed by address — so an address that is missing or blank answers null
+  /// rather than guessing at whoever signed in last. That guess was the last
+  /// remaining way to hand one account's token to another.
   static Future<String?> token([String? email]) async {
     if (_desktop) return GoogleDesktopAuth.token(email);
+    final String? want = email?.trim().toLowerCase();
+    if (want == null || want.isEmpty) return null;
+
     try {
       await _prepare();
     } catch (_) {
@@ -344,14 +347,7 @@ abstract final class GoogleAuth {
       // of the two ways to get a token.
     }
 
-    // Only when the caller did not say which account. With two signed in, the
-    // remembered one is whoever signed in last — and handing that account's
-    // token to the other is how a second account ends up asked to sign in again
-    // every hour while the first is fine.
-    final String? want = email?.trim().toLowerCase();
-    final GoogleSignInAccount? known = want == null
-        ? (_remembered.isEmpty ? null : _remembered.values.last)
-        : _remembered[want];
+    final GoogleSignInAccount? known = _remembered[want];
     if (known != null) {
       try {
         return await _tokenFor(known, allowPrompt: false);
@@ -363,7 +359,7 @@ abstract final class GoogleAuth {
 
     // Stored per address. One key held one token, so signing into a second
     // account threw the first one's away — and the first then had to ask again.
-    final String suffix = want == null ? '' : '.$want';
+    final String suffix = '.$want';
     final _Read at = await _read('$_keyTokenAt$suffix');
     final _Read stored = await _read('$_keyToken$suffix');
     if (stored.unavailable || at.unavailable) {

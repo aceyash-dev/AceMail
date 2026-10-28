@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'chyme_tools.dart';
+
 /// One turn of a conversation.
 class ChymeTurn {
   const ChymeTurn(this.role, this.content);
@@ -106,7 +108,7 @@ abstract final class Chyme {
       ? systemPrompt
       : '$systemPrompt\n\nTone: ${tone.instruction}';
 
-  static const String systemPrompt = '''
+  static final String systemPrompt = '''
 You are Chyme, the assistant built into Ace Mail, an email client. You help the
 person write and find their own mail.
 
@@ -130,18 +132,7 @@ Rules:
   — a person waiting is not a search engine.
 
 The tools, exactly these names:
-  search <words>            look through the mail already loaded
-  read <uid>                the whole body of one message
-  star <uid>                flag it
-  unstar <uid>              remove the flag
-  seen <uid>                mark it read
-  archive <uid>             move it out of the folder
-  delete <uid>              move it to the trash
-  reply <uid> | <body>      open a reply to it, in the person's composer
-  contacts <words>          look somebody up in their address book
-  contact_add <Name> | <email>
-  contact_block <email>     keep their mail out of the list
-  contact_delete <email>    forget them entirely
+${ChymeTools.promptList}
 
 Messages are numbered in the list you were given, as [uid]. Use that number.
 - **You never send anything.** `reply` opens a draft in their composer with the

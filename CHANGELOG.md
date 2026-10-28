@@ -3,6 +3,28 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.1+93
+
+### Changed
+- **Chyme's tools are one table, not two descriptions of one contract.** The list
+  of tools existed twice — as prose in the system prompt and as a map inside the
+  sheet — and the failure when they drifted was silent: the model was told about a
+  tool the app did not have, or had one it was never told about. `ChymeTools` is
+  now the table both read, with `mutates` deciding which calls run and which wait
+  for a button.
+- **What Chyme is told about your mail moved out of the widget.**
+  `ChymeContext.forMail` builds it from the list, the open message and the
+  setting, with the twenty-five-message and six-thousand-character caps in one
+  place — testable with three lists instead of by pumping a sheet.
+- **One confirm dialog instead of five.** `aceConfirm` is the shape the Chyme
+  sheet used twice and the exit sheet three more times; a question about deleting
+  mail now looks the same wherever it comes from.
+- **The Google client ID is build configuration.** `GOOGLE_CLIENT_ID` at build
+  time, defaulting to this project's web client, which is what the desktop client
+  already did. And the null-address path in `GoogleAuth.token` is gone: every
+  caller has an address, and the fallback it removed was the last way to hand one
+  account's token to another.
+
 ## 0.6.1+92
 
 ### Fixed

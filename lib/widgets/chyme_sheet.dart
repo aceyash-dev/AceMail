@@ -11,6 +11,8 @@ import '../models/message_summary.dart';
 import '../screens/compose_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/chyme.dart';
+import '../services/chyme_context.dart';
+import '../services/chyme_tools.dart';
 import '../services/contacts.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
@@ -19,6 +21,7 @@ import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/dates.dart';
 import '../util/routes.dart';
+import 'ace_confirm.dart';
 import 'ace_form_field.dart';
 import 'ace_icon_view.dart';
 import 'astryx_widgets.dart';
@@ -101,47 +104,6 @@ class _ChymeSheetState extends State<ChymeSheet> {
   /// Each message carries its uid in brackets, because Chyme now acts on
   /// messages and a tool needs to name one. The number is the only handle the
   /// model is given, and it is the one the list is already keyed by.
-  String _context(
-    MailController controller,
-    Preferences prefs,
-    FullMessage? open,
-  ) {
-    if (!prefs.chymeReadsMail) {
-      return 'The person has turned off letting you read their mail. You can '
-          'still help them write, and still answer questions about the app.';
-    }
-
-    final StringBuffer out = StringBuffer();
-    final List<MessageSummary> visible = controller.visibleMessages;
-    if (visible.isNotEmpty) {
-      out.writeln('Their recent mail, newest first:');
-      for (final MessageSummary message in visible.take(25)) {
-        out.writeln(
-          '- [${message.uid}] ${message.fromName} <${message.fromEmail}> · '
-          '${message.subject}'
-          ' · ${formatListDate(message.date)}'
-          '${message.isSeen ? '' : ' · unread'}'
-          '${message.isFlagged ? ' · starred' : ''}',
-        );
-      }
-    }
-
-    if (open != null) {
-      final String body = open.textBody;
-      out
-        ..writeln()
-        ..writeln('The message they have open, in full:')
-        ..writeln('From: ${open.fromName} <${open.fromEmail}>')
-        ..writeln('Subject: ${open.subject}')
-        ..writeln('Date: ${open.date}')
-        ..writeln('--- body ---')
-        ..writeln(body.length > 6000 ? body.substring(0, 6000) : body);
-    }
-
-    if (out.isEmpty) return 'No mail is loaded at the moment.';
-    return out.toString();
-  }
-
   Future<void> _send(String text) async {
     final String prompt = text.trim();
     if (prompt.isEmpty || _busy) return;
@@ -166,7 +128,12 @@ class _ChymeSheetState extends State<ChymeSheet> {
       final List<ChymeTurn> request = <ChymeTurn>[
         ChymeTurn(
           'system',
-          '${Chyme.systemPromptFor(prefs.chymeTone)}\n${_context(controller, prefs, controller.openMessage)}',
+          '${Chyme.systemPromptFor(prefs.chymeTone)}\n'
+          '${ChymeContext.forMail(
+            visible: controller.visibleMessages,
+            open: controller.openMessage,
+            readsMail: prefs.chymeReadsMail,
+          )}',
         ),
         ..._turns,
       ];
@@ -202,27 +169,12 @@ class _ChymeSheetState extends State<ChymeSheet> {
   /// What was actually done, once somebody said yes.
   final List<String> _done = <String>[];
 
-  /// Tools that change something. These are proposed, never taken: an assistant
-  /// that archives your mail while you read the sentence about archiving it is
-  /// an assistant you stop letting near your mail.
-  static const Set<String> _acts = <String>{
-    'star',
-    'unstar',
-    'seen',
-    'archive',
-    'delete',
-    'reply',
-    'contact_add',
-    'contact_block',
-    'contact_delete',
-  };
-
   /// The tools Chyme is given: reads run, writes wait for a button.
   Map<String, ChymeTool> _tools(MailController controller) {
     final Map<String, ChymeTool> real = _perform(controller);
     return <String, ChymeTool>{
       for (final MapEntry<String, ChymeTool> entry in real.entries)
-        entry.key: _acts.contains(entry.key)
+        entry.key: ChymeTools.mutates(entry.key)
             ? (String argument) async {
                 _propose(entry.key, argument);
                 return 'Proposed to the person. Nothing has been done yet — '
@@ -503,26 +455,15 @@ class _ChymeSheetState extends State<ChymeSheet> {
     required String body,
     required String confirm,
     required String cancel,
-  }) async {
-    final bool? yes = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialog) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: Text(confirm),
-          ),
-        ],
-      ),
-    );
-    return yes == true;
-  }
+  }) =>
+      aceConfirm(
+        context,
+        title: title,
+        body: body,
+        confirm: confirm,
+        cancel: cancel,
+        destructive: true,
+      );
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1125,26 +1066,15 @@ Future<void> _confirmDelete(BuildContext context) async {
     AceSnack.show(context, 'Open the message first — there is nothing to delete.');
     return;
   }
-  final bool? yes = await showDialog<bool>(
-    context: context,
-    builder: (BuildContext dialog) => AlertDialog(
-      title: const Text('Delete this message?'),
-      content: Text(
-        '\u201C${open.subject}\u201D goes to the trash. You can put it back.',
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: const Text('Keep'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
+  final bool yes = await aceConfirm(
+    context,
+    title: 'Delete this message?',
+    body: '\u201C${open.subject}\u201D goes to the trash. You can put it back.',
+    confirm: 'Delete',
+    cancel: 'Keep',
+    destructive: true,
   );
-  if (yes != true || !context.mounted) return;
+  if (!yes || !context.mounted) return;
   await controller.delete(open);
   if (context.mounted) AceSnack.show(context, 'Moved to the trash.');
 }
