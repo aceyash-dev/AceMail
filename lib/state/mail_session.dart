@@ -465,16 +465,25 @@ class MailSession extends ChangeNotifier {
 
   /// Connects at most once. A switch that arrives while the first attempt is
   /// still running joins that attempt instead of opening a second connection.
-  Future<bool> connect() {
-    final Future<bool>? inFlight = _connecting;
-    if (inFlight != null) return inFlight;
-    if (_connected) return Future<bool>.value(true);
-    final Future<bool> attempt = _connect();
-    _connecting = attempt;
-    return attempt;
+  /// Connects at most once, and reports whether the mailbox is usable.
+  ///
+  /// [waitForMail] is the difference between signing in and everything else.
+  /// The first page is SELECT, SEARCH and a forty-message FETCH: worth waiting
+  /// for when something is about to read the list, and worth hiding behind the
+  /// skeleton when the person is watching a sign-in screen. The connection
+  /// itself is the same either way, so a quick call and a full one share it.
+  Future<bool> connect({bool waitForMail = true}) async {
+    final Future<bool> attempt =
+        _connecting ??= _connect(waitForMail: waitForMail);
+    final bool ok = await attempt;
+    if (ok && waitForMail) await _firstPage;
+    return ok;
   }
 
-  Future<bool> _connect() async {
+  /// The first page's load, so a quick connect can still be waited on later.
+  Future<void> _firstPage = Future<void>.value();
+
+  Future<bool> _connect({bool waitForMail = true}) async {
     connecting = true;
     errorMessage = null;
     _notify();
@@ -514,7 +523,10 @@ class MailSession extends ChangeNotifier {
       final MailFolder? inbox =
           _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.inbox) ??
               _firstWhereOrNull(folders, (MailFolder _) => true);
-      if (inbox != null) unawaited(openFolder(inbox));
+      if (inbox != null) {
+        _firstPage = openFolder(inbox);
+        if (waitForMail) await _firstPage;
+      }
       return true;
     } catch (error) {
       errorMessage = error.toString();

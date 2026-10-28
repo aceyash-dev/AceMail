@@ -312,7 +312,10 @@ class MailController extends ChangeNotifier {
         _notify();
 
         final MailSession session = _newSession(candidate, password);
-        final bool ok = await session.connect();
+        // The screen is what is waiting here, not a reader: auth and the folder
+        // list are enough to show a mailbox, and the first page arrives behind
+        // the skeleton.
+        final bool ok = await session.connect(waitForMail: false);
         if (_disposed) {
           session.dispose();
           return false;
