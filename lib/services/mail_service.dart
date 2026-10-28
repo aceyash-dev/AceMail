@@ -131,6 +131,9 @@ class MailService implements MailTransport {
       final List<MailFolder> folders = await _listFoldersOn(client);
       _imap = client;
       _password = password;
+      // Not awaited: signing in should not wait for a second connection that
+      // only matters when something is sent.
+      unawaited(_warmSmtp(password));
       return folders;
     } catch (error) {
       await _safeLogout(client);
@@ -190,6 +193,7 @@ class MailService implements MailTransport {
     _imap = null;
     _password = null;
     if (client != null) await _safeLogout(client);
+    await _dropSmtp();
   }
 
   // --- mailbox ------------------------------------------------------------
@@ -715,15 +719,79 @@ class MailService implements MailTransport {
 
     final MimeMessage message = builder.buildMimeMessage();
 
-    // SMTP is a separate connection from IMAP, so this does not go through the
-    // mailbox queue.
-    final SmtpClient smtp = SmtpClient(account.smtpHost, isLogEnabled: false);
+    // The SMTP connection is kept between sends. Connecting, EHLO, STARTTLS,
+    // EHLO and AUTH is most of the time a send takes — several seconds on a
+    // phone — and none of it depends on the message. It is opened once, warmed
+    // when the mailbox connects, and reopened only when it has gone stale.
+    SmtpClient smtp = await _smtpFor(password);
     bool handedOver = false;
     try {
-      // 465 speaks TLS from the first byte; anything else starts plain and is
-      // upgraded with STARTTLS before the password is sent. Either way the
-      // certificate is validated, and there is no path that sends credentials
-      // over an unencrypted connection.
+      handedOver = true;
+      final SmtpResponse response = await smtp.sendMessage(message);
+      if (!response.isOkStatus) {
+        await _dropSmtp();
+        throw MailErrors.classify(
+          SmtpException(smtp, response),
+          fallback: 'The server rejected the message.',
+        );
+      }
+    } on MailException {
+      rethrow;
+    } catch (error) {
+      await _dropSmtp();
+      if (handedOver) {
+        // A dropped connection here is not the same as a rejection: the server
+        // may well have delivered it. Never retry automatically.
+        throw const MailUnknownOutcomeException(
+          'The connection dropped after the message reached the server, so '
+          'delivery is unconfirmed. Check your Sent folder before sending '
+          'again — Ace Mail will not resend it for you.',
+        );
+      }
+      throw MailErrors.classify(
+        error,
+        fallback: 'Could not reach ${account.smtpHost}.',
+      );
+    }
+
+    // The copy in Sent is filed behind the composer closing rather than in
+    // front of it. The message has been accepted; waiting on an IMAP append —
+    // through the mailbox queue, behind whatever that is doing — made a send
+    // feel slower than it was.
+    if (sentPath != null) unawaited(_fileSentCopy(message, sentPath));
+  }
+
+  /// The live SMTP connection, when there is one.
+  SmtpClient? _smtp;
+  String? _smtpPassword;
+
+  /// A connection ready to send, reused when it is still good.
+  Future<SmtpClient> _smtpFor(String password) async {
+    final SmtpClient? existing = _smtp;
+    if (existing != null && _smtpPassword == password) {
+      try {
+        // A connection left idle may have been closed by the server, and EHLO
+        // is the cheapest way to find out — and to re-read the capabilities
+        // the STARTTLS decision needs.
+        await existing.ehlo();
+        return existing;
+      } catch (_) {
+        await _dropSmtp();
+      }
+    }
+    final SmtpClient opened = await _openSmtp(password);
+    _smtp = opened;
+    _smtpPassword = password;
+    return opened;
+  }
+
+  /// Connects and signs in. 465 speaks TLS from the first byte; anything else
+  /// starts plain and is upgraded with STARTTLS before the password is sent.
+  /// Either way the certificate is validated, and there is no path that sends
+  /// credentials over an unencrypted connection.
+  Future<SmtpClient> _openSmtp(String password) async {
+    final SmtpClient smtp = SmtpClient(account.smtpHost, isLogEnabled: false);
+    try {
       final bool implicitTls =
           account.smtpTransport == MailSecurity.implicitTls;
       await smtp.connectToServer(
@@ -750,49 +818,48 @@ class MailService implements MailTransport {
           'The server offers no sign-in method Ace Mail supports.',
         );
       }
-
-      handedOver = true;
-      final SmtpResponse response = await smtp.sendMessage(message);
-      if (!response.isOkStatus) {
-        throw MailErrors.classify(
-          SmtpException(smtp, response),
-          fallback: 'The server rejected the message.',
-        );
-      }
-    } on MailException {
-      rethrow;
+      return smtp;
     } catch (error) {
-      if (handedOver) {
-        // A dropped connection here is not the same as a rejection: the server
-        // may well have delivered it. Never retry automatically.
-        throw const MailUnknownOutcomeException(
-          'The connection dropped after the message reached the server, so '
-          'delivery is unconfirmed. Check your Sent folder before sending '
-          'again — Ace Mail will not resend it for you.',
-        );
-      }
+      await _safeQuit(smtp);
       throw MailErrors.classify(
         error,
         fallback: 'Could not reach ${account.smtpHost}.',
       );
-    } finally {
-      await _safeQuit(smtp);
     }
+  }
 
-    // Best effort: some providers file the sent copy themselves, some do not.
-    // A failure here must not make a delivered message look unsent.
-    if (sentPath != null) {
-      try {
-        await _queue.run(
-          () => _client.appendMessage(
-            message,
-            targetMailboxPath: sentPath,
-            flags: <String>[MessageFlags.seen],
-          ),
-        );
-      } catch (_) {
-        // The message was still sent.
-      }
+  Future<void> _dropSmtp() async {
+    final SmtpClient? smtp = _smtp;
+    _smtp = null;
+    _smtpPassword = null;
+    if (smtp != null) await _safeQuit(smtp);
+  }
+
+  /// Opens the sending connection before anybody presses send.
+  ///
+  /// Best effort and silent: a device that is offline at launch simply opens it
+  /// on the first send instead, which is where it would have been anyway.
+  Future<void> _warmSmtp(String password) async {
+    try {
+      await _smtpFor(password);
+    } catch (_) {
+      // The send will try again, and will say so if it fails.
+    }
+  }
+
+  /// Best effort: some providers file the sent copy themselves, some do not.
+  /// A failure here must not make a delivered message look unsent.
+  Future<void> _fileSentCopy(MimeMessage message, String sentPath) async {
+    try {
+      await _queue.run(
+        () => _client.appendMessage(
+          message,
+          targetMailboxPath: sentPath,
+          flags: <String>[MessageFlags.seen],
+        ),
+      );
+    } catch (_) {
+      // The message was still sent.
     }
   }
 

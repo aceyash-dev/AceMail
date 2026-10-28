@@ -506,10 +506,15 @@ class MailSession extends ChangeNotifier {
       // waiting on a name.
       unawaited(_resolveDisplayName());
 
+      // The first page loads behind the mailbox rather than in front of it.
+      // Signing in used to wait for SELECT, SEARCH and a forty-message FETCH —
+      // a second or two on a phone — before the screen was allowed to appear,
+      // which is most of what "authenticating takes ages" was. The list shows
+      // its skeleton, which is what it is for.
       final MailFolder? inbox =
           _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.inbox) ??
               _firstWhereOrNull(folders, (MailFolder _) => true);
-      if (inbox != null) await openFolder(inbox);
+      if (inbox != null) unawaited(openFolder(inbox));
       return true;
     } catch (error) {
       errorMessage = error.toString();

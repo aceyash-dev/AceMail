@@ -3,6 +3,28 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+87
+
+### Fixed
+- **Sending no longer pays for a connection it already has.** Every message
+  opened a fresh SMTP connection — DNS, TCP, TLS, EHLO, STARTTLS, EHLO, AUTH —
+  and none of that depends on the message. It is opened once, warmed when the
+  mailbox connects, reused while it answers, and reopened when it has gone stale.
+- **The copy in Sent is filed behind the composer, not in front of it.** A send
+  used to wait for an IMAP APPEND, through the mailbox queue, after the server
+  had already accepted the message. It runs in the background now; a failure
+  there still cannot make a delivered message look unsent.
+- **Signing in stops waiting for the first page.** `connect` used to run SELECT,
+  SEARCH and a forty-message FETCH before it returned, and the sign-in screen
+  waited for all of it. It returns as soon as the server has accepted the login,
+  and the inbox loads behind the list's skeleton — which is what the skeleton is
+  for.
+- **The love envelope is drawn properly.** The mark was a small, muddy scan: the
+  heart sat off its flap and the themed-icon layer was unusable, so on Android 13
+  with themed icons the "Heart" mark came out blank. Redrawn — cream envelope,
+  centred red heart, and a real monochrome silhouette with the heart cut out of
+  it.
+
 ## 0.6.0+86
 
 ### Changed
