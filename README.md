@@ -1,9 +1,83 @@
 # Ace Mail
 
-A fast, native IMAP/SMTP mail client written in Dart with Flutter. One codebase
-for iOS, Android, macOS, Windows and Linux. Any provider, no vendor lock-in.
+**Your mail, on your device, on every platform.** A native IMAP/SMTP mail client
+in Dart and Flutter — Android, iOS, macOS, Windows and Linux from one codebase.
+No account with us, no server of ours, no analytics, nothing to sign up for. It
+talks to your provider directly, which is what a mail client used to mean.
 
 > No AI slop. Just code, design, and software worth using.
+
+## Why Ace Mail
+
+**Nothing of yours passes through anything of ours.** There is no backend. The
+app opens IMAP and SMTP connections to your provider and nothing else, so there
+is no server of ours to breach, no account of ours to close, and no analytics
+key anywhere in the source. Credentials are sealed with AES-256-GCM in a single
+file on the device, with the key in the platform keychain — not a token in
+`SharedPreferences`, not a password in plain text, not a session on a server that
+could be asked for them. The three things it *does* send beyond your mail are
+named in Settings and two of them are off by default: the release check (once a
+day, to GitHub, no identifiers), sender pictures (Gravatar/BIMI), and remote
+images in a message.
+
+**The assistant asks before it acts.** Chyme can read your mail and propose
+changes to it — star, archive, delete, reply, block a sender — but every one of
+those arrives as a card with **Do it** and **No**, and nothing touches the
+mailbox until you press one. It never sends: a reply it writes opens in your
+composer. It runs against **any OpenAI-compatible endpoint you point it at**,
+with your own key, so the model is your choice rather than ours.
+
+**One-time codes without opening the mail.** A code in a subject is picked out
+as the row is built and shown as a chip one tap from the clipboard. For mail
+whose subject mentions a code without containing one, the first few kilobytes of
+the body are fetched and searched — bounded to a handful of rows per page. The
+two seconds that saves, forty times a day, is the kind of thing a mail client is
+for.
+
+**It looks like it belongs on the device it is on.** Three design systems, each
+doing the job it is good at: **Astryx** for the tokens, **Material 3 Expressive**
+for how the controls behave, and **Apple's glass** for the surfaces on iOS — with
+a **glass studio** so the blur, the tint and whether the glass is frosted or
+smoked are yours to set. Fifteen accents, each walked along its own lightness
+until a label on it clears AA against the tinted surface it actually sits on, and
+a test that checks all fifteen in both modes.
+
+**Fast where it is felt.** The SMTP connection is kept and warmed instead of
+opened per message; the copy in Sent is filed behind the composer rather than in
+front of it; signing in returns as soon as the login is accepted, with the first
+page loading behind the list's skeleton; a thousand messages are cached so a
+folder you have read opens without the network. Signing in, sending and opening
+a folder are the three things you do a hundred times a day, and each one was
+measured rather than assumed.
+
+**It ships as packages, not zips.** An AppImage that runs on any distribution, a
+Windows installer with a Start-menu entry and an uninstaller, a `.dmg`, an
+unsigned `.ipa`, and both Android ABIs. Every one of them built by CI on the
+platform it targets, from a tag, and attached to the release.
+
+**And it is checked.** Over six hundred tests, analysis that fails the build on a
+lint, and CI that builds all five platforms on every push. The claims in this
+file that can be tested — contrast, the transport, the HTML sanitiser, the
+credential store, the version comparison — have tests named after them, and the
+ones that cannot be tested here say so.
+
+## Downloads
+
+Every release carries one file per platform, in the format that platform
+installs:
+
+| Platform | File | How it installs |
+| --- | --- | --- |
+| Android | `AceMail-<version>-arm64-v8a.apk` (and `armeabi-v7a`) | Sideload, or `adb install` |
+| iOS | `AceMail-<version>-ios-unsigned.ipa` | Unsigned — re-sign with your own certificate, or use a sideloading tool |
+| macOS | `AceMail-<version>-macos-unsigned.dmg` | Open the disk image, drag the app to Applications |
+| Windows | `AceMail-<version>-windows-x64-setup.exe` | Run the installer: Start-menu entry, uninstaller, optional desktop shortcut |
+| Linux | `AceMail-<version>-x86_64.AppImage` | `chmod +x` and run. Any distribution — it carries its own libraries. A `.tar.gz` of the same bundle is there too. |
+
+The Apple builds are unsigned: signing needs a certificate and a provisioning
+profile this repository does not hold. The AppImage is the Linux one to take —
+a `.deb` would only install on the Debian family, and an AppImage runs on
+Ubuntu, Fedora and Arch alike.
 
 ## Design
 
@@ -50,100 +124,103 @@ weighted companion is bundled alongside it. Overriding the accent and surface
 ramp to the Milk & Orange brand is exactly what Astryx's `defineTheme` is for —
 a custom theme, not a departure.
 
-## Features
+## What it does
 
-- Sign in to any IMAP/SMTP provider. Gmail, Yahoo, iCloud, Zoho, GMX and Yandex
-  are detected from the address; anything else takes manual hosts. **Gmail signs
-  in with Google** — no password, and nothing stored; the rest use an **app
-  password**. The built-in list is deliberately short — every entry works
-  **free**, over IMAP/SMTP. Providers that need OAuth this app does not
-  implement (Outlook), a paid bridge (Proton), a paid plan (Fastmail, and
-  Rediffmail whose IMAP is Pro-only), or that have dropped free IMAP for new
-  accounts (Zoho), are not offered: a provider that cannot work is a dead end
-  the user only finds after typing a password.
-- A built-in step-by-step guide — the `?` button on the sign-in screen and in
-  the mailbox — covering app passwords, manual server settings, and what each
-  connection error means.
-- Several accounts signed in at once, switchable from the header at the top of
-  the folder rail.
-- The top bar is the **search bar** — with voice search beside it, and Sort &
-  filter and Chyme next to that. The folder you are in, and what is waiting in
-  it, is the greeting above the list, which is where a person looks anyway.
-  Settings, About and help sit at the foot of the rail; the app's name is on the
-  launcher and the splash, where it belongs.
-- **Pull down to refresh** — the indicator is the shape morph, scrubbed by the
-  drag, so a pull walks it through the families. Ctrl/Cmd+R does the same from a
-  keyboard. There is no refresh button in the top bar. The list uses bouncing
-  physics on every platform, because Android's default physics *clamps*: a
-  clamped list never overscrolls, so the refresh control never fires.
-- **Ten accents, and the theme is global.** Material's palette, one step in
-  from the primaries. Each is walked along its own lightness until a label on
-  it clears AA *and* the shape reads against the page — blue at full strength is
-  3.7:1 against white and 4.4:1 against ink, and amber is 1.75:1 against Milk,
-  so neither is usable as-is. The swatch shows the colour you picked; the fill
-  is made legible. Every surface is then the accent-tinted Milk or Ink, so
-  changing the accent changes the page and not just the buttons. Material's own
-  tonal palette desaturates surfaces almost to grey, which is why they are
-  tinted by hand. `test/contrast_test.dart` checks all ten accents in both
-  modes, over the tinted surfaces.
-- **Images in a message are placeholders** until you ask for them, and the
-  switch works on the message that is open rather than the next one. Sources
-  are resolved, so a protocol-relative `//cdn.example/logo.png` — which most
-  mail with a CDN uses — loads too. A 1×1 tracking pixel is dropped entirely
-  rather than becoming a placeholder in the middle of a message that has no
-  images in it. Fetching a
-  remote image tells the sender's server the mail was opened, so it is off by
-  default and a switch in Settings turns it on. Either way the placeholder takes
-  the image's place rather than a bracket of alt text landing mid-sentence.
-- Sender pictures, best source first: the sender's own **BIMI** logo when the
-  domain publishes one, then Gravatar, then an initials chip. **Off by
-  default**, because both remote lookups tell a third party which domains are in
-  your mail.
-- Browse every folder, with unread counts, paged forty at a time. Non-selectable
-  container folders such as Gmail's `[Gmail]` are filtered out.
-- Search the open folder across subject and sender.
-- Read mail: HTML rendered, a plain-text toggle, and attachments listed and
+**Providers and signing in**
+
+- Any IMAP/SMTP provider. Gmail, Yahoo, iCloud, Zoho, GMX and Yandex are
+  recognised from the address; anything else takes manual hosts. Gmail signs in
+  with **Google** — no password, nothing stored — and the rest use an **app
+  password**. The built-in list is deliberately short: every entry works
+  **free**, over IMAP/SMTP. Providers that need an OAuth this app does not
+  implement (Outlook), a paid bridge (Proton), a paid plan (Fastmail, Rediffmail)
+  or that dropped free IMAP for new accounts (Zoho) are not offered — a provider
+  that cannot work is a dead end you only find after typing a password.
+- A step-by-step guide behind the `?` on the sign-in screen and in the mailbox:
+  app passwords, manual settings, and what each connection error means.
+- Several accounts at once, switched from the header at the top of the rail. Each
+  keeps its own credentials, its own last-seen message marker and its own
+  session — removing one does not disturb the others.
+
+**Reading**
+
+- Browse every folder with its message count, capped at 999+, accent-tinted when
+  something in it is unread. Container folders such as Gmail's `[Gmail]` are
+  filtered out.
+- Forty messages at a time, paged, with a thousand cached locally so a folder you
+  have read opens instantly.
+- The top bar is the **search bar**, with voice search beside it and Sort & filter
+  and Chyme next to that. Pull down to refresh — the indicator is the shape morph,
+  scrubbed by the drag — or Ctrl/Cmd+R.
+- HTML rendered, with a plain-text toggle per message, and attachments listed and
   saveable.
-- Compose, reply and send, with file attachments.
-- Mark as unread, and flag/unflag with the star.
-- **One-time codes, without opening the mail.** A code in a subject is picked
-  out as the row is built; for mail whose subject talks about a code but does
-  not contain one, the first few kilobytes of the body are fetched and searched
-  — bounded to a handful of rows per page, and never for the whole message. The
-  code appears as a chip in the list, one tap from the clipboard.
-- Sort chips and filters over the loaded page: newest, oldest, sender, subject
-  or unread first; all, unread, flagged, or only the mail carrying a code.
-- Delete moves to Trash. When a provider has no Trash folder, the app says so
-  and asks before deleting permanently — it never quietly destroys mail.
-- Reply, reply-all and **forward** — a forward quotes the original's headers and
-  carries its attachments across. Replies set `In-Reply-To` and `References` so
-  they thread correctly in every other client.
-- **File a message into any folder**, from the reader or from a selection, and
-  **mark as spam** / **not spam** in one action.
-- **Address suggestions** while you type a recipient, from the contacts the app
-  already has — prefix matches first, nobody offered twice, and never your own
-  address back to you.
-- **An update checker** that asks GitHub once a day for the newest release and
-  shows what changed, with the build number compared as well as the name.
-- **Mark a whole folder read**, and **select all** on the page, so a full inbox
-  is two taps rather than forty.
-- Swipe a message either way to act on it — archive, delete, read/unread or
-  flag — with both directions configurable in settings.
-- Messages open as HTML, with a per-message toggle to the plain-text version.
-- **Contacts**, built from your mail as it loads, and importable from the
-  device's own address book behind a button — permission asked for at that
-  moment, nothing written back to the device, nothing sent anywhere.
-- **Chyme can act, not only read**: search, read, star, mark read, archive,
-  delete, reply, and the address book, all through the same controller the
-  buttons use. It never sends — a reply it writes opens in your composer — and
-  deleting, blocking or forgetting a contact asks first. The model and the tone
-  are two chips in its own header.
-- Credentials are sealed with AES-256-GCM in one file on the device — never in
-  plain text. The key lives in the platform keychain, with a `0600` key file
-  beside the record for the machines where the keychain will not answer.
-- Gesture navigation: swipe right to leave a message, pull down to refresh, and
-  a confirmation before the app closes.
-- Light and dark, following the system.
+- **Images are placeholders until you ask.** Sources are resolved, so a
+  protocol-relative `//cdn.example/logo.png` loads too, and a 1×1 tracking pixel
+  is dropped rather than becoming a placeholder in a message with no images in
+  it. Off by default: fetching a remote image tells the sender's server you
+  opened the mail.
+- Sender pictures, best source first: the domain's **BIMI** logo, then Gravatar,
+  then an initials chip. Off by default, because both lookups tell a third party
+  which domains are in your mail.
+- Sort by newest, oldest, sender, subject or unread first; filter to all, unread,
+  flagged, or only the mail carrying a code.
+
+**Acting on mail**
+
+- Compose, reply, reply-all, **forward** — a forward quotes the original's headers
+  and carries its attachments across. Replies set `In-Reply-To` and `References`,
+  so they thread correctly everywhere else.
+- Star, mark read or unread, **archive**, **file into any folder**, **mark as
+  spam**, delete. Delete moves to Trash; when a provider has no Trash folder the
+  app says so and asks before deleting permanently — it never quietly destroys
+  mail.
+- **Mark a whole folder read** and **select all** on the page, so a full inbox is
+  two taps rather than forty.
+- Swipe either way to act — archive, delete, read/unread or flag, each direction
+  configured separately.
+- **Send later.** A message can be scheduled; the same background worker that
+  checks for mail sends it when its moment comes.
+- **Address suggestions** while you type, from contacts the app already has:
+  prefix matches first, nobody offered twice, never your own address back to you.
+- **Contacts**, built from your mail as it loads and importable from the device's
+  address book behind a button — permission asked for at that moment, nothing
+  written back, nothing sent anywhere.
+
+**Chyme, the assistant**
+
+- Reads the mail in front of you and proposes what to do with it: search, read,
+  star, mark read, archive, delete, reply, block a sender, keep a contact.
+- **Every change waits for a button.** Each proposal is a card — *Chyme wants to ·
+  Star "Re: invoice"* — with **Do it** and **No**.
+- It never sends. A reply it writes opens in your composer for you to edit.
+- Your endpoint, your model, your key. The model and the tone are two chips in its
+  own header.
+- Its first screen is a hero with the suggestions fanned along an arc, because a
+  menu of seven prompts is a menu nobody reads.
+
+**The look**
+
+- Light and dark, following the system, with **true black** for OLED.
+- **Fifteen accents.** The theme is global: every surface is the accent-tinted
+  Milk or Ink, so changing the accent changes the page, not just the buttons.
+- **Glass studio** — blur radius, tint strength, and a tint inversion for smoked
+  instead of frosted, with a preview drawn by the same material code as every
+  other surface.
+- **Four launcher marks**, previewed at the size and on the accent they will wear,
+  with a matching monochrome layer for Android's themed icons.
+- Text size multiplies the device setting; list density comfortable or compact;
+  gesture navigation throughout; a confirmation before the app closes.
+
+**Under the hood**
+
+- An update checker that asks GitHub once a day, shows what changed, and compares
+  the build number as well as the name.
+- New-mail notifications from a background worker, with quiet hours and private
+  previews as switches — the preview one is on, so a notification says mail
+  arrived rather than who sent it.
+- Credentials sealed with AES-256-GCM on the device, the key in the platform
+  keychain, and a `0600` key file beside the record for machines where the
+  keychain will not answer.
 
 ## Getting it running
 
@@ -240,24 +317,6 @@ cp -R /tmp/ace_scaffold/macos /tmp/ace_scaffold/windows .
 
 Doing it this way (rather than `flutter create .`) avoids overwriting
 `lib/main.dart` and `pubspec.yaml`.
-
-## Downloads
-
-Every release carries one file per platform, in the format that platform
-installs:
-
-| Platform | File | How it installs |
-| --- | --- | --- |
-| Android | `AceMail-<version>-arm64-v8a.apk` (and `armeabi-v7a`) | Sideload, or `adb install` |
-| iOS | `AceMail-<version>-ios-unsigned.ipa` | Unsigned — re-sign with your own certificate, or use a sideloading tool |
-| macOS | `AceMail-<version>-macos-unsigned.dmg` | Open the disk image, drag the app to Applications |
-| Windows | `AceMail-<version>-windows-x64-setup.exe` | Run the installer: Start-menu entry, uninstaller, optional desktop shortcut |
-| Linux | `AceMail-<version>-x86_64.AppImage` | `chmod +x` and run. Any distribution — it carries its own libraries. A `.tar.gz` of the same bundle is there too. |
-
-The Apple builds are unsigned: signing needs a certificate and a provisioning
-profile this repository does not hold. The AppImage is the Linux one to take —
-a `.deb` would only install on the Debian family, and an AppImage runs on
-Ubuntu, Fedora and Arch alike.
 
 ## Building the APK
 
@@ -446,7 +505,7 @@ Every setting changes something real and survives a restart.
 | Gestures | Swipe right | Archive, delete, read/unread, flag or nothing |
 | Gestures | Swipe left | The same list, independently |
 | Appearance | Theme | System, Light or Dark |
-| Appearance | Accent | Ten Material accents, each checked for contrast |
+| Appearance | Accent | Fifteen accents, each checked for contrast |
 | Appearance | Text size | Multiplies the device setting |
 | Appearance | List density | Comfortable or compact |
 | Appearance | Ask before exiting | Whether leaving the mailbox asks first |
@@ -603,10 +662,13 @@ Mail is hostile input, so the client treats it that way.
   self-contained HTML → rich-text converter: no scripts, no remote layout. It
   is not a security boundary for hostile mail — treat HTML from untrusted
   senders accordingly.
-- The launcher icon is an adaptive icon — a filled orange envelope on a milk
-  tile — and the in-app `BrandMark` draws the same mark from the same 108-unit
-  geometry, so the two never drift apart. `AceLoader` breathes that same
-  envelope wherever a spinner used to be.
+- The launcher icon is an adaptive icon with four marks to choose from — Ink,
+  Heart, Bear, Doodle — each with a monochrome layer for Android's themed icons,
+  and each drawn at 60% of the canvas so it sits inside the safe zone rather than
+  shrinking inside its tile. The in-app `BrandMark` draws from the same 108-unit
+  geometry, so the two never drift apart. `AceLoader` is the Material 3
+  Expressive shape morph, not a progress ring: one form travelling through
+  Material's shape families, which is what "loading" looks like in that system.
 - The launch window is painted in the app's own background colour with that
   mark, so the app appears to open straight onto its UI instead of flashing a
   blank screen first.
