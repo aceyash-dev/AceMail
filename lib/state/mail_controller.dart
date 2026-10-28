@@ -347,9 +347,6 @@ class MailController extends ChangeNotifier {
         if (remember) {
           final String? failure = await _persist();
           if (failure != null) errorMessage = failure;
-          if (removedGoogle != null) {
-            await GoogleAuth.clearCachedTokens(email: removedGoogle);
-          }
         }
         _notify();
         return true;
@@ -395,6 +392,11 @@ class MailController extends ChangeNotifier {
           }
           final String? failure = await _persist();
           if (failure != null) errorMessage = failure;
+          // Only this mailbox's cache: the accounts still connected keep theirs,
+          // so removing one does not sign the others out.
+          if (removedGoogle != null) {
+            await GoogleAuth.clearCachedTokens(email: removedGoogle);
+          }
         }
         _notify();
       });
