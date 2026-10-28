@@ -6,6 +6,15 @@ after the `+` is the Android version code.
 ## 0.6.0+89
 
 ### Changed
+- **Google sign-in goes through Auth0.** Gmail still needs a Google OAuth token
+  for IMAP and SMTP — XOAUTH2 takes nothing else — but where it comes from is now
+  one tenant instead of a Cloud project with two implementations: the
+  `google_sign_in` plugin on mobile, which could not ask for the mail scope in
+  the same breath as the identity, and a hand-written PKCE loop on desktop. There
+  is one OAuth client, one consent screen carrying Google's inside it, and the
+  same code everywhere: a loopback redirect, PKCE, and a token exchange for the
+  mailbox token. The device keeps an Auth0 refresh token in the keychain, per
+  address — not a password, and not a Google token.
 - **Sending is instant to the touch.** The composer closes the moment you press
   Send; the handshake and the transfer happen behind the mail you are already
   back in. A failure arrives as a bar with the reason in it and a **Retry** that

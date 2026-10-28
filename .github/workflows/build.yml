@@ -112,16 +112,26 @@ jobs:
       # release ones.
       - name: Build the release APKs
         if: github.event_name != 'pull_request'
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: |
           flutter build apk --release --split-per-abi \
-            --target-platform android-arm,android-arm64
+            --target-platform android-arm,android-arm64 \
+            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
           ls -l build/app/outputs/flutter-apk/
 
       - name: Build the debug APKs for a pull request
         if: github.event_name == 'pull_request'
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: |
           flutter build apk --debug --split-per-abi \
-            --target-platform android-arm,android-arm64
+            --target-platform android-arm,android-arm64 \
+            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
 
       # Fail closed. A publishing run must *prove* every APK carries the
       # expected release key: a missing fingerprint secret, or an APK whose
@@ -227,16 +237,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # The desktop Google client, from secrets. Without them the app still
-      # builds, and Gmail sign-in on this build says it is not configured.
+      # The Auth0 tenant, from secrets. Without them the app still builds, and
+      # Gmail sign-in on this build says it is not configured.
       - name: Build
         env:
-          GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.GOOGLE_DESKTOP_CLIENT_ID }}
-          GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: |
           flutter build linux --release \
-            --dart-define=GOOGLE_DESKTOP_CLIENT_ID="$GOOGLE_DESKTOP_CLIENT_ID" \
-            --dart-define=GOOGLE_DESKTOP_CLIENT_SECRET="$GOOGLE_DESKTOP_CLIENT_SECRET"
+            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" \
+            --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" \
+            --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
 
       - name: Pack the bundle
         run: |
@@ -341,7 +353,13 @@ jobs:
       # not have them. An unsigned build is what an Xcode user re-signs, and it
       # is also the check that the app compiles for iOS at all.
       - name: Build
-        run: flutter build ios --release --no-codesign
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
 
       # An .ipa is a zip with one folder in it called Payload, holding the
       # .app. Same bytes as before, in the shape the tooling expects — an
@@ -393,7 +411,13 @@ jobs:
         run: tool/desktop/setup_desktop.sh windows
 
       - name: Build
-        run: flutter build windows --release
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: |
+          flutter build windows --release \
+            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
 
       # An installer, not a folder to unzip: Start-menu entry, uninstaller, and
       # no "which of these .exe files is the app?" at the end.
@@ -481,7 +505,13 @@ jobs:
       # provisioning profile this repository does not have. An unsigned .app is
       # what an Xcode user re-signs, and it is also the check that it compiles.
       - name: Build
-        run: flutter build macos --release
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: |
+          flutter build macos --release \
+            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
 
       # A disk image, because that is what a Mac opens: drag the app to
       # Applications, eject. A zip leaves the person to work out that the .app

@@ -6,7 +6,7 @@ import 'package:workmanager/workmanager.dart';
 import '../data/account_store.dart';
 import '../data/preferences.dart';
 import '../data/scheduled.dart';
-import 'google_auth.dart';
+import 'ace_auth.dart';
 import '../models/mail_folder.dart';
 import '../models/message_summary.dart';
 import 'mail_service.dart';
@@ -112,14 +112,14 @@ Future<bool> checkOne(StoredAccount stored) async {
   // user and they never got a new-mail notification at all.
   final MailService service = MailService(
     stored.account,
-    tokenProvider: stored.account.isGoogle ? () => GoogleAuth.token(stored.account.email) : null,
+    tokenProvider: stored.account.isGoogle ? () => AceAuth.token(stored.account.email) : null,
   );
   final Preferences prefs = Preferences();
   await prefs.load();
 
   try {
     final String? secret = stored.account.isGoogle
-        ? await GoogleAuth.token(stored.account.email)
+        ? await AceAuth.token(stored.account.email)
         : stored.password;
     if (secret == null) return false;
 
@@ -239,12 +239,12 @@ Future<void> sendDue({void Function()? onTransientFailure}) async {
     final MailService service = MailService(
       stored.account,
       tokenProvider: stored.account.isGoogle
-          ? () => GoogleAuth.token(stored!.account.email)
+          ? () => AceAuth.token(stored!.account.email)
           : null,
     );
     try {
       final String? secret = stored.account.isGoogle
-          ? await GoogleAuth.token(stored.account.email)
+          ? await AceAuth.token(stored.account.email)
           : stored.password;
       if (secret == null) {
         // No token without asking somebody, so it waits for a run that can.

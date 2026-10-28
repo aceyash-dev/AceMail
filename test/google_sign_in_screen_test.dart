@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:ace_mail/data/preferences.dart';
 import 'package:ace_mail/models/ace_account.dart';
 import 'package:ace_mail/screens/sign_in_screen.dart';
-import 'package:ace_mail/services/google_auth.dart';
+import 'package:ace_mail/services/ace_auth.dart';
 import 'package:ace_mail/state/mail_controller.dart';
 import 'package:ace_mail/theme/astryx_theme.dart';
 import 'package:flutter/material.dart';
@@ -31,7 +31,7 @@ class _TestMailController extends MailController {
 Future<void> _pumpSignInScreen(
   WidgetTester tester,
   _TestMailController controller, {
-  required Future<GoogleCredential> Function() googleSignIn,
+  required Future<AceCredential> Function() googleSignIn,
 }) async {
   await tester.pumpWidget(
     MultiProvider(
@@ -44,7 +44,7 @@ Future<void> _pumpSignInScreen(
       ],
       child: MaterialApp(
         theme: buildAstryxTheme(Brightness.light),
-        home: SignInScreen(googleSignIn: googleSignIn),
+        home: SignInScreen(authSignIn: googleSignIn),
       ),
     ),
   );
@@ -78,7 +78,7 @@ void main() {
     'Google login shows progress and ignores taps while OAuth is pending',
     (WidgetTester tester) async {
       final _TestMailController controller = _TestMailController();
-      final Completer<GoogleCredential> auth = Completer<GoogleCredential>();
+      final Completer<AceCredential> auth = Completer<AceCredential>();
       int authAttempts = 0;
 
       await _pumpSignInScreen(

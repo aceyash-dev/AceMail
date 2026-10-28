@@ -210,8 +210,9 @@ client from the same Google Cloud project, passed at build time:
 
 ```bash
 flutter run -d linux \
-  --dart-define=GOOGLE_DESKTOP_CLIENT_ID=... \
-  --dart-define=GOOGLE_DESKTOP_CLIENT_SECRET=...
+  --dart-define=AUTH0_DOMAIN=your-tenant.eu.auth0.com \
+  --dart-define=AUTH0_CLIENT_ID=... \
+  --dart-define=AUTH0_CLIENT_SECRET=...
 ```
 
 Unlike Android and iOS, the desktop sign-in keeps a refresh token, so the person
@@ -273,6 +274,52 @@ In CI, `.github/workflows/build.yml` runs `flutter analyze`, `flutter test` and
 the Actions tab. The APK is uploaded as a build artifact; a manual run or a `v*`
 tag also publishes it to a GitHub Release, so it can be downloaded without
 signing in to GitHub.
+
+## Signing in with Google (through Auth0)
+
+Gmail does not accept app passwords. IMAP and SMTP authenticate it with an OAuth
+access token by SASL XOAUTH2, and that token has to be Google's. This app gets it
+from **Auth0** rather than from Google directly: one OAuth client, one consent
+screen that carries Google's inside it, and the same code on every platform.
+
+The build reads three values, all passed at build time, so no secret is in the
+source:
+
+```bash
+flutter build apk --release \
+  --dart-define=AUTH0_DOMAIN=your-tenant.eu.auth0.com \
+  --dart-define=AUTH0_CLIENT_ID=... \
+  --dart-define=AUTH0_CLIENT_SECRET=...   # Regular Web app only
+```
+
+A build without them still runs; Gmail sign-in then says it is not configured,
+and every provider that takes a password works as before.
+
+**The tenant has to be set up for this**, and three of the four are the sort of
+thing that fails quietly:
+
+1. **An application.** Native (PKCE) is the right type. Add
+   `http://127.0.0.1:*/callback` to its Allowed Callback URLs — the app answers
+   on a loopback socket, which is what RFC 8252 asks for and what removes the
+   need for a custom scheme.
+2. **A `google-oauth2` connection**, with the scope
+   `https://mail.google.com/`. That is the full-access Gmail scope: Google offers
+   nothing narrower that reads *and* sends over IMAP and SMTP, so the Google
+   consent screen has to list it, and the Cloud project has to be verified before
+   anybody outside its test users can sign in.
+3. **Provider access tokens turned on for the connection.** Auth0 hands back its
+   own token by default. The mailbox needs Google's, which the app asks for with
+   a token exchange (`urn:auth0:params:oauth:token-type:idp_token`). Without this
+   the exchange answers with the Auth0 token, Gmail rejects it, and the app says
+   the connection is missing provider tokens rather than pretending the password
+   was wrong.
+4. **`AUTH0_CONNECTION`**, only if the connection is not named
+   `google-oauth2`; it defaults to that.
+
+What the device keeps is an Auth0 refresh token in the platform keychain, per
+address. Not a password and not a Google token — the Google token is minted on
+demand from that session and lives in memory for one connection. Revoking the
+application in Auth0 ends its access, and nothing on the device can be replayed.
 
 ## Release signing
 
@@ -363,8 +410,9 @@ error:
 
       | Secret | Value |
       | --- | --- |
-      | `GOOGLE_DESKTOP_CLIENT_ID` | the same client ID |
-      | `GOOGLE_DESKTOP_CLIENT_SECRET` | the client secret |
+      | `AUTH0_DOMAIN` | the tenant, as `something.eu.auth0.com` |
+      | `AUTH0_CLIENT_ID` | the application's client ID |
+      | `AUTH0_CLIENT_SECRET` | only for a Regular Web application; a native client with PKCE does not need one |
 
       Android does not need the secret — Credential Manager only wants the ID as
       an audience — but the desktop flow does, and it is passed in at build time

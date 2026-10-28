@@ -15,7 +15,7 @@ import '../models/message_sort.dart';
 import '../models/message_summary.dart';
 import '../util/otp.dart';
 import '../services/contacts.dart';
-import '../services/google_auth.dart';
+import '../services/ace_auth.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
 
@@ -71,7 +71,7 @@ class MailSession extends ChangeNotifier {
         // Only a Google account has a token to fetch. A password account's
         // secret is remembered by the service, because there is no way to
         // replace it.
-        tokenProvider: account.isGoogle ? () => GoogleAuth.token(account.email) : null,
+        tokenProvider: account.isGoogle ? () => AceAuth.token(account.email) : null,
       );
 
   /// The secret for a handshake: a password, or a fresh Google token.
@@ -83,14 +83,14 @@ class MailSession extends ChangeNotifier {
   /// A Google token is fetched at the moment it is needed rather than kept,
   /// because it lives about an hour and a mailbox that reconnects in the
   /// afternoon needs one that is valid now. Throws with
-  /// [GoogleAuthException.needsSignIn] when Google wants the user back, which
+  /// [AceAuthException.needsSignIn] when Google wants the user back, which
   /// the screen turns into an offer to sign in rather than an error.
   Future<String> _secret() {
     if (!account.isGoogle) return Future<String>.value(password);
-    return GoogleAuth.token(account.email).then((String? token) {
+    return AceAuth.token(account.email).then((String? token) {
       if (token == null) {
         needsGoogleSignIn = true;
-        throw const GoogleAuthException(
+        throw const AceAuthException(
           'Sign in to Google again to reach this mailbox.',
           needsSignIn: true,
         );
@@ -572,7 +572,7 @@ class MailSession extends ChangeNotifier {
 
     try {
       if (account.isGoogle) {
-        displayName = await GoogleAuth.knownName();
+        displayName = await AceAuth.knownName();
       } else {
         final MailFolder? sent =
             _firstWhereOrNull(folders, (MailFolder f) => f.role == FolderRole.sent);
