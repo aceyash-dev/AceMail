@@ -3,6 +3,35 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+90
+
+### Fixed
+- **Signing out clears the cached Google tokens.** They were stored per address
+  and `forget()` deleted only the email and the name, so an hour's worth of
+  usable tokens stayed on the device after a sign-out. Cleanup now enumerates the
+  keychain instead of guessing at one account's key.
+- **Removing one Google mailbox no longer disturbs another.** `removeAccount`
+  clears that address's cached token and nothing else; signing out of the last
+  account is the only thing that clears them all.
+- **A keychain that will not answer is not a signed-out person.** A failed read
+  and a missing token were both `null`, so a locked or unavailable credential
+  store produced a sign-in prompt. They are different answers now, and the
+  storage failure is reported as one.
+- **A refused write is no longer reported as a save.** The token cache write
+  returns whether it worked, and says so in the log when it did not, instead of
+  failing silently and looking like a cache that is there.
+- **Desktop keeps one refresh token per Google account.** The keys were global,
+  so adding a second Google account overwrote the first one's refresh token and
+  the first was asked to sign in again within the hour. Refresh tokens, access
+  tokens, sign-out and revocation are all per address now.
+
+### Added
+- **`SecretStore`, and tests for the failures that matter.** The keychain sits
+  behind a two-method-deep interface so a test can make it fail on purpose:
+  cached tokens are cleared per account and in bulk, an unreadable store is
+  reported rather than treated as a missing session, and an empty store is still
+  an ordinary "nobody signed in".
+
 ## 0.6.0+89
 
 ### Changed

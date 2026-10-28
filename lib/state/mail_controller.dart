@@ -11,6 +11,7 @@ import '../models/full_message.dart';
 import '../models/mail_folder.dart';
 import '../models/message_sort.dart';
 import '../models/message_summary.dart';
+import '../services/google_auth.dart';
 import '../services/mail_errors.dart';
 import '../services/mail_service.dart';
 import '../services/mail_transport.dart';
@@ -346,6 +347,9 @@ class MailController extends ChangeNotifier {
         if (remember) {
           final String? failure = await _persist();
           if (failure != null) errorMessage = failure;
+          if (removedGoogle != null) {
+            await GoogleAuth.clearCachedTokens(email: removedGoogle);
+          }
         }
         _notify();
         return true;
@@ -365,6 +369,11 @@ class MailController extends ChangeNotifier {
         if (index < 0 || index >= _sessions.length) return;
 
         final bool wasActive = index == _activeIndex;
+        // The mailbox being removed, so its cached credentials go with it and
+        // the mailbox beside it keeps working.
+        final String? removedGoogle = _sessions[index].account.isGoogle
+            ? _sessions[index].account.email
+            : null;
         _detachAt(index);
 
         if (_sessions.isEmpty) {
@@ -372,6 +381,7 @@ class MailController extends ChangeNotifier {
           status = MailStatus.signedOut;
           final String? failure = await _store.clear();
           if (failure != null) errorMessage = failure;
+          if (removedGoogle != null) await GoogleAuth.forget();
         } else {
           if (index < _activeIndex) {
             // Everything above the removed account shifted down by one, so the
@@ -390,6 +400,15 @@ class MailController extends ChangeNotifier {
       });
 
   Future<void> signOut() => _serialize(() async {
+        // Which providers were in play, before the sessions go: signing out has
+        // to clear their cached credentials too, not just this app's account
+        // list. They used to survive, so an hour's worth of usable Google
+        // tokens stayed on the device after somebody signed out.
+        final Set<String> googleAddresses = <String>{
+          for (final MailSession session in _sessions)
+            if (session.account.isGoogle) session.account.email,
+        };
+
         for (final MailSession session in List<MailSession>.of(_sessions)) {
           session.removeListener(_notify);
           session.dispose();
@@ -400,6 +419,7 @@ class MailController extends ChangeNotifier {
         status = MailStatus.signedOut;
         final String? failure = await _store.clear();
         if (failure != null) errorMessage = failure;
+        if (googleAddresses.isNotEmpty) await GoogleAuth.forget();
         _notify();
       });
 

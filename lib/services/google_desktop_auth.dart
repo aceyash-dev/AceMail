@@ -5,9 +5,9 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../data/secret_store.dart';
 import '../util/redact.dart';
 import 'google_auth.dart' show GoogleAuthException, GoogleCredential;
 
@@ -29,6 +29,9 @@ import 'google_auth.dart' show GoogleAuthException, GoogleCredential;
 /// * **The build must carry a Desktop OAuth client.** Google issues desktop
 ///   clients their own ID and secret, separate from the mobile ones. They are
 ///   passed at build time with `--dart-define`, so no secret is in the source.
+/// What a read found: a value, or a keychain that would not answer.
+typedef _Stored = ({String? value, bool unavailable});
+
 abstract final class GoogleDesktopAuth {
   /// The desktop OAuth client, from the build.
   static const String clientId =
@@ -61,14 +64,32 @@ abstract final class GoogleDesktopAuth {
   /// does not start with a token that dies on the way.
   static const Duration _renewMargin = Duration(minutes: 1);
 
-  static const String _keyRefresh = 'ace.google.desktop.refresh';
+  /// The account this device signed in as last, for the greeting.
   static const String _keyEmail = 'ace.google.desktop.email';
   static const String _keyName = 'ace.google.desktop.name';
 
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  /// One refresh token **per address**.
+  ///
+  /// These were global — `ace.google.desktop.refresh` — which is fine until a
+  /// second Google account is added: signing into it overwrote the first one's
+  /// refresh token, and the first then could not renew and was asked to sign in
+  /// again within the hour. The rest of the app supports several mailboxes; the
+  /// storage for the one provider that can renew without asking did not.
+  static String _refreshKey(String email) =>
+      'ace.google.desktop.refresh.${email.trim().toLowerCase()}';
 
-  static String? _accessToken;
-  static DateTime _accessExpiresAt = DateTime.fromMillisecondsSinceEpoch(0);
+  /// The prefix every per-account refresh token shares, so they can be found.
+  static const String _refreshPrefix = 'ace.google.desktop.refresh.';
+
+  @visibleForTesting
+  static SecretStore storage = const KeychainSecretStore();
+
+  /// Live access tokens, one per address, with the moment each goes stale.
+  static final Map<String, ({String token, DateTime expiresAt})> _access =
+      <String, ({String token, DateTime expiresAt})>{};
+
+  /// Who the live tokens belong to when the caller did not say.
+  static String? _lastEmail;
 
   // ---------------------------------------------------------------------------
   // Public surface, shaped like the mobile one in GoogleAuth.
@@ -106,10 +127,11 @@ abstract final class GoogleDesktopAuth {
       throw const GoogleAuthException('Google did not say which account this is.');
     }
 
-    await _write(_keyRefresh, refresh);
+    await _write(_refreshKey(email), refresh);
     await _write(_keyEmail, email);
     await _write(_keyName, grant.name ?? '');
-    _remember(grant.tokens.accessToken, grant.tokens.expiresIn);
+    _lastEmail = email.toLowerCase();
+    _remember(email, grant.tokens.accessToken, grant.tokens.expiresIn);
 
     return (email: email, token: grant.tokens.accessToken, name: grant.name);
   }
@@ -119,39 +141,84 @@ abstract final class GoogleDesktopAuth {
   /// Null means nobody has signed in. Throws with `needsSignIn` when Google has
   /// withdrawn the grant, so the screen can ask again instead of showing an
   /// error nobody can act on.
-  static Future<String?> token() async {
-    final String? cached = _accessToken;
-    if (cached != null && DateTime.now().isBefore(_accessExpiresAt.subtract(_renewMargin))) {
-      return cached;
+  static Future<String?> token([String? email]) async {
+    final String? want =
+        (email ?? _lastEmail ?? await _read(_keyEmail))?.trim().toLowerCase();
+    if (want == null || want.isEmpty) return null;
+
+    final ({String token, DateTime expiresAt})? cached = _access[want];
+    if (cached != null &&
+        DateTime.now().isBefore(cached.expiresAt.subtract(_renewMargin))) {
+      return cached.token;
     }
 
-    final String? refresh = await _read(_keyRefresh);
+    final _Stored stored = await _readStored(_refreshKey(want));
+    if (stored.unavailable) {
+      // A keychain that will not answer is not a person who never signed in.
+      // Reporting it as "no token" is what sent somebody to the sign-in screen
+      // over a temporary credential-store fault.
+      throw const GoogleAuthException(
+        'The keychain could not be read. Try again in a moment.',
+      );
+    }
+    final String? refresh = stored.value;
     if (refresh == null || refresh.isEmpty) return null;
 
     final _Tokens renewed = await _refresh(refresh);
-    _remember(renewed.accessToken, renewed.expiresIn);
+    _remember(want, renewed.accessToken, renewed.expiresIn);
     return renewed.accessToken;
   }
 
   /// Signs out: forgets the stored grant and asks Google to revoke it. The
   /// revoke is best effort — the local copy is gone either way.
-  static Future<void> forget() async {
-    final String? refresh = await _read(_keyRefresh);
-    _accessToken = null;
-    _accessExpiresAt = DateTime.fromMillisecondsSinceEpoch(0);
-    for (final String key in <String>[_keyRefresh, _keyEmail, _keyName]) {
-      try {
-        await _storage.delete(key: key);
-      } catch (error) {
-        debugPrint('Ace Mail: could not clear $key (${Redact.safe(error)})');
+  static Future<void> forget({String? email}) async {
+    final String? want = email?.trim().toLowerCase();
+
+    if (want != null && want.isNotEmpty) {
+      // One account. The others keep their grants: removing a mailbox must not
+      // sign out the mailbox next to it.
+      final _Stored stored = await _readStored(_refreshKey(want));
+      _access.remove(want);
+      await _delete(_refreshKey(want));
+      if (stored.value != null && stored.value!.isNotEmpty) {
+        await _revoke(stored.value!);
       }
+      final String? last = await _read(_keyEmail);
+      if (last != null && last.toLowerCase() == want) {
+        await _delete(_keyEmail);
+        await _delete(_keyName);
+        _lastEmail = null;
+      }
+      return;
     }
-    if (refresh != null && refresh.isNotEmpty) {
-      try {
-        await _postForm(_revokeEndpoint, <String, String>{'token': refresh});
-      } catch (error) {
-        debugPrint('Ace Mail: could not revoke the grant (${Redact.safe(error)})');
+
+    _access.clear();
+    _lastEmail = null;
+    try {
+      final Map<String, String> values = await storage.readAll();
+      for (final String key in values.keys.toList()) {
+        if (key.startsWith(_refreshPrefix)) {
+          final String token = values[key] ?? '';
+          await _delete(key);
+          if (token.isNotEmpty) await _revoke(token);
+        }
       }
+    } catch (error) {
+      debugPrint(
+        'Ace Mail: could not enumerate desktop grants (${Redact.safe(error)})',
+      );
+    }
+    await _delete(_keyEmail);
+    await _delete(_keyName);
+  }
+
+  /// Asks Google to withdraw a grant. Best effort: the local copy is already
+  /// gone, and a network that will not answer does not make it come back.
+  static Future<void> _revoke(String refresh) async {
+    try {
+      await _postForm(_revokeEndpoint, <String, String>{'token': refresh});
+    } catch (error) {
+      debugPrint('Ace Mail: could not revoke the grant (${Redact.safe(error)})');
     }
   }
 
@@ -418,30 +485,48 @@ abstract final class GoogleDesktopAuth {
   // Small helpers.
   // ---------------------------------------------------------------------------
 
-  static void _remember(String token, int expiresIn) {
-    _accessToken = token;
-    _accessExpiresAt = DateTime.now().add(Duration(seconds: expiresIn));
+  static void _remember(String email, String token, int expiresIn) {
+    _access[email.trim().toLowerCase()] = (
+      token: token,
+      expiresAt: DateTime.now().add(Duration(seconds: expiresIn)),
+    );
   }
 
-  static Future<String?> _read(String key) async {
+  /// A read that says which kind of nothing it found.
+  ///
+  /// "There is no token" and "the keychain would not answer" both used to be
+  /// null, and the caller could only conclude the first.
+  static Future<_Stored> _readStored(String key) async {
     try {
-      final String? value = await _storage.read(key: key);
-      return (value == null || value.isEmpty) ? null : value;
+      final String? value = await storage.read(key: key);
+      return (
+        value: (value == null || value.isEmpty) ? null : value,
+        unavailable: false,
+      );
     } catch (error) {
-      // No keychain (a headless Linux session, say) is "nobody signed in",
-      // not a crash on the first frame of the app.
       debugPrint('Ace Mail: could not read $key (${Redact.safe(error)})');
-      return null;
+      return (value: null, unavailable: true);
     }
   }
 
+  static Future<String?> _read(String key) async =>
+      (await _readStored(key)).value;
+
   static Future<void> _write(String key, String value) async {
     try {
-      await _storage.write(key: key, value: value);
+      await storage.write(key: key, value: value);
     } catch (error) {
       throw const GoogleAuthException(
         'Could not keep the sign-in on this device. Is the keychain available?',
       );
+    }
+  }
+
+  static Future<void> _delete(String key) async {
+    try {
+      await storage.delete(key: key);
+    } catch (error) {
+      debugPrint('Ace Mail: could not clear $key (${Redact.safe(error)})');
     }
   }
 

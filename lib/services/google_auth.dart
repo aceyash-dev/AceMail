@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../data/secret_store.dart';
+import '../util/redact.dart';
 import 'google_desktop_auth.dart';
 
 /// Google sign-in could not be completed.
@@ -148,22 +149,55 @@ abstract final class GoogleAuth {
   /// device with two Google accounts is every time. A sheet that appears while
   /// somebody is opening a folder is a sheet they did not ask for.
   static const Duration _tokenLife = Duration(minutes: 50);
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  static Future<String?> _read(String key) async {
+  /// The keychain. Swappable so a test can make it fail on purpose — the paths
+  /// that matter most here are the ones where storage does not work, and they
+  /// cannot be reached through the real one.
+  @visibleForTesting
+  static SecretStore storage = const KeychainSecretStore();
+
+  /// What a read found.
+  ///
+  /// Three answers, not two. "There is no token" and "the keychain would not
+  /// answer" used to be the same null, which is how a locked or unavailable
+  /// credential store became a sign-in prompt — the app could not tell a person
+  /// who had never signed in from a device that could not remember.
+  typedef Read = ({String? value, bool unavailable});
+
+  static Future<Read> _read(String key) async {
     try {
-      final String? value = await _storage.read(key: key);
-      return (value == null || value.isEmpty) ? null : value;
-    } catch (_) {
-      return null;
+      final String? value = await storage.read(key: key);
+      return (
+        value: (value == null || value.isEmpty) ? null : value,
+        unavailable: false,
+      );
+    } catch (error) {
+      debugPrint('Ace Mail: could not read $key (${Redact.safe(error)})');
+      return (value: null, unavailable: true);
     }
   }
 
-  static Future<void> _write(String key, String value) async {
+  /// Writes, and says whether it worked.
+  ///
+  /// It used to swallow the failure, which made a cache that never persisted
+  /// look exactly like one that did — until the next launch, when it looked
+  /// like a sign-in nobody had asked for. The caller decides what a failure
+  /// means; this only reports it.
+  static Future<bool> _write(String key, String value) async {
     try {
-      await _storage.write(key: key, value: value);
-    } catch (_) {
-      // A keychain that will not take it costs a greeting, not a sign-in.
+      await storage.write(key: key, value: value);
+      return true;
+    } catch (error) {
+      debugPrint('Ace Mail: could not persist $key (${Redact.safe(error)})');
+      return false;
+    }
+  }
+
+  static Future<void> _delete(String key) async {
+    try {
+      await storage.delete(key: key);
+    } catch (error) {
+      debugPrint('Ace Mail: could not clear $key (${Redact.safe(error)})');
     }
   }
 
@@ -175,7 +209,7 @@ abstract final class GoogleAuth {
   /// account that is actually signed in.
   static Future<String?> knownEmail() async {
     if (_desktop) return GoogleDesktopAuth.knownEmail();
-    return _read(_keyEmail);
+    return (await _read(_keyEmail)).value;
   }
 
   /// The name Google has for the signed-in account, if there is one.
@@ -184,7 +218,7 @@ abstract final class GoogleAuth {
   /// provider here that can say what to call somebody without being asked.
   static Future<String?> knownName() async {
     if (_desktop) return GoogleDesktopAuth.knownName();
-    return _read(_keyName);
+    return (await _read(_keyName)).value;
   }
 
   /// Asks the user to choose an account and consent, and returns a token.
@@ -248,8 +282,14 @@ abstract final class GoogleAuth {
       // anybody — and so signing into a second account does not throw this one
       // away.
       final String suffix = '.${account.email.toLowerCase()}';
-      await _write('$_keyToken$suffix', token);
-      await _write('$_keyTokenAt$suffix', DateTime.now().toIso8601String());
+      // Reported, not assumed. If the keychain will not take the cache the
+      // sign-in still stands — the plugin can mint another token — but nothing
+      // here claims a cache that is not there.
+      final bool cached = await _write('$_keyToken$suffix', token) &
+          await _write('$_keyTokenAt$suffix', DateTime.now().toIso8601String());
+      if (!cached) {
+        debugPrint('Ace Mail: the Google token cache was not saved.');
+      }
       final String? name = account.displayName?.trim();
       return (
         email: account.email,
@@ -295,7 +335,7 @@ abstract final class GoogleAuth {
   /// caller says so. That is a worse sentence than a sheet, and a much better
   /// one than a sheet nobody asked for.
   static Future<String?> token([String? email]) async {
-    if (_desktop) return GoogleDesktopAuth.token();
+    if (_desktop) return GoogleDesktopAuth.token(email);
     await _prepare();
 
     // Only when the caller did not say which account. With two signed in, the
@@ -318,33 +358,82 @@ abstract final class GoogleAuth {
     // Stored per address. One key held one token, so signing into a second
     // account threw the first one's away — and the first then had to ask again.
     final String suffix = want == null ? '' : '.$want';
-    final DateTime? issued = DateTime.tryParse(
-      await _read('$_keyTokenAt$suffix') ?? '',
-    );
-    final String? stored = await _read('$_keyToken$suffix');
-    if (stored == null || issued == null) return null;
+    final Read at = await _read('$_keyTokenAt$suffix');
+    final Read stored = await _read('$_keyToken$suffix');
+    if (stored.unavailable || at.unavailable) {
+      // The device could not answer. That is a recoverable fault, not a
+      // signed-out person: saying "sign in again" here is what turned a
+      // keychain hiccup into a login prompt.
+      throw const GoogleAuthException(
+        'The credential store could not be read. Try again in a moment.',
+      );
+    }
+    final DateTime? issued = DateTime.tryParse(at.value ?? '');
+    if (stored.value == null || issued == null) return null;
     if (DateTime.now().difference(issued) > _tokenLife) return null;
-    return stored;
+    return stored.value;
+  }
+
+  /// Clears the cached access tokens.
+  ///
+  /// One account's, or every one's. Separate from [forget] because removing one
+  /// mailbox must not disturb another: the cached tokens are keyed by address,
+  /// and only the address being removed should go.
+  ///
+  /// This is cache cleanup, not sign-out. Nothing here refreshes a token, and
+  /// nothing here touches Google's SDK.
+  static Future<void> clearCachedTokens({String? email}) async {
+    if (_desktop) {
+      // Desktop keeps refresh tokens, per account; its own method knows which
+      // keys those are.
+      return GoogleDesktopAuth.forget(email: email);
+    }
+
+    final String? want = email?.trim().toLowerCase();
+    if (want != null && want.isNotEmpty) {
+      _remembered.remove(want);
+      await _delete('$_keyToken.$want');
+      await _delete('$_keyTokenAt.$want');
+      return;
+    }
+
+    _remembered.clear();
+    try {
+      // Enumerated rather than guessed: the last account's address is not the
+      // only one with a cache, and a key nobody knows the name of is a token
+      // nobody can delete.
+      final Map<String, String> values = await storage.readAll();
+      for (final String key in values.keys.toList()) {
+        if (key.startsWith('$_keyToken.') || key.startsWith('$_keyTokenAt.')) {
+          await _delete(key);
+        }
+      }
+    } catch (error) {
+      debugPrint(
+        'Ace Mail: could not enumerate cached tokens (${Redact.safe(error)})',
+      );
+    }
   }
 
   /// Signs out, so the next connection asks for an account again.
+  ///
+  /// Every cached token goes with it — the per-address ones included. They used
+  /// to survive, so signing out left an hour's worth of usable tokens on the
+  /// device, and the next launch could still read mail with them.
   static Future<void> forget() async {
     if (_desktop) return GoogleDesktopAuth.forget();
-    await _prepare();
-    // Signed out is signed out: a remembered account, a cached name and a live
-    // token would all outlive it.
-    _remembered.clear();
-    for (final String key in <String>[_keyEmail, _keyName]) {
-      try {
-        await _storage.delete(key: key);
-      } catch (_) {
-        // Nothing to do about it.
-      }
-    }
+    await clearCachedTokens();
+    await _delete(_keyEmail);
+    await _delete(_keyName);
     try {
+      // Signed out of the SDK too, so the next sign-in is a choice rather than
+      // a remembered account. A plugin that is not initialised throws here and
+      // there is nothing to sign out of — deliberately not `_prepare()` first,
+      // because preparing restores accounts, and a sign-out must not be the
+      // thing that puts a chooser on screen.
       await GoogleSignIn.instance.signOut();
-    } on GoogleSignInException {
-      // Already signed out, which is the state being asked for.
+    } catch (error) {
+      debugPrint('Ace Mail: Google SDK sign-out skipped (${Redact.safe(error)})');
     }
   }
 
