@@ -415,9 +415,9 @@ jobs:
           AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
           AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
           AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
-        run: |
-          flutter build windows --release \
-            --dart-define=AUTH0_DOMAIN="$AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
+        # One line: this job's shell is pwsh, where a trailing backslash is a
+        # parse error rather than a continuation.
+        run: flutter build windows --release --dart-define=AUTH0_DOMAIN="$env:AUTH0_DOMAIN" --dart-define=AUTH0_CLIENT_ID="$env:AUTH0_CLIENT_ID" --dart-define=AUTH0_CLIENT_SECRET="$env:AUTH0_CLIENT_SECRET"
 
       # An installer, not a folder to unzip: Start-menu entry, uninstaller, and
       # no "which of these .exe files is the app?" at the end.
