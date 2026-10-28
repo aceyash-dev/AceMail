@@ -43,6 +43,14 @@ typedef GoogleCredential = ({String email, String token, String? name});
 /// offers no narrower grant that lets a client read *and* send mail over IMAP
 /// and SMTP. It is a restricted scope, so the consent screen has to list it and
 /// the account has to be a test user until the app is verified.
+/// What a read found: a value, or a keychain that would not answer.
+///
+/// Three answers, not two. "There is no token" and "the keychain would not
+/// answer" used to be the same null, which is how a locked or unavailable
+/// credential store became a sign-in prompt — the app could not tell a person
+/// who had never signed in from a device that could not remember.
+typedef _Read = ({String? value, bool unavailable});
+
 abstract final class GoogleAuth {
   /// The OAuth client this build is registered under.
   ///
@@ -156,17 +164,9 @@ abstract final class GoogleAuth {
   @visibleForTesting
   static SecretStore storage = const KeychainSecretStore();
 
-  /// What a read found.
-  ///
-  /// Three answers, not two. "There is no token" and "the keychain would not
-  /// answer" used to be the same null, which is how a locked or unavailable
-  /// credential store became a sign-in prompt — the app could not tell a person
-  /// who had never signed in from a device that could not remember.
-  typedef Read = ({String? value, bool unavailable});
-
-  static Future<Read> _read(String key) async {
+  static Future<_Read> _read(String key) async {
     try {
-      final String? value = await storage.read(key: key);
+      final String? value = await storage.read(key);
       return (
         value: (value == null || value.isEmpty) ? null : value,
         unavailable: false,
@@ -185,7 +185,7 @@ abstract final class GoogleAuth {
   /// means; this only reports it.
   static Future<bool> _write(String key, String value) async {
     try {
-      await storage.write(key: key, value: value);
+      await storage.write(key, value);
       return true;
     } catch (error) {
       debugPrint('Ace Mail: could not persist $key (${Redact.safe(error)})');
@@ -195,7 +195,7 @@ abstract final class GoogleAuth {
 
   static Future<void> _delete(String key) async {
     try {
-      await storage.delete(key: key);
+      await storage.delete(key);
     } catch (error) {
       debugPrint('Ace Mail: could not clear $key (${Redact.safe(error)})');
     }
@@ -358,8 +358,8 @@ abstract final class GoogleAuth {
     // Stored per address. One key held one token, so signing into a second
     // account threw the first one's away — and the first then had to ask again.
     final String suffix = want == null ? '' : '.$want';
-    final Read at = await _read('$_keyTokenAt$suffix');
-    final Read stored = await _read('$_keyToken$suffix');
+    final _Read at = await _read('$_keyTokenAt$suffix');
+    final _Read stored = await _read('$_keyToken$suffix');
     if (stored.unavailable || at.unavailable) {
       // The device could not answer. That is a recoverable fault, not a
       // signed-out person: saying "sign in again" here is what turned a

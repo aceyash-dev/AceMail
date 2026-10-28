@@ -498,7 +498,7 @@ abstract final class GoogleDesktopAuth {
   /// null, and the caller could only conclude the first.
   static Future<_Stored> _readStored(String key) async {
     try {
-      final String? value = await storage.read(key: key);
+      final String? value = await storage.read(key);
       return (
         value: (value == null || value.isEmpty) ? null : value,
         unavailable: false,
@@ -514,7 +514,7 @@ abstract final class GoogleDesktopAuth {
 
   static Future<void> _write(String key, String value) async {
     try {
-      await storage.write(key: key, value: value);
+      await storage.write(key, value);
     } catch (error) {
       throw const GoogleAuthException(
         'Could not keep the sign-in on this device. Is the keychain available?',
@@ -524,7 +524,7 @@ abstract final class GoogleDesktopAuth {
 
   static Future<void> _delete(String key) async {
     try {
-      await storage.delete(key: key);
+      await storage.delete(key);
     } catch (error) {
       debugPrint('Ace Mail: could not clear $key (${Redact.safe(error)})');
     }
