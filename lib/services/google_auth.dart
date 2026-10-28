@@ -336,7 +336,13 @@ abstract final class GoogleAuth {
   /// one than a sheet nobody asked for.
   static Future<String?> token([String? email]) async {
     if (_desktop) return GoogleDesktopAuth.token(email);
-    await _prepare();
+    try {
+      await _prepare();
+    } catch (_) {
+      // A plugin that will not initialise must not take the stored token with
+      // it: the cache is the whole point of this path, and the SDK is only one
+      // of the two ways to get a token.
+    }
 
     // Only when the caller did not say which account. With two signed in, the
     // remembered one is whoever signed in last — and handing that account's
