@@ -1504,8 +1504,8 @@ class _MarkPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 38,
-      height: 38,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
         color: accent.seed,
         borderRadius: BorderRadius.circular(AstryxRadius.inner),

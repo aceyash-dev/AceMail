@@ -3,6 +3,29 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+88
+
+### Fixed
+- **The launcher marks fill their tile.** Every drawing sat at half the canvas,
+  which is why the picker showed four small stamps in four large squares: the
+  artwork is scaled to the adaptive-icon safe zone now (60% of the canvas), and
+  the preview beside each name is larger so the drawing is legible.
+- **One Chyme call to action in the reader, not two.** The toolbar's *Reply with
+  Chyme* and the More menu's *Ask Chyme about this* were the same button in two
+  places; the menu entry is gone and the toolbar keeps it.
+
+### Changed
+- **The loading indicator is the real M3 Expressive morph again.** It was a
+  progress ring for a build, which is the right control for progress and the
+  wrong one for waiting: expressive loading is one shape travelling through
+  Material's families, interpolated rather than cut, and that engine is what
+  every loading state draws. Pull-to-refresh still scrubs it with a value.
+- **Sending and signing in are faster** — carried over from the previous build,
+  which this one supersedes: the SMTP connection is kept and warmed instead of
+  opened per message, the copy in Sent is filed behind the composer rather than
+  in front of it, and sign-in returns as soon as the login is accepted instead of
+  waiting for SELECT, SEARCH and a forty-message FETCH.
+
 ## 0.6.0+87
 
 ### Fixed

@@ -10,6 +10,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/haptics.dart';
 import 'ace_icon_view.dart';
+import 'shape_morph.dart';
 
 /// A press that springs, and a shape that morphs while it does.
 ///
@@ -749,44 +750,36 @@ class BrandMark extends StatelessWidget {
 
 
 
-/// The Material 3 progress indicator.
+/// The Material 3 **Expressive** loading indicator: a shape that morphs.
 ///
-/// This used to be a hand-drawn morph through Material's shape families — a
-/// replication of the Expressive loading indicator, which Flutter does not ship.
-/// A replication is a thing that drifts: it does not get the framework's timing,
-/// its reduced-motion behaviour, or its accessibility, and it was the app's own
-/// painter doing the work a component should do.
+/// This is the real thing, not a spinner wearing its name. Expressive loading
+/// is one form travelling through Material's shape families — a cookie, a
+/// square with rounded corners, a four-pointed star, a pill — holding each
+/// briefly before moving on, with the morph interpolated rather than cut. The
+/// engine is `shape_morph.dart`, which is an implementation of that
+/// specification's polygon morphing, and it is what every loading state in this
+/// app draws.
 ///
-/// What it is now is `CircularProgressIndicator`, with the 2024 appearance
-/// opted into once on the theme (`ProgressIndicatorThemeData.year2023: false`):
-/// a track gap, a rounded cap, and a shape that reads as progress rather than as
-/// a spinner. When [progress] is set it is determinate — a drag that scrubs the
-/// indicator is a determinate value, which is also what the M3 spec asks for.
+/// Flutter's own `CircularProgressIndicator` is a progress ring; it is the right
+/// control for *progress*, which is why the pull-to-refresh scrub passes a value
+/// here and gets a morph frozen at that point rather than a loop.
 class AceLoader extends StatelessWidget {
   const AceLoader({super.key, this.size = 40, this.color, this.progress});
 
   final double size;
   final Color? color;
 
-  /// When set (0..1), the indicator shows that value instead of looping —
-  /// which is how pull-to-refresh turns a drag into progress.
+  /// When set (0..1), the morph is scrubbed by that value instead of looping —
+  /// which is how pull-to-refresh turns a drag into a shape change.
   final double? progress;
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CircularProgressIndicator(
-        value: progress,
+  Widget build(BuildContext context) => AceShapeMorph(
+        size: size,
         color: color,
-        strokeWidth: size < 24 ? 2.5 : 4,
-        constraints: BoxConstraints.tightFor(width: size, height: size),
-      ),
-    );
-  }
+        progress: progress,
+      );
 }
-
 
 /// A sender's initials on a tonal tile, used wherever there is no picture.
 class InitialsAvatar extends StatelessWidget {

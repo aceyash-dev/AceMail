@@ -331,19 +331,6 @@ class _MessageReaderState extends State<MessageReader> {
               },
             ),
             SettingsRow(
-              icon: AceIcons.chyme,
-              title: 'Ask Chyme about this',
-              subtitle: 'Summarise it, or ask what it wants from you.',
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                ChymeSheet.show(
-                  context,
-                  seed: 'What is this message asking me for, and what would a '
-                      'good reply say? Keep it to three sentences.',
-                );
-              },
-            ),
-            SettingsRow(
               icon: junk ? AceIcons.inbox : AceIcons.warning,
               title: junk ? 'Not spam' : 'Mark as spam',
               subtitle: junk

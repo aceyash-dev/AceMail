@@ -723,7 +723,7 @@ class MailService implements MailTransport {
     // EHLO and AUTH is most of the time a send takes — several seconds on a
     // phone — and none of it depends on the message. It is opened once, warmed
     // when the mailbox connects, and reopened only when it has gone stale.
-    SmtpClient smtp = await _smtpFor(password);
+    final SmtpClient smtp = await _smtpFor(password);
     bool handedOver = false;
     try {
       handedOver = true;
