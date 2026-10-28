@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
@@ -839,23 +841,13 @@ class _ChymeSheetState extends State<ChymeSheet> {
           style: AstryxText.supporting(c.textSecondary),
         ),
         const SizedBox(height: AstryxSpace.s5),
-        // Sideways, so the cards are a row to flick through rather than a
-        // column to scroll past.
-        SizedBox(
-          height: 132,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s1),
-            itemCount: prompts.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AstryxSpace.s3),
-            itemBuilder: (BuildContext context, int index) {
-              final _Prompt item = prompts[index];
-              return _PromptCard(
-                prompt: item,
-                onTap: () => _send(item.prompt),
-              );
-            },
-          ),
+        // An arc, not a row. The cards sit on a circle — the middle one
+        // upright and nearest, its neighbours turned outward and lower, the
+        // outermost half off the edge — which is a shape you read as a hand of
+        // cards being offered rather than a list you scroll.
+        _SuggestionArc(
+          prompts: prompts,
+          onPick: (String prompt) => _send(prompt),
         ),
       ],
     );
@@ -1173,17 +1165,22 @@ class _Prompt {
 }
 
 class _PromptCard extends StatelessWidget {
-  const _PromptCard({required this.prompt, required this.onTap});
+  const _PromptCard({
+    required this.prompt,
+    required this.onTap,
+    this.width = 196,
+  });
 
   final _Prompt prompt;
   final VoidCallback onTap;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     final AstryxColors c = context.astryx;
 
     return SizedBox(
-      width: 196,
+      width: width,
       child: AceSpringy(
         onTap: onTap,
         semanticLabel: prompt.title,
@@ -1324,6 +1321,119 @@ class _DoneNote extends StatelessWidget {
           child: Text(text, style: AstryxText.supporting(c.textSecondary)),
         ),
       ],
+    );
+  }
+}
+
+/// The suggestion cards, fanned along an arc.
+///
+/// One card per prompt, placed on a circle whose centre is below the sheet: the
+/// middle card is upright, each neighbour is turned by a step and pushed down
+/// and out along the curve, and the outermost are half off the edge. Which is
+/// what makes it read as a hand of cards offered rather than a list to scroll —
+/// the shape does the inviting, and the middle card is the one it is offering.
+class _SuggestionArc extends StatelessWidget {
+  const _SuggestionArc({required this.prompts, required this.onPick});
+
+  final List<_Prompt> prompts;
+  final void Function(String prompt) onPick;
+
+  /// How far apart the cards sit, in radians.
+  static const double _step = 0.155;
+
+  /// How far away the circle is. Larger is a flatter arc; this one is tight
+  /// enough that three cards read as a curve and loose enough that the middle
+  /// card is not tilted.
+  static const double _radius = 520;
+
+  static const double _height = 190;
+  static const double _cardHeight = 150;
+
+  @override
+  Widget build(BuildContext context) {
+    if (prompts.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: _height,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints box) {
+          final double cardWidth =
+              (box.maxWidth * 0.52).clamp(150.0, 200.0);
+          final double centre = box.maxWidth / 2;
+          final int middle = (prompts.length - 1) ~/ 2;
+
+          // Outer cards first, so the middle one paints on top of its
+          // neighbours rather than under them.
+          final List<int> order = List<int>.generate(prompts.length, (int i) => i)
+            ..sort((int a, int b) =>
+                (b - middle).abs().compareTo((a - middle).abs()));
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              for (final int index in order)
+                _placed(
+                  context,
+                  index: index,
+                  middle: middle,
+                  centre: centre,
+                  cardWidth: cardWidth,
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _placed(
+    BuildContext context, {
+    required int index,
+    required int middle,
+    required double centre,
+    required double cardWidth,
+  }) {
+    final int offset = index - middle;
+    final double angle = offset * _step;
+    final double distance = offset.abs().toDouble();
+
+    // Along the circle: x is the chord, y is how far the curve has dropped.
+    final double x = _radius * math.sin(angle);
+    final double y = _radius * (1 - math.cos(angle));
+
+    // The outermost cards shrink and fade a little, which is what makes the
+    // middle one the one being offered.
+    final double scale = (1 - 0.07 * distance).clamp(0.72, 1.0);
+    final double opacity = (1 - 0.22 * distance).clamp(0.45, 1.0);
+
+    final _Prompt item = prompts[index];
+
+    return Positioned(
+      left: centre + x - cardWidth / 2,
+      top: y + (_height - _cardHeight) / 2,
+      width: cardWidth,
+      // Bounded height: the card ends in a Spacer, and a Spacer in an
+      // unbounded column is a layout error rather than a card.
+      child: SizedBox(
+        height: _cardHeight,
+        child: Opacity(
+          opacity: opacity,
+          child: Transform.rotate(
+            angle: angle,
+            // Turned about its bottom edge, like a card held in a hand.
+            alignment: Alignment.bottomCenter,
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.bottomCenter,
+              child: _PromptCard(
+                prompt: item,
+                width: cardWidth,
+                onTap: () => onPick(item.prompt),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

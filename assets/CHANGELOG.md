@@ -3,6 +3,16 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.0+91
+
+### Changed
+- **Chyme's suggestion cards are fanned along an arc.** They were a horizontal
+  row to scroll; they now sit on a circle — the middle card upright and nearest,
+  its neighbours turned outward and pushed down the curve, the outermost half off
+  the edge and slightly faded. The shape reads as a hand of cards being offered
+  rather than a list to flick through, and the middle card is the one it is
+  offering.
+
 ## 0.6.0+90
 
 ### Fixed
