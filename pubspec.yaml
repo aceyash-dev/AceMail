@@ -36,6 +36,7 @@ dependencies:
   # Signing in to Google, for the one provider that no longer accepts a
   # password. Gmail still speaks IMAP and SMTP, but only with an OAuth access
   # token, and the app password route was closed in 2022.
+  google_sign_in: ^7.2.0
   # Unlocking the app. Nothing else: the keychain is what holds the vault
   # key, and a prompt is what asks for a fingerprint or a face.
   local_auth: ^3.0.2

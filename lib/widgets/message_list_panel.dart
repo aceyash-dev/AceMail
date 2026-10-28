@@ -18,7 +18,7 @@ import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
-import '../services/ace_auth.dart';
+import '../services/google_auth.dart';
 import '../util/dates.dart';
 import '../util/greeting.dart';
 import '../util/search_query.dart';
@@ -943,8 +943,8 @@ class _Greeting extends StatelessWidget {
 Future<void> _signInWithGoogle(BuildContext context) async {
   final MailController controller = context.read<MailController>();
   try {
-    await AceAuth.signIn();
-  } on AceAuthException catch (error) {
+    await GoogleAuth.signIn();
+  } on GoogleAuthException catch (error) {
     if (context.mounted) AceSnack.show(context, error.message);
     return;
   }

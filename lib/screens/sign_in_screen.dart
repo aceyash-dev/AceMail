@@ -7,7 +7,7 @@ import '../data/mail_providers.dart';
 import '../data/preferences.dart';
 import '../models/ace_account.dart';
 import '../models/sign_in_form.dart';
-import '../services/ace_auth.dart';
+import '../services/google_auth.dart';
 import '../state/mail_controller.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
@@ -35,7 +35,7 @@ class SignInScreen extends StatefulWidget {
   const SignInScreen({
     super.key,
     this.isAdding = false,
-    this.authSignIn,
+    this.googleSignIn,
   });
 
   /// True when this is a second (or third) account being added on top of an
@@ -43,8 +43,8 @@ class SignInScreen extends StatefulWidget {
   final bool isAdding;
 
   /// Injectable so the sign-in flow can be tested without opening a real
-  /// browser. Production screens use [AceAuth.signIn].
-  final Future<AceCredential> Function()? authSignIn;
+  /// Google account chooser. Production screens use [GoogleAuth.signIn].
+  final Future<GoogleCredential> Function()? googleSignIn;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -141,8 +141,8 @@ class _SignInScreenState extends State<SignInScreen> {
     });
 
     try {
-      final AceCredential credential =
-          await (widget.authSignIn ?? AceAuth.signIn)();
+      final GoogleCredential credential =
+          await (widget.googleSignIn ?? GoogleAuth.signIn)();
       final AceAccount? account = _form.googleAccount(credential.email);
       if (account == null) {
         if (mounted) {
@@ -160,7 +160,7 @@ class _SignInScreenState extends State<SignInScreen> {
         setState(() => _validationError =
             controller.errorMessage ?? 'Could not reach that mailbox.');
       }
-    } on AceAuthException catch (error) {
+    } on GoogleAuthException catch (error) {
       if (mounted) setState(() => _validationError = error.message);
     } catch (error) {
       // Platform-channel and unexpected failures should produce an actionable
