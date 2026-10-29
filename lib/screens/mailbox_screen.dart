@@ -306,21 +306,6 @@ class _MailboxScreenState extends State<MailboxScreen>
 
   bool _onScroll(ScrollNotification notification) => false;
 
-  /// Chyme, opened by voice.
-  ///
-  /// The same recogniser the search field uses, pointed at the assistant: what
-  /// comes back is sent as the question, with the message on screen already in
-  /// its context — which is the whole reason the assistant is worth reaching
-  /// from here.
-  Future<void> _askChymeByVoice(BuildContext context) async {
-    final String? heard = await VoiceInput.listen();
-    if (!mounted || !context.mounted) return;
-    await ChymeSheet.show(
-      context,
-      seed: (heard == null || heard.trim().isEmpty) ? null : heard.trim(),
-    );
-  }
-
   void _exitSearch({bool clearQuery = true}) {
     _searchDebounce?.cancel();
     _search.clear();
@@ -543,43 +528,21 @@ class _MailboxScreenState extends State<MailboxScreen>
                 backgroundColor: c.backgroundSurface,
                 child: const FolderRail(),
               ),
-        // The assistant sits in the middle of the bottom edge and stays there.
-        // It used to be an icon inside the search bar, which meant it moved when
-        // the bar grew, disappeared while searching, and could not be found at
-        // all by anybody who had not read the toolbar. A control that is always
-        // in the same place is a control you learn once.
+        // Compose, and only Compose. The assistant lives in the search bar,
+        // where it has always been: the bar is where you ask the app to find
+        // something, and asking the assistant is the same intention. A second
+        // pill along the bottom edge was a second place to look for it.
         //
-        // Compose keeps the right-hand corner. Neither collapses on scroll: a
-        // button that changes shape as the list moves is a button that reacts to
-        // something you are not looking at.
+        // It does not collapse as the list scrolls. A button that changes shape
+        // as the list moves is a button reacting to something you are not
+        // looking at.
         floatingActionButton: wide || reading
             ? null
-            // A full-width row, so the assistant sits on the centre line of the
-            // screen rather than on the centre line of whatever is beside it —
-            // which is what it was doing while Compose shared the slot.
-            : SizedBox(
-                width: MediaQuery.sizeOf(context).width -
-                    (AstryxSpace.s5 * 2),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    AceChymeFab(
-                      onAsk: () => ChymeSheet.show(context),
-                      onSpeak: () => _askChymeByVoice(context),
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: AceFab(
-                        label: 'Compose',
-                        icon: AceIcons.edit,
-                        onPressed: () => _compose(context),
-                      ),
-                    ),
-                  ],
-                ),
+            : AceFab(
+                label: 'Compose',
+                icon: AceIcons.edit,
+                onPressed: () => _compose(context),
               ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         // Behind the bar, so the glass has the list to blur rather than a flat
         // colour.
         extendBodyBehindAppBar: !(reading && !wide),

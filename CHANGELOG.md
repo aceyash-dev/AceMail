@@ -3,6 +3,16 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+101
+
+### Changed
+- **The assistant is back in the search bar.** It moved to a pill on the bottom
+  edge for one build, which was one place too many to look for it: the bar is
+  where you ask the app to find something, and asking the assistant is the same
+  intention. The bar's right-hand slot is the assistant, and a microphone while
+  you are searching. Compose has the bottom corner to itself again, and still
+  does not collapse on scroll.
+
 ## 0.6.2+100
 
 ### Fixed

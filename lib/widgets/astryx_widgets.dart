@@ -9,9 +9,7 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/haptics.dart';
-import 'ace_glass.dart';
 import 'ace_icon_view.dart';
-import 'chyme_mark.dart';
 import 'shape_morph.dart';
 
 /// A press that springs, and a shape that morphs while it does.
@@ -1008,61 +1006,6 @@ class _AceSwitchState extends State<AceSwitch>
             },
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// The assistant's way in: a pill in the middle of the bottom edge.
-///
-/// Two controls in one shape, because they are one intention: ask Chyme
-/// something. The mark opens it to type; the microphone opens it and listens.
-/// It never collapses and never moves — a control that changes shape as the list
-/// scrolls is a control you have to look for twice.
-class AceChymeFab extends StatelessWidget {
-  const AceChymeFab({
-    super.key,
-    required this.onAsk,
-    required this.onSpeak,
-  });
-
-  final VoidCallback onAsk;
-  final VoidCallback onSpeak;
-
-  @override
-  Widget build(BuildContext context) {
-    final AstryxColors c = context.astryx;
-
-    return AceGlass.material(
-      context,
-      radius: BorderRadius.circular(AstryxRadius.pill),
-      bordered: true,
-      opacity: 0.86,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          TextButton.icon(
-            onPressed: onAsk,
-            icon: ChymeMark(size: 20, color: c.accent),
-            label: Text('Ask Chyme', style: AstryxText.bodyStrong(c.textPrimary)),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.fromLTRB(
-                AstryxSpace.s3,
-                AstryxSpace.s2,
-                AstryxSpace.s2,
-                AstryxSpace.s2,
-              ),
-              shape: const StadiumBorder(),
-            ),
-          ),
-          Container(width: 1, height: 22, color: c.border),
-          IconButton(
-            onPressed: onSpeak,
-            tooltip: 'Ask by voice',
-            icon: AceIconView(icon: AceIcons.mic, size: 20, color: c.accent),
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
       ),
     );
   }
