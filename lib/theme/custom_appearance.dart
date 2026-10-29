@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// The look the user assembles themselves: any accent colour, and a font from
@@ -29,7 +27,7 @@ class CustomAppearance {
   }
 
   static String encodeColour(Color colour) =>
-      '#${colour.value.toRadixString(16).padLeft(8, '0')}';
+      '#${colour.toARGB32().toRadixString(16).padLeft(8, '0')}';
 
   /// Registers [path] as the app font.
   ///
