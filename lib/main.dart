@@ -8,6 +8,7 @@ import 'util/redact.dart';
 import 'data/app_info.dart';
 import 'data/local_store.dart';
 import 'data/preferences.dart';
+import 'theme/custom_appearance.dart';
 import 'services/launcher_icon.dart';
 import 'services/local_avatars.dart';
 import 'services/notification_setup.dart';
@@ -53,6 +54,11 @@ Future<void> main() async {
     controller.restore(),
     AppInfo.load(),
   ]);
+
+  // The user's own font, registered before the first frame so the app never
+  // paints in the system face and then swaps. A missing or broken file leaves
+  // the family null, which is the same as never having chosen one.
+  await CustomAppearance.installFont(preferences.customFontPath);
 
   // The launcher icon wears the accent. Applied on every start rather than only
   // when the setting changes, because the alias that carries it can be reset by

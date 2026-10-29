@@ -18,6 +18,7 @@ import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
 import '../services/platform_caps.dart';
 import '../widgets/avatar.dart';
+import '../widgets/appearance_sheet.dart';
 import '../state/mail_controller.dart';
 import '../services/notification_setup.dart';
 import '../services/notifications.dart';
@@ -442,6 +443,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: prefs.accent.label,
                   trailing: _AccentSwatch(accent: prefs.accent),
                   onTap: () => _chooseAccent(context, prefs),
+                ),
+                SettingsRow(
+                  icon: AceIcons.palette,
+                  title: 'Custom colour & font',
+                  value: prefs.customAccent == null && prefs.customFontPath == null
+                      ? 'Default'
+                      : 'Custom',
+                  onTap: () => showAppearanceSheet(context, prefs),
                 ),
                 // Android's launcher, Android's icon. On the desktop build
                 // this row would be a setting for something that does not

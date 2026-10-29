@@ -79,6 +79,10 @@ abstract final class AstryxText {
 /// intact, rather than an approximation of either.
 ColorScheme buildAstryxScheme(
   Brightness brightness, {
+  /// The user's own colour, when they have picked one. Replaces the seed and is
+  /// then treated exactly like an accent from the list — same contrast walk,
+  /// same tinted surfaces, same readable inks.
+  Color? accentColour,
   AceAccent accent = AceAccent.orange,
   /// The platform's own accent, when dynamic colouring is on. It is used as
   /// the seed and nothing else, so everything below — the contrast walk, the
@@ -127,7 +131,7 @@ ColorScheme buildAstryxScheme(
   // Moved along its own lightness until a label on it clears AA and the shape
   // itself reads against the page. The accent you pick is still the accent; it
   // is just made usable.
-  final Color seed = dynamicSeed ?? accent.seed;
+  final Color seed = dynamicSeed ?? accentColour ?? accent.seed;
   Color primary = readableAccent(seed, dark: dark);
 
   // The page is tinted *with* the accent, so the accent has to be checked
@@ -221,12 +225,17 @@ ThemeData buildAstryxTheme(
   AceAccent accent = AceAccent.orange,
   Color? dynamicSeed,
   bool oled = false,
+  /// A colour the user picked themselves, applied over the accent list.
+  Color? accentColour,
+  /// A family the user registered from a font file, replacing the app's face.
+  String? fontFamily,
 }) {
   final ColorScheme scheme = buildAstryxScheme(
     brightness,
     accent: accent,
     dynamicSeed: dynamicSeed,
     oled: oled,
+    accentColour: accentColour,
   );
   final AstryxColors c = AstryxColors.fromScheme(scheme);
 
@@ -257,7 +266,7 @@ ThemeData buildAstryxTheme(
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    fontFamily: AstryxText.family,
+    fontFamily: fontFamily ?? AstryxText.family,
     fontFamilyFallback: AstryxText.fallback,
     colorScheme: scheme,
     scaffoldBackgroundColor: c.backgroundBody,

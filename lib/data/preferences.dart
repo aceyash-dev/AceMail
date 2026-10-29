@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/launcher_icon.dart';
 import 'accents.dart';
+import '../theme/custom_appearance.dart';
 import '../models/glass_mode.dart';
 import '../models/message_sort.dart';
 import '../models/swipe_action.dart';
@@ -113,6 +115,8 @@ class Preferences extends ChangeNotifier {
   static const String _keyMessageSort = 'ace.messageSort';
   static const String _keySortTie = 'ace.sortTie';
   static const String _keyAccent = 'ace.accent';
+  static const String _keyCustomAccent = 'ace.customAccent';
+  static const String _keyCustomFont = 'ace.customFont';
   static const String _keyRawHeaders = 'ace.rawHeaders';
   static const String _keyDynamicColour = 'ace.dynamicColour';
   static const String _keyWarnEmptySubject = 'ace.warnEmptySubject';
@@ -231,6 +235,8 @@ class Preferences extends ChangeNotifier {
   MessageSort? _sortTie;
   final bool _loadRemoteImages = true;
   AceAccent _accent = AceAccent.orange;
+  Color? _customAccent;
+  String? _customFontPath;
   bool _warnEmptySubject = true;
   bool _warnExternalLinks = true;
   bool _notifyNewMail = true;
@@ -396,6 +402,18 @@ class Preferences extends ChangeNotifier {
 
   /// The accent the whole app is built from.
   AceAccent get accent => _accent;
+
+  /// A colour the user picked themselves. Null — the normal case — means the
+  /// accent above is in charge.
+  Color? get customAccent => _customAccent;
+
+  /// The font file they imported, or null for the app's own face.
+  String? get customFontPath => _customFontPath;
+
+  /// The family to hand the theme. Only meaningful once the file has been
+  /// registered with the engine, which happens at startup and on change.
+  String? get customFontFamily =>
+      _customFontPath == null ? null : CustomAppearance.fontFamily;
 
   /// Whether the reader shows the message's raw headers.
   bool get showRawHeaders => _showRawHeaders;
@@ -778,6 +796,9 @@ class Preferences extends ChangeNotifier {
       if (option.name == tie) _sortTie = option;
     }
     _accent = _decodeEnum(raw[_keyAccent], AceAccent.values, _accent);
+    _customAccent = CustomAppearance.parseColour(raw[_keyCustomAccent]);
+    final String font = raw[_keyCustomFont] ?? '';
+    _customFontPath = font.isEmpty ? null : font;
     _showRawHeaders = _decodeBool(raw[_keyRawHeaders], _showRawHeaders);
     _useDynamicColour =
         _decodeBool(raw[_keyDynamicColour], _useDynamicColour);
@@ -888,6 +909,18 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setAccent(AceAccent value) =>
       _write(_keyAccent, value.name, () => _accent = value);
+
+  Future<void> setCustomAccent(Color? value) => _write(
+        _keyCustomAccent,
+        value == null ? '' : CustomAppearance.encodeColour(value),
+        () => _customAccent = value,
+      );
+
+  Future<void> setCustomFontPath(String? value) => _write(
+        _keyCustomFont,
+        value ?? '',
+        () => _customFontPath = value,
+      );
 
   Future<void> setShowRawHeaders(bool value) =>
       _write(_keyRawHeaders, '$value', () => _showRawHeaders = value);

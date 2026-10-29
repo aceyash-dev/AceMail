@@ -59,11 +59,15 @@ class AceMailApp extends StatelessWidget {
       theme: buildAstryxTheme(
         Brightness.light,
         accent: prefs.accent,
+        accentColour: prefs.customAccent,
+        fontFamily: prefs.customFontFamily,
         dynamicSeed: seed,
       ),
       darkTheme: buildAstryxTheme(
         Brightness.dark,
         accent: prefs.accent,
+        accentColour: prefs.customAccent,
+        fontFamily: prefs.customFontFamily,
         dynamicSeed: seed,
         oled: prefs.oled,
       ),
