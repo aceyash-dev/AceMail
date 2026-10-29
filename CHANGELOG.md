@@ -3,6 +3,21 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+102
+
+### Added
+- **Mail opens when the network does not answer.** The page a folder showed is
+  written to the device as it loads — summaries only, the bodies were already
+  cached separately — and a folder whose fetch fails now opens onto that mail
+  with a line saying where it came from and a pull-down to try again. A folder
+  that opens onto yesterday's mail and says so is worth more than one that opens
+  onto an error.
+
+### Changed
+- **The reader is a card.** One message, on a raised surface with a corner and
+  air around it, rather than the mail and the app sharing one sheet. The next
+  message is a different card — which is the point.
+
 ## 0.6.2+101
 
 ### Changed

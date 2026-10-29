@@ -201,6 +201,37 @@ class MessageListPanel extends StatelessWidget {
     }
 
     return <Widget>[
+      // Mail from the device, not from the server. Said once, above the list: a
+      // folder that opens onto yesterday's mail is useful, and one that pretends
+      // yesterday's mail is today's is not.
+      if (controller.showingSaved)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AstryxSpace.s4,
+              AstryxSpace.s2,
+              AstryxSpace.s4,
+              0,
+            ),
+            child: Row(
+              children: <Widget>[
+                AceIconView(
+                  icon: AceIcons.cloud,
+                  size: 16,
+                  color: c.textSecondary,
+                ),
+                const SizedBox(width: AstryxSpace.s2),
+                Expanded(
+                  child: Text(
+                    'Offline — showing the mail this device already had. '
+                    'Pull down to try again.',
+                    style: AstryxText.supporting(c.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s3),
         sliver: SliverList.builder(

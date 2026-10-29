@@ -435,6 +435,13 @@ class MailSession extends ChangeNotifier {
     _notify();
   }
 
+  /// Whether what is on screen came from the device rather than the server.
+  ///
+  /// True after a folder failed to load and its saved page was shown instead.
+  /// The list says so, because "these are from yesterday" is a different fact
+  /// from "this is your mail".
+  bool showingSaved = false;
+
   /// The query in force, or null when the folder is simply being listed.
   String? searchQuery;
 
@@ -681,16 +688,75 @@ class MailSession extends ChangeNotifier {
       }
       _pageCache[folder.path] = List<MessageSummary>.of(page);
       _cacheValidity[folder.path] = folder.uidValidity;
+      showingSaved = false;
+      // Written to the device as well, so the same folder opens onto mail when
+      // the network does not answer. Summaries only.
+      unawaited(_savePage(folder, page));
       unawaited(_detectCodes());
     } catch (error) {
       if (token != _folderToken) return;
-      errorMessage = error.toString();
+      // The network did not answer. The mail it showed last time is still on
+      // the device, and a folder that opens onto yesterday's mail with a line
+      // saying so is worth more than a folder that opens onto an error.
+      final List<MessageSummary>? saved = await _savedPage(folder);
+      if (token != _folderToken) return;
+      if (saved != null && saved.isNotEmpty) {
+        messages = saved;
+        showingSaved = true;
+        Contacts.observe(saved);
+        errorMessage = null;
+      } else {
+        errorMessage = error.toString();
+      }
     } finally {
       if (token == _folderToken) {
         loadingMessages = false;
         refreshing = false;
         _notify();
       }
+    }
+  }
+
+  /// The page this folder showed last time, if the device still has it.
+  Future<List<MessageSummary>?> _savedPage(MailFolder folder) async {
+    final LocalStore? store = _store;
+    if (store == null) return null;
+    try {
+      final Map<String, Object?>? record = await store.page(folder.path);
+      if (record == null) return null;
+      // A page saved from another generation of the mailbox is not this
+      // folder's mail: uids are only meaningful inside one numbering.
+      if (!sameMailboxGeneration(
+        record['validity'] as int?,
+        folder.uidValidity,
+      )) {
+        return null;
+      }
+      final List<Object?> rows =
+          record['messages'] as List<Object?>? ?? const <Object?>[];
+      return <MessageSummary>[
+        for (final Object? row in rows)
+          if (row is Map<String, Object?>)
+            if (MessageSummary.fromCache(row) case final MessageSummary m) m,
+      ];
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Writes the page to the device, quietly.
+  Future<void> _savePage(MailFolder folder, List<MessageSummary> page) async {
+    final LocalStore? store = _store;
+    if (store == null) return;
+    try {
+      await store.savePage(folder.path, <String, Object?>{
+        'validity': folder.uidValidity,
+        'messages': <Map<String, Object?>>[
+          for (final MessageSummary message in page) message.toCache(),
+        ],
+      });
+    } catch (_) {
+      // A cache that will not write costs a faster start, not the mail.
     }
   }
 
@@ -796,7 +862,19 @@ class MailSession extends ChangeNotifier {
       messages = <MessageSummary>[...messages, ...more];
     } catch (error) {
       if (token != _folderToken) return;
-      errorMessage = error.toString();
+      // The network did not answer. The mail it showed last time is still on
+      // the device, and a folder that opens onto yesterday's mail with a line
+      // saying so is worth more than a folder that opens onto an error.
+      final List<MessageSummary>? saved = await _savedPage(folder);
+      if (token != _folderToken) return;
+      if (saved != null && saved.isNotEmpty) {
+        messages = saved;
+        showingSaved = true;
+        Contacts.observe(saved);
+        errorMessage = null;
+      } else {
+        errorMessage = error.toString();
+      }
     } finally {
       if (token == _folderToken) {
         loadingMore = false;
@@ -844,7 +922,19 @@ class MailSession extends ChangeNotifier {
       messages = found;
     } catch (error) {
       if (token != _folderToken) return;
-      errorMessage = error.toString();
+      // The network did not answer. The mail it showed last time is still on
+      // the device, and a folder that opens onto yesterday's mail with a line
+      // saying so is worth more than a folder that opens onto an error.
+      final List<MessageSummary>? saved = await _savedPage(folder);
+      if (token != _folderToken) return;
+      if (saved != null && saved.isNotEmpty) {
+        messages = saved;
+        showingSaved = true;
+        Contacts.observe(saved);
+        errorMessage = null;
+      } else {
+        errorMessage = error.toString();
+      }
     } finally {
       if (token == _folderToken) {
         loadingMessages = false;

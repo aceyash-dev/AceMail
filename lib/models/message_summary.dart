@@ -43,6 +43,47 @@ class MessageSummary {
   /// and only for the mail that needs it.
   final String? otp;
 
+  /// The row as a record the device can keep.
+  ///
+  /// A folder that opens onto yesterday's mail when the network does not answer
+  /// needs the list itself on disk, not only the bodies: the bodies are fetched
+  /// when a message is opened, and without the rows there is nothing to open.
+  Map<String, Object?> toCache() => <String, Object?>{
+        'uid': uid,
+        'sequenceId': sequenceId,
+        'subject': subject,
+        'fromName': fromName,
+        'fromEmail': fromEmail,
+        'date': date?.toIso8601String(),
+        'isSeen': isSeen,
+        'isFlagged': isFlagged,
+        'hasAttachments': hasAttachments,
+        'otp': otp,
+        'folderPath': folderPath,
+      };
+
+  /// Rebuilds a row [toCache] wrote, or null when the record is not one.
+  static MessageSummary? fromCache(Map<String, Object?> record) {
+    final Object? uid = record['uid'];
+    if (uid is! int) return null;
+    final Object? subject = record['subject'];
+    final Object? fromName = record['fromName'];
+    final Object? fromEmail = record['fromEmail'];
+    return MessageSummary(
+      uid: uid,
+      sequenceId: record['sequenceId'] as int? ?? uid,
+      subject: subject is String ? subject : '',
+      fromName: fromName is String ? fromName : '',
+      fromEmail: fromEmail is String ? fromEmail : '',
+      date: DateTime.tryParse(record['date'] as String? ?? ''),
+      isSeen: record['isSeen'] == true,
+      isFlagged: record['isFlagged'] == true,
+      hasAttachments: record['hasAttachments'] == true,
+      otp: record['otp'] as String?,
+      folderPath: record['folderPath'] as String?,
+    );
+  }
+
   factory MessageSummary.fromMime(
     MimeMessage message, {
     String? folderPath,

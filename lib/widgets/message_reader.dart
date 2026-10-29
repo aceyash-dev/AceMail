@@ -130,15 +130,34 @@ class _MessageReaderState extends State<MessageReader> {
                             .openAdjacent(velocity < 0 ? 1 : -1),
                       );
                     },
+                    // The message is a card, not a page. A reader that puts
+                    // the mail on the same surface as the app is a reader you
+                    // cannot tell from a settings screen; a card with a corner
+                    // and air around it is one message, and the next one is a
+                    // different card.
                     child: SingleChildScrollView(
                     // Clearance for the toolbar, which is at the top now.
                     padding: const EdgeInsets.fromLTRB(
-                      AstryxSpace.s6,
+                      AstryxSpace.s3,
                       0,
-                      AstryxSpace.s6,
+                      AstryxSpace.s3,
                       104,
                     ),
-              child: Column(
+              child: Container(
+                // The card: the raised surface, a large corner, and the same
+                // padding on all four sides so the subject starts where the
+                // body does.
+                decoration: BoxDecoration(
+                  color: c.backgroundCard,
+                  borderRadius: BorderRadius.circular(AstryxRadius.lg),
+                ),
+                padding: const EdgeInsets.fromLTRB(
+                  AstryxSpace.s4,
+                  AstryxSpace.s4,
+                  AstryxSpace.s4,
+                  AstryxSpace.s5,
+                ),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                     Text(
@@ -177,6 +196,7 @@ class _MessageReaderState extends State<MessageReader> {
                   ),
             ],
           ),
+        ),
           ],
         ),
       ),

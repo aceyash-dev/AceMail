@@ -19,6 +19,7 @@ class LocalStore {
 
   static const String _drafts = 'drafts';
   static const String _bodies = 'bodies';
+  static const String _pages = 'pages';
   static const String _draftKey = 'current';
 
   final LocalCache _cache;
@@ -57,6 +58,19 @@ class LocalStore {
 
   Future<Map<String, Object?>?> message(String folder, int uid) =>
       _cache.get(_bodies, '$folder\u0000$uid');
+
+  // --- the page of a folder ----------------------------------------------
+  //
+  // What the list showed, so a folder opens onto mail when the network does not
+  // answer. Summaries only: sender, subject, date, flags. The bodies are a
+  // separate record and are fetched when a message is opened, which is the same
+  // arrangement the online path uses.
+
+  Future<void> savePage(String folder, Map<String, Object?> page) =>
+      _cache.put(_pages, folder, page);
+
+  Future<Map<String, Object?>?> page(String folder) =>
+      _cache.get(_pages, folder);
 
   // --- what it costs, and how to stop paying ------------------------------
 
