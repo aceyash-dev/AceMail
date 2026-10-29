@@ -718,6 +718,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _mailSupport(context),
                 ),
                 SettingsSwitchRow(
+                  icon: AceIcons.save,
+                  title: 'Download updates in the background',
+                  subtitle: 'Fetches a newer release as soon as it is found, so '
+                      'the update is already on the device. Installing is still '
+                      'a tap, and Android asks once whether Ace Mail may '
+                      'install apps.',
+                  value: prefs.autoUpdate,
+                  onChanged: prefs.setAutoUpdate,
+                ),
+                SettingsSwitchRow(
                   icon: AceIcons.refresh,
                   title: 'Check for updates',
                   subtitle: 'Asks GitHub once a day for the newest release and '

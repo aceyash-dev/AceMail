@@ -92,6 +92,7 @@ class Preferences extends ChangeNotifier {
 
   static const String _keyAvatars = 'ace.showAvatars';
   static const String _keyUpdateCheck = 'ace.updateCheck';
+  static const String _keyAutoUpdate = 'ace.autoUpdate';
   static const String _keyCollapsedSections = 'ace.collapsedSections';
   static const String _keyGlassBlur = 'ace.glassBlur';
   static const String _keyGlassTint = 'ace.glassTint';
@@ -287,6 +288,10 @@ class Preferences extends ChangeNotifier {
   /// cannot be updated from anywhere else is a build that should at least say
   /// when there is a new one.
   bool _updateCheck = true;
+
+  /// Whether a newer release is fetched in the background, so the update is
+  /// already on the device when somebody taps it.
+  bool _autoUpdate = false;
 
   /// When it last asked. Stored so a launch does not ask again an hour later.
   DateTime? _lastUpdateCheck;
@@ -511,8 +516,18 @@ class Preferences extends ChangeNotifier {
   /// Whether the app may look for a newer release.
   bool get updateCheck => _updateCheck;
 
+  /// Whether to download a newer release without being asked.
+  ///
+  /// Off by default: fetching an installer nobody asked for spends somebody's
+  /// data on their behalf. On, it only downloads — installing is always a tap,
+  /// and the system's own screen the first time.
+  bool get autoUpdate => _autoUpdate;
+
   /// When it last asked, or null when it never has.
   DateTime? get lastUpdateCheck => _lastUpdateCheck;
+
+  Future<void> setAutoUpdate(bool value) =>
+      _write(_keyAutoUpdate, '$value', () => _autoUpdate = value);
 
   Future<void> setUpdateCheck(bool value) =>
       _write(_keyUpdateCheck, '$value', () => _updateCheck = value);
@@ -785,6 +800,7 @@ class Preferences extends ChangeNotifier {
     _glassTint = double.tryParse(raw[_keyGlassTint] ?? '');
     _glassInvert = _decodeBool(raw[_keyGlassInvert], _glassInvert);
     _updateCheck = _decodeBool(raw[_keyUpdateCheck], _updateCheck);
+    _autoUpdate = _decodeBool(raw[_keyAutoUpdate], _autoUpdate);
     _lastUpdateCheck = DateTime.tryParse(raw[_keyLastUpdateCheck] ?? '');
     _chymeEnabled = _decodeBool(raw[_keyChymeEnabled], _chymeEnabled);
     _chymeEndpoint = raw[_keyChymeEndpoint] ?? _chymeEndpoint;

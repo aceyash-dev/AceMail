@@ -8,6 +8,11 @@
     <!-- Android 13 and up asks before an app may post a notification. Asked for
          at the point the setting is turned on, not on first launch. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The app downloads its own updates from its releases page, so it needs
+         the system's permission to hand an APK to the installer. Android shows
+         its own "allow this source" screen the first time; there is no silent
+         install for a sideloaded app, by design. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- The background check needs to survive the device sleeping. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 

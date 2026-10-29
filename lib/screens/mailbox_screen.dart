@@ -45,11 +45,30 @@ class MailboxScreen extends StatefulWidget {
   State<MailboxScreen> createState() => _MailboxScreenState();
 }
 
-class _MailboxScreenState extends State<MailboxScreen> {
+class _MailboxScreenState extends State<MailboxScreen>
+    with WidgetsBindingObserver {
   /// Held so the drawer can be opened from the app bar, whose context sits
   /// above the Scaffold — `Scaffold.of` there finds nothing, which is why the
   /// button did nothing at all.
   final GlobalKey<ScaffoldState> _scaffold = GlobalKey<ScaffoldState>();
+
+  /// The app was in the background, and it is back.
+  ///
+  /// Mail arrives while the phone is in a pocket, and the background check runs
+  /// at Android's own floor of fifteen minutes. Coming back to the app is the
+  /// moment somebody is looking, and it is the cheapest possible moment to ask
+  /// the server what is new: no timer, no wake lock, no battery spent on a
+  /// screen nobody is reading. It also covers the case the worker cannot — a
+  /// phone that has force-stopped the app, or a session that dropped its
+  /// connection while the screen was off.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final MailController? controller = _controller;
+    if (controller == null) return;
+    if (!controller.isSignedIn) return;
+    unawaited(controller.refreshMessages());
+  }
   MailController? _controller;
   String? _lastError;
 
@@ -137,6 +156,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _foregroundRefresh = Timer.periodic(
       const Duration(minutes: 2),
       (Timer _) {
@@ -176,6 +196,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _foregroundRefresh?.cancel();
     _searchDebounce?.cancel();
     _search.dispose();

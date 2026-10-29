@@ -9,6 +9,7 @@ class UpdateRelease {
     required this.notes,
     required this.url,
     this.published,
+    this.apkUrl,
   });
 
   /// `0.6.0+82`, from the tag. The tag may or may not carry a leading `v`.
@@ -24,6 +25,11 @@ class UpdateRelease {
   final String url;
 
   final DateTime? published;
+
+  /// The download for this release that an Android phone should take, when the
+  /// release published one. Null on every other platform and on a release with
+  /// no APK.
+  final String? apkUrl;
 
   bool get hasNotes => notes.trim().isNotEmpty;
 }
@@ -114,6 +120,7 @@ abstract final class UpdateCheck {
         url: (entry['html_url'] as String?) ??
             'https://github.com/tab-gl/AceMail/releases',
         published: DateTime.tryParse(entry['published_at'] as String? ?? ''),
+        apkUrl: apkFrom(entry['assets']),
       );
     }
     return null;
@@ -143,7 +150,29 @@ abstract final class UpdateCheck {
       notes: (decoded['body'] as String?) ?? '',
       url: (decoded['html_url'] as String?) ?? 'https://github.com/tab-gl/AceMail/releases',
       published: DateTime.tryParse(decoded['published_at'] as String? ?? ''),
+      apkUrl: apkFrom(decoded['assets']),
     );
+  }
+
+  /// The APK to download out of a release's assets, or null.
+  ///
+  /// The releases carry one APK per ABI. This takes `arm64-v8a` and falls back
+  /// to `armeabi-v7a`, which between them cover every Android phone the app
+  /// builds for — and a wrong guess is not fatal, because the download checks
+  /// what it got and says so rather than handing the installer a broken file.
+  static String? apkFrom(Object? assets) {
+    if (assets is! List<Object?>) return null;
+    String? fallback;
+    for (final Object? entry in assets) {
+      if (entry is! Map<String, Object?>) continue;
+      final Object? name = entry['name'];
+      final Object? url = entry['browser_download_url'];
+      if (name is! String || url is! String) continue;
+      if (!name.endsWith('.apk')) continue;
+      if (name.contains('arm64')) return url;
+      fallback ??= url;
+    }
+    return fallback;
   }
 
   /// Release notes that a plain markdown view can actually render.

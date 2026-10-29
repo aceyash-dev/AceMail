@@ -3,6 +3,25 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+97
+
+### Added
+- **Updates install from the app.** "Update now" fetches the release and hands
+  the APK to the system installer, with a progress bar while it comes down and a
+  line saying what happened. The first time, Android shows its own screen asking
+  whether Ace Mail may install apps — that screen *is* the permission, and there
+  is no version of this that skips it: an app that can replace itself without
+  asking is an app that can be made to replace itself.
+- **Download updates in the background.** A switch, off by default, that fetches
+  a newer release as soon as the daily check finds one, so the update is already
+  on the device when you tap it. Fetching spends your data, so it is your choice;
+  installing is always a tap.
+- **The mailbox refreshes the moment you come back to it.** Mail arrives while
+  the phone is in a pocket, and Android's background floor is fifteen minutes.
+  Returning to the app is when somebody is looking, so it asks the server right
+  then — no timer, no wake lock. It also covers what the worker cannot: a phone
+  that force-stopped the app, or a session that dropped while the screen was off.
+
 ## 0.6.2+96
 
 ### Fixed

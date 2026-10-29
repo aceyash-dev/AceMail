@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -5,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/app_info.dart';
 import '../data/preferences.dart';
 import '../services/update_check.dart';
+import '../services/update_installer.dart';
 import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
@@ -20,10 +24,19 @@ import 'markdown_view.dart';
 /// newer than what is installed. It carries the release notes, because "there
 /// is an update" without saying what changed is a notification that asks for
 /// trust rather than earning it.
-class UpdateSheet extends StatelessWidget {
+class UpdateSheet extends StatefulWidget {
   const UpdateSheet({super.key, required this.release});
 
   final UpdateRelease release;
+
+  @override
+  State<UpdateSheet> createState() => _UpdateSheetState();
+}
+
+class _UpdateSheetState extends State<UpdateSheet> {
+  /// 0 to 1 while downloading, null when nothing is in flight.
+  double? _progress;
+  String? _note;
 
   static Future<void> show(BuildContext context, UpdateRelease release) {
     return showModalBottomSheet<void>(
@@ -61,7 +74,7 @@ class UpdateSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Ace Mail ${release.version}',
+                        'Ace Mail ${widget.release.version}',
                         style: AstryxText.heading3(c.textPrimary),
                       ),
                       Text(
@@ -75,9 +88,9 @@ class UpdateSheet extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (release.published != null)
+                if (widget.release.published != null)
                   Text(
-                    formatListDate(release.published),
+                    formatListDate(widget.release.published),
                     style: AstryxText.supporting(c.textSecondary),
                   ),
               ],
@@ -94,11 +107,11 @@ class UpdateSheet extends StatelessWidget {
                 AstryxSpace.s4,
               ),
               children: <Widget>[
-                if (release.hasNotes)
+                if (widget.release.hasNotes)
                   MarkdownView(
                     // Stripped first: an older release body was written as an
                     // HTML accordion, and this view has no HTML in it.
-                    source: UpdateCheck.plainNotes(release.notes),
+                    source: UpdateCheck.plainNotes(widget.release.notes),
                     onLink: (String url) => _open(context, url),
                   )
                 else
@@ -109,6 +122,27 @@ class UpdateSheet extends StatelessWidget {
               ],
             ),
           ),
+          if (_progress != null || _note != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AstryxSpace.s5,
+                0,
+                AstryxSpace.s5,
+                AstryxSpace.s3,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  if (_progress != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AstryxRadius.full),
+                      child: LinearProgressIndicator(value: _progress),
+                    ),
+                  if (_note != null)
+                    Text(_note!, style: AstryxText.supporting(c.textSecondary)),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AstryxSpace.s5,
@@ -120,11 +154,26 @@ class UpdateSheet extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: AceButton(
-                    label: 'Release page',
-                    icon: AceIcons.openInNew,
+                    // On Android the app can fetch the release and hand it to
+                    // the installer; everywhere else the release page is the
+                    // only honest destination.
+                    label: widget.release.apkUrl != null &&
+                            UpdateInstaller.canInstall
+                        ? 'Update now'
+                        : 'Release page',
+                    icon: widget.release.apkUrl != null &&
+                            UpdateInstaller.canInstall
+                        ? AceIcons.save
+                        : AceIcons.openInNew,
                     variant: AceButtonVariant.primary,
                     expand: true,
-                    onPressed: () => _open(context, release.url),
+                    loading: _progress != null,
+                    onPressed: _progress != null
+                        ? null
+                        : () => widget.release.apkUrl != null &&
+                                UpdateInstaller.canInstall
+                            ? _install(context)
+                            : _open(context, widget.widget.release.url),
                   ),
                 ),
                 const SizedBox(width: AstryxSpace.s2),
@@ -139,6 +188,46 @@ class UpdateSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Fetches the release and hands it to the installer.
+  ///
+  /// Two steps, and both are visible: a progress bar while the file comes down,
+  /// then the system's own installer — which, the first time, is a screen
+  /// asking whether this app may install apps. That screen is the permission,
+  /// and there is no version of this that skips it.
+  Future<void> _install(BuildContext context) async {
+    setState(() {
+      _progress = 0;
+      _note = null;
+    });
+
+    final File? file = await UpdateInstaller.download(
+      widget.release,
+      onProgress: (double value) {
+        if (mounted) setState(() => _progress = value);
+      },
+    );
+
+    if (!mounted) return;
+    if (file == null) {
+      setState(() {
+        _progress = null;
+        _note = 'The download did not finish. Try again, or open the release '
+            'page.';
+      });
+      return;
+    }
+
+    final bool started = await UpdateInstaller.install(file);
+    if (!mounted) return;
+    setState(() {
+      _progress = null;
+      _note = started
+          ? 'The installer is open. Ace Mail is replaced, not added to.'
+          : 'Android would not start the installer. Allow Ace Mail to install '
+              'apps in the system settings, then try again.';
+    });
   }
 
   Future<void> _open(BuildContext context, String url) async {
@@ -171,6 +260,12 @@ Future<void> announceUpdateIfAny(BuildContext context) async {
   if (!context.mounted) return;
   if (!UpdateCheck.isNewer(release.version, AppInfo.fullVersion)) return;
 
+  // Fetched now rather than when somebody taps Update: the download is the slow
+  // part, and it is the part nobody is watching. Installing stays a tap.
+  if (prefs.autoUpdate && UpdateInstaller.canInstall) {
+    unawaited(UpdateInstaller.download(release));
+  }
+
   await UpdateSheet.show(context, release);
 }
 
@@ -191,7 +286,7 @@ Future<void> checkForUpdatesNow(BuildContext context) async {
     AceSnack.show(
       context,
       AppInfo.fullVersion.isEmpty
-          ? 'You are on the newest release: ${release.version}.'
+          ? 'You are on the newest release: ${widget.release.version}.'
           : 'You are on the newest release (${AppInfo.fullVersion}).',
     );
     return;

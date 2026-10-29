@@ -51,6 +51,8 @@ abstract final class AceIcons {
   static const AceIcon edit = HugeIcons.strokeRoundedEdit01;
   static const AceIcon copy = HugeIcons.strokeRoundedCopy01;
   static const AceIcon refresh = HugeIcons.strokeRoundedRefresh01;
+  static const AceIcon save = HugeIcons.strokeRoundedDownload04;
+  static const AceIcon download = HugeIcons.strokeRoundedDownload04;
   static const AceIcon filterOff = HugeIcons.strokeRoundedFilterRemove;
   static const AceIcon expandMore = HugeIcons.strokeRoundedChevronDown;
   static const AceIcon chevronLeft = HugeIcons.strokeRoundedChevronLeft;
