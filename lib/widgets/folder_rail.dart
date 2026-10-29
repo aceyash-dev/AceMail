@@ -136,8 +136,8 @@ class _RailAction extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               // These are the entries at the foot of the rail — settings and
-              // help — so none of them is ever "the one you are looking at":
-              // a hover tint is all they need.
+              // help — so none of them is ever "the one you are looking at".
+              // A hover tint is all they need.
               color: hover ? c.surfaceHighest : Colors.transparent,
               borderRadius: BorderRadius.circular(
                 AstryxRadius.element -
@@ -167,6 +167,7 @@ class _RailAction extends StatelessWidget {
     );
   }
 }
+
 
 /// Who you are signed in as, tappable to switch accounts.
 class _AccountHeader extends StatelessWidget {
@@ -241,7 +242,7 @@ class _FolderTile extends StatelessWidget {
   });
 
   final MailFolder folder;
-
+  final bool selected;
 
   /// Whether to draw the unread badge. Off is the "Unread counts on folders"
   /// switch; the rail still shows the folders, just without the counts.
