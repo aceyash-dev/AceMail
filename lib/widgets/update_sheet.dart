@@ -173,7 +173,7 @@ class _UpdateSheetState extends State<UpdateSheet> {
                         : () => widget.release.apkUrl != null &&
                                 UpdateInstaller.canInstall
                             ? _install(context)
-                            : _open(context, widget.widget.release.url),
+                            : _open(context, widget.release.url),
                   ),
                 ),
                 const SizedBox(width: AstryxSpace.s2),
@@ -286,7 +286,7 @@ Future<void> checkForUpdatesNow(BuildContext context) async {
     AceSnack.show(
       context,
       AppInfo.fullVersion.isEmpty
-          ? 'You are on the newest release: ${widget.release.version}.'
+          ? 'You are on the newest release: ${release.version}.'
           : 'You are on the newest release (${AppInfo.fullVersion}).',
     );
     return;
