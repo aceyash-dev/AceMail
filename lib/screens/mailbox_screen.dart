@@ -812,12 +812,18 @@ class _MailboxScreenState extends State<MailboxScreen> {
     AceSnack.show(context, 'Moved to ${target.label}.');
   }
 
-  /// Marks the whole folder read.
-  ///
-  /// No question first: it is the one bulk action that changes nothing anyone
-  /// has to lose — every message is still there, and marking one unread is a
-  /// swipe away.
-  
+  /// Archives everything picked, asking first when the setting is on.
+  Future<void> _archiveSelected(BuildContext context) async {
+    final MailController controller = context.read<MailController>();
+    if (context.read<Preferences>().confirmArchive &&
+        !await confirmArchive(context)) {
+      return;
+    }
+    await controller.archiveSelected();
+  }
+
+}
+
 /// The search bar's microphone.
 ///
 /// It pulses while the device is listening. Nothing else on screen changes when
