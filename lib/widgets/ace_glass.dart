@@ -24,14 +24,6 @@ const AnimationStyle kAceSheetMotion = AnimationStyle(
 );
 
 abstract final class AceGlass {
-  /// The Android API level, or null when this is not Android.
-  ///
-  /// Kept for the message below, which names the number. The capability itself
-  /// is [PlatformCaps]'s answer now: two places deciding whether this device can
-  /// blur is two places that can disagree.
-  static int? get _androidApi =>
-      PlatformCaps.isAndroid ? PlatformCaps.androidSdk : null;
-
   /// Whether this device can blur a backdrop at a price worth paying.
   static bool get capable => PlatformCaps.supportsBlur;
 
