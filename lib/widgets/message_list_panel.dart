@@ -22,6 +22,7 @@ import '../services/google_auth.dart';
 import '../util/dates.dart';
 import '../util/greeting.dart';
 import '../util/search_query.dart';
+import 'ace_glass.dart';
 import 'astryx_widgets.dart';
 import 'avatar.dart';
 import 'confirm_exit.dart';
@@ -397,6 +398,7 @@ Future<void> showSortSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    sheetAnimationStyle: kAceSheetMotion,
     builder: (BuildContext sheetContext) {
       final AstryxColors c = sheetContext.astryx;
       final MailController controller = sheetContext.watch<MailController>();

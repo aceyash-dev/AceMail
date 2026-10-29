@@ -10,6 +10,19 @@ import '../theme/astryx_tokens.dart';
 
 import '../services/platform_caps.dart';
 
+/// How a sheet arrives and leaves.
+///
+/// iOS sheets come up fast and settle, and drop away faster than they came; the
+/// curve is a decelerating one with no bounce, because a sheet that overshoots
+/// reads as a mistake. Material's default is the same duration with a flatter
+/// curve, which is why the app's sheets felt like drawers rather than panes.
+const AnimationStyle kAceSheetMotion = AnimationStyle(
+  duration: Duration(milliseconds: 420),
+  reverseDuration: Duration(milliseconds: 260),
+  curve: Curves.easeOutQuint,
+  reverseCurve: Curves.easeInCubic,
+);
+
 abstract final class AceGlass {
   /// The Android API level, or null when this is not Android.
   ///
@@ -28,17 +41,10 @@ abstract final class AceGlass {
   /// setting that looks broken.
   static String? get limitation {
     if (capable) return null;
-    if (Platform.isAndroid) {
-      final int? api = _androidApi;
-      return api == null
-          ? 'This device does not report its version, so the blur is off.'
-          : 'Android 12 or later is needed for the blur. This is API $api.';
-    }
-    if (Platform.isLinux || Platform.isWindows) {
-      return 'The blur is an iOS, macOS and Android 12+ effect. This build '
-          'draws a flat surface.';
-    }
-    return 'This platform has no hardware backdrop blur.';
+    // One answer now: the web build has no shader pass to blur with. Every
+    // native platform Flutter draws on does, which is what the old Android-12
+    // gate got wrong.
+    return 'This build has no backdrop blur, so the surfaces stay flat.';
   }
 
   /// Whether the material is on, given the setting.

@@ -23,6 +23,7 @@ import '../util/routes.dart';
 import 'ace_confirm.dart';
 import 'ace_form_field.dart';
 import 'ace_icon_view.dart';
+import 'ace_glass.dart';
 import 'astryx_widgets.dart';
 import 'chyme_mark.dart';
 import 'chyme_pickers.dart';
@@ -52,6 +53,7 @@ class ChymeSheet extends StatefulWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
+      sheetAnimationStyle: kAceSheetMotion,
       builder: (BuildContext sheetContext) => ChymeSheet(seed: seed),
     );
   }

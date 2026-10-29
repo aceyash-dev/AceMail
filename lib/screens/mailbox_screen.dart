@@ -25,6 +25,7 @@ import '../widgets/folder_rail.dart';
 import '../widgets/message_list_panel.dart';
 import '../widgets/message_reader.dart';
 import 'compose_screen.dart';
+import '../widgets/ace_glass.dart';
 import '../widgets/ace_icon_view.dart';
 import '../services/mailto.dart';
 import '../models/message_sort.dart';
@@ -429,6 +430,20 @@ class _MailboxScreenState extends State<MailboxScreen> {
           // Taller than Material's 56, because the search bar lives in the
           // title slot now and it is not a 40px pill.
           toolbarHeight: 68,
+          // The list scrolls *under* the bar, and the bar is glass over it —
+          // which is what makes the material visible at all. An opaque bar over
+          // a static background is a bar, not a pane of anything.
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: AceGlass.material(
+            context,
+            blur: 26,
+            opacity: 0.68,
+            bordered: false,
+            child: const SizedBox.expand(),
+          ),
           titleSpacing: AstryxSpace.s2,
           // Ours, not Material's default DrawerButton: the hamburger was the
           // last Material icon left in the app bar, and it was the wrong
@@ -506,6 +521,9 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 extended: _fabExtended,
                 onPressed: () => _compose(context),
               ),
+        // Behind the bar, so the glass has the list to blur rather than a flat
+        // colour.
+        extendBodyBehindAppBar: !(reading && !wide),
         body: NotificationListener<ScrollNotification>(
           onNotification: _onScroll,
           child: wide

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// What this device can actually do.
 ///
 /// A setting that cannot work is worse than a missing one: it invites somebody
@@ -23,16 +25,18 @@ abstract final class PlatformCaps {
 
   /// Whether the platform can blur what is behind a surface.
   ///
-  /// Android 12 added `RenderEffect`, which is what a real backdrop blur needs;
-  /// before that the only way to fake it is to read the pixels behind the
-  /// widget, which is both slow and wrong the moment anything moves. iOS has had
-  /// it since 13, and macOS has had `NSVisualEffectView` since long before that.
-  ///
-  /// macOS was missing from this answer, which is why the glass never appeared
-  /// there: the setting was on, the surfaces were built, and the capability said
+  /// Everywhere Flutter can draw it. The previous answer was `iOS || macOS ||
+  /// Android 12+`, on the reasoning that a real backdrop blur needs Android 12's
+  /// `RenderEffect` — which is true of a *native* view and irrelevant here:
+  /// Flutter's `ImageFilter.blur` is a shader in the engine's own render pass,
+  /// and it has worked on every Android version Flutter supports. So the gate
+  /// was wrong, and it was the whole reason the setting did nothing on most
+  /// phones: the switch was on, the surfaces were built, and the capability said
   /// no.
-  static bool get supportsBlur =>
-      isIOS || isMacOS || (isAndroid && androidSdk >= 31);
+  ///
+  /// What is left is the one platform that genuinely cannot: the web renderer
+  /// that has no shader pass.
+  static bool get supportsBlur => !kIsWeb;
 
   /// Whether the launcher will re-tint a monochrome icon layer.
   ///

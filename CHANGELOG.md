@@ -3,6 +3,31 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+96
+
+### Fixed
+- **The glass works, on every phone.** The blur was gated on "iOS, macOS, or
+  Android 12+" — on the reasoning that a real backdrop blur needs Android's
+  `RenderEffect`. That is true of a native view and irrelevant here: Flutter's
+  `ImageFilter.blur` is a shader in the engine's own pass and has worked on every
+  Android version Flutter supports. So the switch was on, the surfaces were
+  built, and the capability said no — which is why the setting did nothing. Every
+  platform Flutter draws on can blur now; the one that cannot is the web build.
+- **The top bar is glass, and the mail scrolls under it.** An opaque bar over a
+  flat background is a bar, not a pane of anything — the material only shows when
+  there is something behind it. The list now runs behind the bar and the bar
+  blurs it.
+
+### Changed
+- **Every screen transition is iOS's.** The app had two ideas of what opening a
+  screen looks like: a fade-and-scale on Android, a slide on Apple's platforms.
+  It is the slide everywhere now — the new screen from the right, the one beneath
+  it a third as far and dimmed, the shadow between them, and the left-edge swipe
+  to go back.
+- **Sheets come up like iOS sheets.** Fast, decelerating, and gone faster than
+  they arrived; Material's default curve made them feel like drawers rather than
+  panes. The Chyme, sort and update sheets use it.
+
 ## 0.6.2+95
 
 ### Fixed

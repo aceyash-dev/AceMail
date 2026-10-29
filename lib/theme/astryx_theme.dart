@@ -266,15 +266,19 @@ ThemeData buildAstryxTheme(
     splashFactory: InkSparkle.splashFactory,
     textTheme: text,
     extensions: <ThemeExtension<dynamic>>[c],
+    // The iOS transition everywhere: the new screen slides in from the right
+    // while the old one slides a third as far and dims, and on iOS a drag from
+    // the left edge goes back. It was a fade-and-scale on Android and a slide on
+    // Apple's platforms, which meant the same app had two different ideas of
+    // what "opening a screen" looks like depending on the phone in your hand.
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: <TargetPlatform, PageTransitionsBuilder>{
-        // Modern Android gets the predictive-back transition; the rest get the
-        // fade-forwards one, which is the closest to expressive motion.
-        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
-        TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
-        TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
-        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.fuchsia: CupertinoPageTransitionsBuilder(),
       },
     ),
     appBarTheme: AppBarThemeData(

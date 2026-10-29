@@ -10,6 +10,7 @@ import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/ace_snack.dart';
 import '../util/dates.dart';
+import 'ace_glass.dart';
 import 'astryx_widgets.dart';
 import 'markdown_view.dart';
 
@@ -30,6 +31,7 @@ class UpdateSheet extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
+      sheetAnimationStyle: kAceSheetMotion,
       builder: (BuildContext sheetContext) => UpdateSheet(release: release),
     );
   }
