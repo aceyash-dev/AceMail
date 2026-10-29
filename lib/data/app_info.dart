@@ -29,6 +29,11 @@ abstract final class AppInfo {
   /// build-number-only update announced nothing at all.
   static String get fullVersion {
     if (version.isEmpty) return '';
+    // A platform that already put the build in the name — some Android builds
+    // report "0.6.0+10" as the version and "91" as the build — produced
+    // "0.6.0+10+91", which the update sheet then showed as "0.6.0+1091" and
+    // compared against the releases as a build number that does not exist.
+    if (version.contains('+')) return version;
     return build.isEmpty ? version : '$version+$build';
   }
 

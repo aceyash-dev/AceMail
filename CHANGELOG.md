@@ -3,6 +3,32 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+95
+
+### Fixed
+- **Release notes render on the phone.** They were written as a GitHub
+  accordion — `<details>`, `<summary>`, `<b>` — and the app's notes view has no
+  HTML in it by design, so those tags arrived as literal text. The generator
+  writes plain markdown now, and anything already published is stripped on the
+  way in, so an old release reads the same as a new one.
+- **"You are on 0.6.0+1091" was a version string that does not exist.** A
+  platform that already carries the build in its version name produced
+  `0.6.0+10+91`, which the sheet then flattened into one impossible number. The
+  build is only appended when the name does not already have one, and the sheet
+  names the version the way the About screen does.
+
+### Changed
+- **The mark-all-read button is gone from the bar.** Marking a whole folder read
+  is a rare, blunt action, and it was sitting between search and sort on every
+  screen. It is still in the selection bar, where it acts on what you chose.
+- **Contacts left the folder rail.** Contacts is not a folder, and the rail is a
+  list of folders. It is still where it is useful — the recipient field's
+  suggestions, and the assistant's address book.
+- **Chyme has no "+" button.** A chat that lives forever becomes a document
+  nobody tidied: the context grows and the sheet opens onto yesterday. The
+  conversation now expires after an hour, which is what the button was really
+  for — and it happens without being asked.
+
 ## 0.6.2+94
 
 ### Fixed

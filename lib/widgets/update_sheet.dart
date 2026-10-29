@@ -63,9 +63,11 @@ class UpdateSheet extends StatelessWidget {
                         style: AstryxText.heading3(c.textPrimary),
                       ),
                       Text(
-                        AppInfo.fullVersion.isEmpty
+                        // The label the About screen uses: name and build, in
+                        // a shape that cannot come out as "0.6.0+1091".
+                        AppInfo.label.isEmpty
                             ? 'You are on an older build'
-                            : 'You are on ${AppInfo.fullVersion}',
+                            : 'You are on ${AppInfo.label}',
                         style: AstryxText.supporting(c.textSecondary),
                       ),
                     ],
@@ -92,7 +94,9 @@ class UpdateSheet extends StatelessWidget {
               children: <Widget>[
                 if (release.hasNotes)
                   MarkdownView(
-                    source: release.notes,
+                    // Stripped first: an older release body was written as an
+                    // HTML accordion, and this view has no HTML in it.
+                    source: UpdateCheck.plainNotes(release.notes),
                     onLink: (String url) => _open(context, url),
                   )
                 else

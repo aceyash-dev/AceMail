@@ -67,19 +67,11 @@ class FolderRail extends StatelessWidget {
               ),
               child: Column(
                 children: <Widget>[
-                  // The same tab the floating bar switches on a phone. A wide
-                  // window has no bar, and a view with no way in is not a view.
-                  _RailAction(
-                    icon: AceIcons.contacts,
-                    label: 'Contacts',
-                    selected: context.watch<MailController>().contactsTab,
-                    onTap: () {
-                      _closeDrawerIfOpen(context);
-                      context
-                          .read<MailController>()
-                          .showContacts(!context.read<MailController>().contactsTab);
-                    },
-                  ),
+                  // Contacts is not a folder, and the rail is a list of
+                  // folders. It stays reachable from the compose screen's
+                  // suggestions and from the assistant's address book, which
+                  // is where you want it — beside a recipient field, not above
+                  // the mail.
                   _RailAction(
                     icon: AceIcons.settings,
                     label: 'Settings',

@@ -146,6 +146,41 @@ abstract final class UpdateCheck {
     );
   }
 
+  /// Release notes that a plain markdown view can actually render.
+  ///
+  /// Older releases were written as an HTML accordion — `<details>`,
+  /// `<summary>`, `<b>` — because GitHub renders it and the release page is
+  /// read there. The app's notes view has no HTML in it by design, so on a
+  /// phone those bodies arrived as literal tag text. The tags are stripped
+  /// here, and a `<summary>` becomes the heading it was pretending to be, so a
+  /// body from any release reads the same.
+  static String plainNotes(String markdown) {
+    String text = markdown.replaceAll('\r\n', '\n');
+
+    // A summary is a section heading in disguise.
+    text = text.replaceAllMapped(
+      RegExp(r'<summary>\s*(.*?)\s*</summary>', caseSensitive: false),
+      (Match m) => '\n#### ${m.group(1)!.replaceAll(RegExp('<[^>]+>'), '')}\n',
+    );
+    // The accordion wrappers say nothing once the summary is a heading.
+    text = text
+        .replaceAll(RegExp(r'</?details[^>]*>', caseSensitive: false), '\n')
+        // Bold, before the tags go: `<b>x</b>` is `**x**`.
+        .replaceAllMapped(
+          RegExp(r'<b>\s*(.*?)\s*</b>', caseSensitive: false),
+          (Match m) => '**${m.group(1)!}**',
+        )
+        // Anything else is a tag nobody needs to read.
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>');
+
+    // Three blank lines from the removed wrappers become one.
+    return text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+  }
+
   /// `v0.6.0+82` → `0.6.0+82`. Tags are written both ways.
   static String versionOf(String tag) {
     final String trimmed = tag.trim();

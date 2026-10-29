@@ -552,14 +552,38 @@ typedef ChymeTool = Future<String?> Function(String argument);
 /// to the first answer. Memory rather than disk: this is a scratchpad for the
 /// session, not a chat log, and a transcript of somebody's mail is not something
 /// to leave on the device.
+/// What Chyme remembers between openings of the sheet.
+///
+/// One conversation, and it expires. A chat that lives forever becomes a
+/// document nobody tidied: the assistant's context grows, the answers drift
+/// toward whatever was said an hour ago, and the sheet opens onto a wall of
+/// yesterday. An hour is long enough to come back to a thread you were in the
+/// middle of and short enough that the next opening is a fresh one.
 abstract final class ChymeMemory {
+  /// How long a conversation stays.
+  static const Duration lifetime = Duration(hours: 1);
+
   static final List<ChymeTurn> turns = <ChymeTurn>[];
 
+  static DateTime? _started;
+
+  /// The conversation, emptied first if it has expired.
+  static List<ChymeTurn> get current {
+    if (_started != null && DateTime.now().difference(_started!) > lifetime) {
+      forget();
+    }
+    return turns;
+  }
+
   static void remember(List<ChymeTurn> conversation) {
+    _started ??= DateTime.now();
     turns
       ..clear()
       ..addAll(conversation);
   }
 
-  static void forget() => turns.clear();
+  static void forget() {
+    turns.clear();
+    _started = null;
+  }
 }

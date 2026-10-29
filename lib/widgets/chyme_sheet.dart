@@ -77,10 +77,11 @@ class _ChymeSheetState extends State<ChymeSheet> {
   @override
   void initState() {
     super.initState();
-    // Pick up where the last opening left off. A second question almost always
-    // refers to the first answer, so starting from nothing made the app forget
-    // the thing being asked about.
-    _turns.addAll(ChymeMemory.turns);
+    // Pick up where the last opening left off — a second question almost always
+    // refers to the first answer — but only inside the hour. `current` empties
+    // a conversation that has expired, which is what replaced the "start over"
+    // button: the sheet tidies itself instead of asking somebody to.
+    _turns.addAll(ChymeMemory.current);
     final String? seed = widget.seed;
     if (seed != null && seed.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _send(seed));
@@ -608,17 +609,6 @@ class _ChymeSheetState extends State<ChymeSheet> {
                       ],
                     ),
                   ),
-                  if (_turns.isNotEmpty)
-                    AceIconButton(
-                      icon: AceIcons.add,
-                      tooltip: 'Start over',
-                      onPressed: () => setState(() {
-                        _turns.clear();
-                        _search = null;
-                        _error = null;
-                        ChymeMemory.forget();
-                      }),
-                    ),
                   AceIconButton(
                     icon: AceIcons.settings,
                     tooltip: 'Chyme settings',

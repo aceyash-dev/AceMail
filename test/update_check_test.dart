@@ -112,4 +112,31 @@ void main() {
       expect(UpdateCheck.isNewer('0.6.1', '0.6.1+92'), isFalse);
     });
   });
+
+  group('notes a markdown view can render', () {
+    test('an HTML accordion becomes headings and bullets', () {
+      // Older release bodies were written for GitHub's renderer, and arrived on
+      // a phone as literal <details> text.
+      final String plain = UpdateCheck.plainNotes(
+        '### What changed in 0.6.1+92\n\n'
+        '<details>\n<summary><b>Fixed</b> (6)</summary>\n\n'
+        '- **A fix.** The detail.\n\n</details>\n',
+      );
+
+      expect(plain, isNot(contains('<details>')));
+      expect(plain, isNot(contains('<summary>')));
+      expect(plain, isNot(contains('<b>')));
+      expect(plain, contains('#### Fixed (6)'));
+      expect(plain, contains('**A fix.**'));
+    });
+
+    test('markdown that was never HTML comes through untouched', () {
+      const String body = '#### Fixed (1)\n\n- **A fix.** The detail.\n';
+      expect(UpdateCheck.plainNotes(body).trim(), body.trim());
+    });
+
+    test('runs of blank lines collapse', () {
+      expect(UpdateCheck.plainNotes('a\n\n\n\n\nb'), 'a\n\nb');
+    });
+  });
 }

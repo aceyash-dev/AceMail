@@ -3,7 +3,9 @@
 
 The notes are generated at release time from `CHANGELOG.md` rather than typed
 into the workflow, so they cannot drift from the changelog the app itself shows.
-GitHub renders `<details>`/`<summary>` as an accordion, so the body opens with an
+The body is plain markdown — headings, bullets, bold — because the app renders
+it itself and has no HTML in its notes view, so an accordion arrived on the
+phone as literal `<details>` text. A short summary opens then
 overview and keeps each section collapsed until it is wanted.
 
     tool/release_notes.py --match 0.5.0 --title v0.5.0   # notes on stdout
@@ -96,13 +98,14 @@ def render(title: str, version: str, repo: str, body: str | None) -> str:
         out.append(summary)
         out.append("")
 
+    # Plain markdown, not an HTML accordion. The accordion is lovely on GitHub
+    # and unreadable everywhere else — the app's own notes view has no HTML in
+    # it by design, so `<details>` arrived on the phone as literal text, and so
+    # did every `<b>`.
     for name, content in parts:
-        out.append("<details>")
-        out.append(f"<summary><b>{name}</b> ({_bullets(content)})</summary>")
+        out.append(f"#### {name} ({_bullets(content)})")
         out.append("")
         out.append(content)
-        out.append("")
-        out.append("</details>")
         out.append("")
 
     out.append("---")
@@ -134,7 +137,8 @@ def _self_test() -> int:
     assert _bullets(parts[0][1]) == 2 and _bullets(parts[1][1]) == 1
 
     notes = render("v0.9.9", "0.9.9+1", DEFAULT_REPO, body)
-    assert "<details>" in notes and "<summary><b>Added</b> (2)</summary>" in notes
+    assert "#### Added (2)" in notes and "#### Fixed (1)" in notes
+    assert "<details>" not in notes and "<b>" not in notes
     assert "Older" not in notes, "leaked the next section"
     assert section_for(sample, "0.0.0") is None
     assert "No changelog entry" in render("v0.0.0", "0.0.0", DEFAULT_REPO, None)

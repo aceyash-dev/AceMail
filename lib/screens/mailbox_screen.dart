@@ -480,19 +480,6 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 onPressed: () =>
                     _confirmEmpty(context, junk: controller.inJunk),
               ),
-            // Only where there is something to mark: a button that can only do
-            // nothing is a button that teaches people to ignore buttons.
-            if (!controller.inTrash &&
-                !_searching &&
-                (controller.selectedFolder?.unseen ?? 0) > 0)
-              AceIconButton(
-                // A tick, not an open envelope. An envelope for "mark
-                // everything read" is the same picture as "open mail", and it
-                // was the one icon in the bar nobody could name.
-                icon: AceIcons.checkCircle,
-                tooltip: 'Mark all read',
-                onPressed: () => _markAllRead(context),
-              ),
             // One button for the choices that used to take a row of the list:
             // the filters and the order. It wears the accent when something
             // other than the default is in force, which is what the chips were
