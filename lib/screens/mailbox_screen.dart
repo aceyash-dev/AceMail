@@ -129,7 +129,6 @@ class _MailboxScreenState extends State<MailboxScreen>
   /// It shortens once the list has been scrolled: the label is there to teach
   /// the button, and by the time you have scrolled you have learned it. It comes
   /// back at the top, so it is never a button you have to remember.
-  bool _fabExtended = true;
 
   /// The folder the current search belongs to, so a folder change can end it.
   String? _searchFolder;
@@ -305,17 +304,21 @@ class _MailboxScreenState extends State<MailboxScreen>
     if (controller.openSummary != null) controller.closeMessage();
   }
 
-  /// Shortens the compose button as the list moves, and lengthens it again at
-  /// the top.
+  bool _onScroll(ScrollNotification notification) => false;
+
+  /// Chyme, opened by voice.
   ///
-  /// Only the message list: the reader has a scroll view of its own, and a
-  /// button that changes shape because a *message* scrolled would be a button
-  /// reacting to something you cannot see.
-  bool _onScroll(ScrollNotification notification) {
-    if (notification.depth != 0) return false;
-    final bool extended = notification.metrics.pixels < 40;
-    if (extended != _fabExtended) setState(() => _fabExtended = extended);
-    return false;
+  /// The same recogniser the search field uses, pointed at the assistant: what
+  /// comes back is sent as the question, with the message on screen already in
+  /// its context — which is the whole reason the assistant is worth reaching
+  /// from here.
+  Future<void> _askChymeByVoice(BuildContext context) async {
+    final String? heard = await VoiceInput.listen();
+    if (!mounted) return;
+    await ChymeSheet.show(
+      context,
+      seed: (heard == null || heard.trim().isEmpty) ? null : heard.trim(),
+    );
   }
 
   void _exitSearch({bool clearQuery = true}) {
@@ -540,16 +543,33 @@ class _MailboxScreenState extends State<MailboxScreen>
                 backgroundColor: c.backgroundSurface,
                 child: const FolderRail(),
               ),
-        // Not while a message is open: the reader's floating toolbar occupies
-        // the same corner, and the two overlap.
+        // The assistant sits in the middle of the bottom edge and stays there.
+        // It used to be an icon inside the search bar, which meant it moved when
+        // the bar grew, disappeared while searching, and could not be found at
+        // all by anybody who had not read the toolbar. A control that is always
+        // in the same place is a control you learn once.
+        //
+        // Compose keeps the right-hand corner. Neither collapses on scroll: a
+        // button that changes shape as the list moves is a button that reacts to
+        // something you are not looking at.
         floatingActionButton: wide || reading
             ? null
-            : AceFab(
-                label: 'Compose',
-                icon: AceIcons.edit,
-                extended: _fabExtended,
-                onPressed: () => _compose(context),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  AceChymeFab(
+                    onAsk: () => ChymeSheet.show(context),
+                    onSpeak: () => _askChymeByVoice(context),
+                  ),
+                  const SizedBox(width: AstryxSpace.s3),
+                  AceFab(
+                    label: 'Compose',
+                    icon: AceIcons.edit,
+                    onPressed: () => _compose(context),
+                  ),
+                ],
               ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         // Behind the bar, so the glass has the list to blur rather than a flat
         // colour.
         extendBodyBehindAppBar: !(reading && !wide),

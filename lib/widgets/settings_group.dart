@@ -194,12 +194,21 @@ class SettingsSwitchRow extends StatelessWidget {
     required this.onChanged,
     this.subtitle,
     this.leading,
+    this.locked = false,
   });
 
   final AceIcon icon;
   final String title;
   final String? subtitle;
   final bool value;
+
+  /// Whether this switch is a decision rather than a preference.
+  ///
+  /// Some of these protect somebody from something they cannot undo — a
+  /// permanent delete with no question, a keychain write nobody is told failed.
+  /// Offering those as switches offers a way to break a promise the app makes
+  /// elsewhere, so they are shown, explained, and not switchable off.
+  final bool locked;
   final ValueChanged<bool> onChanged;
 
   /// Shown in place of the icon, for a row whose subject has a mark of its own.
@@ -252,7 +261,13 @@ class SettingsSwitchRow extends StatelessWidget {
                 // Material 3 Expressive's switch: a tick when it is on, a
                 // cross when it is off. The mark is the point — a switch's
                 // position is a thing you read, a tick is a thing you know.
-                AceSwitch(value: value, onChanged: onChanged),
+                // A locked switch is drawn on and inert: the state it protects
+                // is not optional, and a control that refuses to move says why
+                // in the subtitle beside it.
+                AceSwitch(
+                  value: locked ? true : value,
+                  onChanged: locked ? null : onChanged,
+                ),
               ],
             ),
           ),

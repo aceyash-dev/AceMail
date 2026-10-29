@@ -225,6 +225,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'set to.',
                   value: prefs.confirmDelete,
                   onChanged: prefs.setConfirmDelete,
+                  // A permanent delete always asks. The switch is shown so the rule is
+                  // visible, and locked because turning it off would mean offering to
+                  // destroy mail without a question.
+                  locked: true,
                 ),
                 SettingsRow(
                   icon: AceIcons.signature,

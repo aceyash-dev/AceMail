@@ -3,6 +3,27 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+99
+
+### Changed
+- **Chyme lives at the bottom of the screen now, in the middle.** It was an icon
+  inside the search bar: it moved when the bar grew, vanished while searching, and
+  could not be found by anybody who had not read the toolbar. It is a pill in the
+  centre of the bottom edge — the mark to type, a microphone to speak — and it
+  never collapses on scroll.
+- **Speaking to it carries the message with it.** The microphone opens the same
+  recogniser the search field uses, and what it hears is sent as the question with
+  the message on screen already in the assistant's context.
+- **The compose button no longer shrinks as the list scrolls.** A button that
+  changes shape as the list moves is a button reacting to something you are not
+  looking at.
+
+### Fixed
+- **The settings that protect something cannot be switched off.** A permanent
+  delete always asks; that is a promise the app makes, and offering it as a
+  switch offered a way to break it. Locked switches are drawn on, inert, and say
+  why in the line beside them.
+
 ## 0.6.2+98
 
 ### Changed
