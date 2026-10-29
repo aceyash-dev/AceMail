@@ -29,15 +29,6 @@ class UpdateSheet extends StatefulWidget {
 
   final UpdateRelease release;
 
-  @override
-  State<UpdateSheet> createState() => _UpdateSheetState();
-}
-
-class _UpdateSheetState extends State<UpdateSheet> {
-  /// 0 to 1 while downloading, null when nothing is in flight.
-  double? _progress;
-  String? _note;
-
   static Future<void> show(BuildContext context, UpdateRelease release) {
     return showModalBottomSheet<void>(
       context: context,
@@ -48,6 +39,15 @@ class _UpdateSheetState extends State<UpdateSheet> {
       builder: (BuildContext sheetContext) => UpdateSheet(release: release),
     );
   }
+
+  @override
+  State<UpdateSheet> createState() => _UpdateSheetState();
+}
+
+class _UpdateSheetState extends State<UpdateSheet> {
+  /// 0 to 1 while downloading, null when nothing is in flight.
+  double? _progress;
+  String? _note;
 
   @override
   Widget build(BuildContext context) {

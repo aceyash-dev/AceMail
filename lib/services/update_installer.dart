@@ -122,7 +122,7 @@ abstract final class UpdateInstaller {
   static Future<bool> install(File file) async {
     if (!Platform.isAndroid) return false;
     try {
-      final OpenFileResult result = await OpenFilex.open(
+      final OpenResult result = await OpenFilex.open(
         file.path,
         type: 'application/vnd.android.package-archive',
       );
