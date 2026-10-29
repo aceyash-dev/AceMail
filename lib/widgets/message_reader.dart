@@ -28,8 +28,6 @@ import 'avatar.dart';
 import 'skeleton.dart';
 import 'settings_group.dart';
 import 'ace_icon_view.dart';
-import 'chyme_sheet.dart';
-import 'chyme_mark.dart';
 
 class MessageReader extends StatefulWidget {
   const MessageReader({super.key, this.onBack, this.onDismiss});
