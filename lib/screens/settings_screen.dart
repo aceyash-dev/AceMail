@@ -13,6 +13,7 @@ import '../data/local_store.dart';
 import '../data/preferences.dart';
 import '../models/glass_mode.dart';
 import '../services/app_lock.dart';
+import '../services/chyme.dart';
 import '../services/launcher_icon.dart';
 import '../services/local_avatars.dart';
 import '../services/platform_caps.dart';
@@ -628,6 +629,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                   ),
                   SettingsRow(
+                    icon: AceIcons.edit,
+                    title: 'Instructions',
+                    subtitle: 'What Chyme is told about itself and its rules. '
+                        'Empty uses the app\'s own — which are what make it '
+                        'refuse to invent a sender, a date or an address.',
+                    value: prefs.chymePrompt.trim().isEmpty
+                        ? 'The app\'s own'
+                        : 'Edited',
+                    onTap: () => _editChymeText(
+                      context,
+                      prefs,
+                      title: 'Instructions',
+                      hint: Chyme.systemPrompt,
+                      current: prefs.chymePrompt,
+                      save: prefs.setChymePrompt,
+                      multiline: true,
+                    ),
+                  ),
+                  SettingsRow(
                     icon: AceIcons.cloud,
                     title: 'Endpoint',
                     subtitle: 'The API base, like https://api.openai.com/v1. Any '
@@ -817,6 +837,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String hint,
     required String current,
     required Future<void> Function(String) save,
+    bool multiline = false,
     bool obscure = false,
   }) async {
     final TextEditingController controller =
@@ -829,8 +850,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           autofocus: true,
           obscureText: obscure,
-          keyboardType:
-              obscure ? TextInputType.text : TextInputType.url,
+          // The instructions are a page of prose, not a URL: they need room to
+          // be read while being edited.
+          maxLines: multiline ? 12 : 1,
+          minLines: multiline ? 6 : 1,
+          keyboardType: obscure || multiline
+              ? TextInputType.multiline
+              : TextInputType.url,
           decoration: InputDecoration(hintText: hint),
         ),
         actions: <Widget>[
@@ -846,7 +872,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     controller.dispose();
-    if (value != null) await save(value.trim());
+    if (value != null) await save(multiline ? value : value.trim());
   }
 
   Future<void> _setCaching(

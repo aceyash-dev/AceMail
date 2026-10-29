@@ -3,6 +3,34 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+98
+
+### Changed
+- **Chyme's mark is the artwork again.** It was redrawn as a ring and a dot for a
+  build, on the reasoning that a taper does not survive 20px. It does — and a
+  mark that changes shape is a mark that has to be learned twice.
+- **The reader's toolbar is about the message again.** The Chyme button and the
+  floating Summarise button are gone: the assistant has one way in, the bar, and
+  a reader with two of its controls in it was a toolbar about the app.
+- **The message list is cards again.** The gap between rows was half a unit,
+  which is not a gap — the cards touched and the list read as rows. They have air
+  between them and a larger corner now, so each message is one thing.
+- **Chyme's suggestion arc has room.** A wider arc, a gentler step, taller cards
+  and padding at both ends, so the outermost card is not cut by the sheet's edge.
+
+### Added
+- **Chyme's instructions are editable.** A row in its settings opens the prompt —
+  what it is told about itself and its rules — with the app's own as the hint.
+  Empty means the app's; anything else replaces it, because two sets of
+  instructions that disagree is an assistant arguing with itself.
+- **The version is in the rail.** Name and build at the foot of the folder list,
+  because a bug report that says "0.6.2" cannot be matched to the code that
+  shipped it.
+
+### Fixed
+- **Losing focus puts the keyboard away.** It used to stay up over a collapsed
+  search bar — a keyboard for a field nobody was in, covering the mail.
+
 ## 0.6.2+97
 
 ### Added

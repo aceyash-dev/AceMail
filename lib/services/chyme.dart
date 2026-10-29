@@ -104,9 +104,18 @@ abstract final class Chyme {
   /// A line in the system prompt rather than a second request: the tone of a
   /// draft is part of writing it, not a pass over it afterwards, and a model
   /// asked to rewrite in a tone rewrites the meaning as often as the register.
-  static String systemPromptFor(ChymeTone tone) => tone == ChymeTone.neutral
-      ? systemPrompt
-      : '$systemPrompt\n\nTone: ${tone.instruction}';
+  /// The instructions, with the tone appended — and with the person's own
+  /// words in place of the default ones when they have written any.
+  ///
+  /// [custom] replaces the base prompt rather than being added to it: two sets
+  /// of instructions that disagree is an assistant arguing with itself, and the
+  /// person editing this one can see what they are replacing.
+  static String systemPromptFor(ChymeTone tone, {String? custom}) {
+    final String base = (custom == null || custom.trim().isEmpty)
+        ? systemPrompt
+        : custom.trim();
+    return tone == ChymeTone.neutral ? base : '$base\n\nTone: ${tone.instruction}';
+  }
 
   static final String systemPrompt = '''
 You are Chyme, the assistant built into Ace Mail, an email client. You help the

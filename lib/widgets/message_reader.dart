@@ -179,24 +179,6 @@ class _MessageReaderState extends State<MessageReader> {
                   ),
             ],
           ),
-          // The one thing worth a button of its own on a long message. Reading
-          // something you have not read is the moment you want it in three
-          // lines, and asking for that from a menu of six icons is asking
-          // somebody to find it first.
-          Positioned(
-            right: AstryxSpace.s4,
-            bottom: AstryxSpace.s5,
-            child: FloatingActionButton.extended(
-              onPressed: () => ChymeSheet.show(
-                context,
-                seed: 'Summarise this message in three lines.',
-              ),
-              backgroundColor: c.accent,
-              foregroundColor: c.onAccent,
-              icon: ChymeMark(size: 20, color: c.onAccent),
-              label: const Text('Summarise'),
-            ),
-          ),
           ],
         ),
       ),
@@ -222,18 +204,9 @@ class _MessageReaderState extends State<MessageReader> {
           tooltip: 'Reply',
           onPressed: () => _reply(context, message),
         ),
-        // Reply, but with Chyme writing it. The draft lands in the composer,
-        // addressed and threaded, and nothing is sent without a tap on Send.
-        AceToolbarAction(
-          icon: AceIcons.chyme,
-          tooltip: 'Reply with Chyme',
-          onPressed: () => ChymeSheet.show(
-            context,
-            seed: 'Write a reply to this message. Only the body, ready to send, '
-                'in the tone you are set to. Do not send it — use the reply '
-                'tool with this message so I can read it first.',
-          ),
-        ),
+        // No Chyme button here any more: the assistant has one way in — the
+        // bar — and a reader toolbar with two of its controls in it was a
+        // toolbar about the app rather than about the message.
         AceToolbarAction(
           icon: AceIcons.replyAll,
           tooltip: 'Reply all',

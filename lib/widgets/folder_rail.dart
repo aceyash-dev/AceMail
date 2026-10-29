@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/app_info.dart';
 import '../data/preferences.dart';
 import '../models/mail_folder.dart';
 import '../screens/settings_screen.dart';
@@ -72,6 +73,27 @@ class FolderRail extends StatelessWidget {
                   // suggestions and from the assistant's address book, which
                   // is where you want it — beside a recipient field, not above
                   // the mail.
+                  // The version, where somebody looking for it would look —
+                  // at the bottom of the list of places to go. Name and build
+                  // together, because a bug report that says "0.6.2" cannot be
+                  // matched to the code that shipped it.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AstryxSpace.s3,
+                      AstryxSpace.s1,
+                      AstryxSpace.s3,
+                      AstryxSpace.s1,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        AppInfo.label.isEmpty
+                            ? 'Ace Mail'
+                            : 'Ace Mail ${AppInfo.label}',
+                        style: AstryxText.supporting(c.textSecondary),
+                      ),
+                    ),
+                  ),
                   _RailAction(
                     icon: AceIcons.settings,
                     label: 'Settings',

@@ -544,7 +544,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         apiKey: prefs.chymeKey,
         model: prefs.chymeModel,
         turns: <ChymeTurn>[
-          ChymeTurn('system', Chyme.systemPromptFor(prefs.chymeTone)),
+          ChymeTurn('system', Chyme.systemPromptFor(prefs.chymeTone, custom: prefs.chymePrompt)),
           ChymeTurn(
             'user',
             // Asked for the shape as well as the words. A draft with no subject

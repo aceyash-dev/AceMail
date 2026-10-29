@@ -169,7 +169,15 @@ class _MailboxScreenState extends State<MailboxScreen>
     // rebuild it. Tapping is not enough: putting the keyboard away is a way of
     // leaving the search, and the microphone has to leave with it.
     _searchFocus.addListener(() {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      // The bar grew when it took focus; when focus goes, the keyboard goes
+      // with it. It used to stay up over a collapsed bar — a keyboard for a
+      // field nobody was in, which is a keyboard covering the mail.
+      if (!_searchFocus.hasFocus) {
+        FocusScope.of(context).unfocus();
+        SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+      }
+      setState(() {});
     });
     // A mailto: this launch was opened with. After the first frame, because a
     // sheet needs a context that is already in the tree.

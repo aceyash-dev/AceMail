@@ -1,92 +1,44 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
-/// Chyme's mark, drawn rather than sampled.
+/// Chyme's mark.
 ///
-/// The artwork was a 512px bitmap of a swoosh — dozens of concentric arcs
-/// tapering into one another. At the sizes this actually appears at — 20px in a
-/// settings row, 22px in the search bar — those arcs blur into a smudge, which
-/// is what made the button impossible to name. A mark has to survive its
-/// smallest use.
+/// The artwork is a white mark with transparency — extracted from the logo, so
+/// the strokes carry their own anti-aliasing and the field behind them is
+/// nothing. That is what lets one file sit on the accent in the sheet's header
+/// and in plain ink in a settings row: it is a mask, and it takes whatever
+/// colour it is given.
 ///
-/// So it is drawn: a thick open ring with rounded ends, and a dot in the gap.
-/// The ring is the C the old artwork was spelling; the dot is the thing being
-/// said. Two strokes, no taper, legible at 16px and still clean at 64.
+/// It was briefly drawn instead — a ring and a dot, on the reasoning that a
+/// taper does not survive 20px. It does; the swoosh is what the app is called,
+/// and a mark that changes shape is a mark that has to be learned twice.
 class ChymeMark extends StatelessWidget {
   const ChymeMark({super.key, this.size = 24, this.color});
 
   final double size;
 
-  /// The colour to draw it in. Null uses the surrounding text colour.
+  /// The colour to draw it in. Null draws the artwork as it is — white.
   final Color? color;
+
+  /// How much of the box the mark actually draws in.
+  ///
+  /// The artwork fills 95% of its own canvas, where the icon set leaves about a
+  /// quarter of its box empty. So a mark given the same `size` as an icon beside
+  /// it reads as a size larger — which is what it was doing.
+  static const double _fill = 0.8;
 
   @override
   Widget build(BuildContext context) {
-    final Color ink = color ?? IconTheme.of(context).color ??
-        Theme.of(context).colorScheme.onSurface;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _ChymePainter(ink),
-        // The mark is decoration beside a label that already says "Chyme";
-        // announcing it twice is noise.
-        isComplex: false,
-      ),
+    return Image.asset(
+      'assets/brand/chyme.png',
+      width: size * _fill,
+      height: size * _fill,
+      // srcIn, not a tint: a tint would blend the white into the colour and
+      // leave the mark milky. srcIn replaces every opaque pixel with the
+      // colour and leaves the alpha alone.
+      color: color,
+      colorBlendMode: color == null ? null : BlendMode.srcIn,
+      filterQuality: FilterQuality.medium,
+      excludeFromSemantics: true,
     );
   }
-}
-
-class _ChymePainter extends CustomPainter {
-  const _ChymePainter(this.ink);
-
-  final Color ink;
-
-  /// How far round the ring goes, in radians, and where it starts.
-  ///
-  /// A three-quarter ring, opened at the upper right so the gap and the dot
-  /// read as one gesture: something said, trailing off.
-  static const double _sweep = math.pi * 1.55;
-  static const double _start = math.pi * 0.62;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double side = math.min(size.width, size.height);
-    final Offset centre = Offset(size.width / 2, size.height / 2);
-    final double stroke = side * 0.15;
-    final double radius = (side - stroke) / 2;
-
-    final Paint pen = Paint()
-      ..color = ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: centre, radius: radius),
-      _start,
-      _sweep,
-      false,
-      pen,
-    );
-
-    // The dot sits where the ring stops, just outside it: the end of the
-    // sentence rather than a hole in the shape.
-    final double endAngle = _start + _sweep;
-    final Offset dot = Offset(
-      centre.dx + math.cos(endAngle) * radius,
-      centre.dy + math.sin(endAngle) * radius,
-    );
-    canvas.drawCircle(
-      dot,
-      stroke * 0.62,
-      Paint()
-        ..color = ink
-        ..style = PaintingStyle.fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ChymePainter oldDelegate) => oldDelegate.ink != ink;
 }

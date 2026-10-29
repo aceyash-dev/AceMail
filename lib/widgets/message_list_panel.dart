@@ -649,13 +649,15 @@ class MessageTile extends StatelessWidget {
         builder: (BuildContext context, double press, bool hover) {
           final double t = press.clamp(0.0, 1.0);
           final BorderRadius shape = BorderRadius.circular(
-            lerpDouble(AstryxRadius.container, AstryxRadius.inner, t)!,
+            lerpDouble(AstryxRadius.lg, AstryxRadius.inner, t)!,
           );
 
           return Transform.scale(
             scale: 1 - 0.02 * press,
             child: Container(
-              margin: const EdgeInsets.only(bottom: AstryxSpace.s0_5),
+              // A card needs air around it to read as one: at half a unit the
+              // cards touched and the list looked like rows again.
+              margin: const EdgeInsets.only(bottom: AstryxSpace.s1_5),
               decoration: BoxDecoration(
                 // A card, not a bare row: a surface of its own, a corner, and a
                 // little air around it. Rows on a flat page run together and

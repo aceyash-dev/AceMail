@@ -130,7 +130,7 @@ class _ChymeSheetState extends State<ChymeSheet> {
       final List<ChymeTurn> request = <ChymeTurn>[
         ChymeTurn(
           'system',
-          '${Chyme.systemPromptFor(prefs.chymeTone)}\n'
+          '${Chyme.systemPromptFor(prefs.chymeTone, custom: prefs.chymePrompt)}\n'
           '${ChymeContext.forMail(
             visible: controller.visibleMessages,
             open: controller.openMessage,
@@ -1277,15 +1277,15 @@ class _SuggestionArc extends StatelessWidget {
   final void Function(String prompt) onPick;
 
   /// How far apart the cards sit, in radians.
-  static const double _step = 0.155;
+  static const double _step = 0.125;
 
   /// How far away the circle is. Larger is a flatter arc; this one is tight
   /// enough that three cards read as a curve and loose enough that the middle
   /// card is not tilted.
-  static const double _radius = 520;
+  static const double _radius = 620;
 
-  static const double _height = 190;
-  static const double _cardHeight = 150;
+  static const double _height = 210;
+  static const double _cardHeight = 168;
 
   @override
   Widget build(BuildContext context) {
@@ -1337,6 +1337,9 @@ class _SuggestionArc extends StatelessWidget {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
+            // Air at both ends, so the outermost card is not cut by the sheet's
+            // own edge when it is scrolled to.
+            padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
             child: arc,
           );
         },

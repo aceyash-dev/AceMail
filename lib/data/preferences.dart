@@ -137,6 +137,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyChymeEnabled = 'ace.chymeEnabled';
   static const String _keyChymeEndpoint = 'ace.chymeEndpoint';
   static const String _keyChymeModel = 'ace.chymeModel';
+  static const String _keyChymePrompt = 'ace.chymePrompt';
   static const String _keyChymeKey = 'ace.chymeKey';
   static const String _keyChymeReadsMail = 'ace.chymeReadsMail';
   static const String _keyWarnMissingAttachment = 'ace.warnMissingAttachment';
@@ -299,6 +300,9 @@ class Preferences extends ChangeNotifier {
   bool _chymeEnabled = true;
   String _chymeEndpoint = '';
   String _chymeModel = '';
+
+  /// The person's own instructions for Chyme. Empty means the app's.
+  String _chymePrompt = '';
   String _chymeKey = '';
   bool _chymeReadsMail = true;
   bool _warnMissingAttachment = true;
@@ -556,6 +560,10 @@ class Preferences extends ChangeNotifier {
   /// The model to ask. Empty until one is chosen from what the endpoint lists.
   String get chymeModel => _chymeModel;
 
+  /// The instructions Chyme is given, when the person has written their own.
+  /// Empty is the ordinary answer and means the app's own prompt is used.
+  String get chymePrompt => _chymePrompt;
+
   /// The key for the endpoint. Kept in the keychain, like the app passwords:
   /// it is a credential, and it is stored where credentials go.
   String get chymeKey => _chymeKey;
@@ -625,6 +633,9 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setChymeEndpoint(String value) =>
       _write(_keyChymeEndpoint, value, () => _chymeEndpoint = value);
+
+  Future<void> setChymePrompt(String value) =>
+      _write(_keyChymePrompt, value, () => _chymePrompt = value);
 
   Future<void> setChymeModel(String value) =>
       _write(_keyChymeModel, value, () => _chymeModel = value);
@@ -805,6 +816,7 @@ class Preferences extends ChangeNotifier {
     _chymeEnabled = _decodeBool(raw[_keyChymeEnabled], _chymeEnabled);
     _chymeEndpoint = raw[_keyChymeEndpoint] ?? _chymeEndpoint;
     _chymeModel = raw[_keyChymeModel] ?? _chymeModel;
+    _chymePrompt = raw[_keyChymePrompt] ?? _chymePrompt;
     _chymeKey = raw[_keyChymeKey] ?? _chymeKey;
     _chymeReadsMail = _decodeBool(raw[_keyChymeReadsMail], _chymeReadsMail);
     _warnMissingAttachment = _decodeBool(
