@@ -191,6 +191,7 @@ class _MessageReaderState extends State<MessageReader> {
                       _body(c, message),
                     ],
                   ),
+                  ),
                 ),
               ),
                   ),
@@ -198,7 +199,6 @@ class _MessageReaderState extends State<MessageReader> {
           ),
           ],
         ),
-      ),
       ),
     );
   }
