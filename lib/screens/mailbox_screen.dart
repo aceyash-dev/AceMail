@@ -314,7 +314,7 @@ class _MailboxScreenState extends State<MailboxScreen>
   /// from here.
   Future<void> _askChymeByVoice(BuildContext context) async {
     final String? heard = await VoiceInput.listen();
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
     await ChymeSheet.show(
       context,
       seed: (heard == null || heard.trim().isEmpty) ? null : heard.trim(),
