@@ -196,9 +196,9 @@ class _MessageReaderState extends State<MessageReader> {
                   ),
             ],
           ),
-        ),
           ],
         ),
+      ),
       ),
     );
   }

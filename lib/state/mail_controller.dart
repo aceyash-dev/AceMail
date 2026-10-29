@@ -487,6 +487,9 @@ class MailController extends ChangeNotifier {
 
   Future<void> refreshMessages() async => active?.refreshMessages();
 
+  /// Whether the list on screen came from the device rather than the server.
+  bool get showingSaved => active?.showingSaved ?? false;
+
   /// Connects the active account, if it is not connected.
   ///
   /// Separate from refreshing, which needs a folder and a live connection: this
