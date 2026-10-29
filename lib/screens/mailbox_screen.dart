@@ -817,29 +817,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
   /// No question first: it is the one bulk action that changes nothing anyone
   /// has to lose — every message is still there, and marking one unread is a
   /// swipe away.
-  Future<void> _markAllRead(BuildContext context) async {
-    final MailController controller = context.read<MailController>();
-    final String folder = controller.selectedFolder?.label ?? 'this folder';
-    final int marked = await controller.markFolderRead();
-    if (!context.mounted || marked == 0) return;
-    AceSnack.show(
-      context,
-      '$marked ${marked == 1 ? 'message' : 'messages'} in $folder marked read.',
-    );
-  }
-
-  /// Archives everything picked, asking first when the setting is on.
-  Future<void> _archiveSelected(BuildContext context) async {
-    final MailController controller = context.read<MailController>();
-    if (context.read<Preferences>().confirmArchive &&
-        !await confirmArchive(context)) {
-      return;
-    }
-    await controller.archiveSelected();
-  }
-
-}
-
+  
 /// The search bar's microphone.
 ///
 /// It pulses while the device is listening. Nothing else on screen changes when

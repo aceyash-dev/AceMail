@@ -8,7 +8,7 @@ void main() {
   test('a conversation is remembered between openings', () {
     ChymeMemory.remember(<ChymeTurn>[const ChymeTurn('user', 'hello')]);
     expect(ChymeMemory.current, hasLength(1));
-    expect(ChymeMemory.current.first.text, 'hello');
+    expect(ChymeMemory.current.first.content, 'hello');
   });
 
   test('it expires after an hour, on its own', () {
@@ -29,6 +29,6 @@ void main() {
     expect(ChymeMemory.current, isEmpty);
 
     ChymeMemory.remember(<ChymeTurn>[const ChymeTurn('user', 'b')]);
-    expect(ChymeMemory.current.single.text, 'b');
+    expect(ChymeMemory.current.single.content, 'b');
   });
 }

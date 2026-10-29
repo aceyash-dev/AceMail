@@ -113,16 +113,11 @@ class _RailAction extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.selected = false,
   });
 
   final AceIcon icon;
   final String label;
   final VoidCallback onTap;
-
-  /// Whether this is the one being looked at, which fills it the way the
-  /// folder rail fills the folder you are in.
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -140,11 +135,10 @@ class _RailAction extends StatelessWidget {
               vertical: AstryxSpace.s3,
             ),
             decoration: BoxDecoration(
-              // Selected fills, the same way the folder you are in fills: the
-              // stroke-only icon set has no second glyph to swap in.
-              color: selected
-                  ? c.accent
-                  : (hover ? c.surfaceHighest : Colors.transparent),
+              // These are the entries at the foot of the rail — settings and
+              // help — so none of them is ever "the one you are looking at":
+              // a hover tint is all they need.
+              color: hover ? c.surfaceHighest : Colors.transparent,
               borderRadius: BorderRadius.circular(
                 AstryxRadius.element -
                     (AstryxRadius.element - AstryxRadius.inner) * t,
@@ -155,16 +149,14 @@ class _RailAction extends StatelessWidget {
                 AceIconView(
                   icon: icon,
                   size: 18,
-                  color: selected ? c.onAccent : c.iconSecondary,
+                  color: c.iconSecondary,
                 ),
                 const SizedBox(width: AstryxSpace.s3),
                 Expanded(
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: AstryxText.body(
-                      selected ? c.onAccent : c.textSecondary,
-                    ),
+                    style: AstryxText.body(c.textSecondary),
                   ),
                 ),
               ],
@@ -249,7 +241,7 @@ class _FolderTile extends StatelessWidget {
   });
 
   final MailFolder folder;
-  final bool selected;
+
 
   /// Whether to draw the unread badge. Off is the "Unread counts on folders"
   /// switch; the rail still shows the folders, just without the counts.
