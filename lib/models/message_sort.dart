@@ -18,49 +18,74 @@ enum MessageSort {
 
   final String label;
 
-  List<MessageSummary> apply(List<MessageSummary> messages) {
-    final List<MessageSummary> sorted =
-        List<MessageSummary>.of(messages);
+  /// This order, with [secondary] deciding the ties.
+  ///
+  /// One order cannot say "by sender, and within each sender newest first" —
+  /// and that is the order most people actually want once a folder is longer
+  /// than a screen. The second key only ever breaks ties, so adding one cannot
+  /// reorder what the first key decided.
+  List<MessageSummary> apply(
+    List<MessageSummary> messages, {
+    MessageSort? secondary,
+  }) =>
+      sortBy(messages, primary: this, secondary: secondary);
 
-    int byDate(MessageSummary a, MessageSummary b) {
-      final DateTime? da = a.date;
-      final DateTime? db = b.date;
-      if (da == null && db == null) return 0;
-      if (da == null) return 1;
-      if (db == null) return -1;
-      return db.compareTo(da); // newest first
-    }
+  /// Two keys, in order. [secondary] is optional and only breaks ties.
+  static List<MessageSummary> sortBy(
+    List<MessageSummary> messages, {
+    required MessageSort primary,
+    MessageSort? secondary,
+  }) {
+    final MessageSort? tie = secondary == primary ? null : secondary;
+    return List<MessageSummary>.of(messages)
+      ..sort((MessageSummary a, MessageSummary b) {
+        final int first = primary.compare(a, b);
+        if (first != 0 || tie == null) return first;
+        return tie.compare(a, b);
+      });
+  }
 
+  /// How this order places [a] against [b]: negative for before, zero for the
+  /// same place, positive for after.
+  ///
+  /// A comparator rather than a sort of its own, so two orders can be composed:
+  /// the old shape sorted a list and could only answer "where does everything
+  /// go", which is why a second key had nowhere to live.
+  int compare(MessageSummary a, MessageSummary b) {
     switch (this) {
       case MessageSort.newest:
-        sorted.sort(byDate);
+        return _byDate(a, b);
       case MessageSort.oldest:
-        sorted.sort((MessageSummary a, MessageSummary b) => byDate(b, a));
+        return _byDate(b, a);
       case MessageSort.sender:
-        sorted.sort((MessageSummary a, MessageSummary b) => _key(a.fromName,
-                a.fromEmail)
-            .compareTo(_key(b.fromName, b.fromEmail)));
+        return _key(a.fromName, a.fromEmail)
+            .compareTo(_key(b.fromName, b.fromEmail));
       case MessageSort.subject:
-        sorted.sort((MessageSummary a, MessageSummary b) =>
-            _key(a.subject, '').compareTo(_key(b.subject, '')));
+        return _key(a.subject, '').compareTo(_key(b.subject, ''));
       case MessageSort.unread:
         // Unread first, and newest within each group.
-        sorted.sort((MessageSummary a, MessageSummary b) {
-          if (a.isSeen != b.isSeen) return a.isSeen ? 1 : -1;
-          return byDate(a, b);
-        });
+        if (a.isSeen != b.isSeen) return a.isSeen ? 1 : -1;
+        return _byDate(a, b);
       case MessageSort.attachments:
         // The ones with something on them first, newest within each group. What
-        // it is for: finding the thing somebody sent you, when the subject has
+        // it is for: finding the thing somebody sent you when the subject has
         // been forgotten and the date has not.
-        sorted.sort((MessageSummary a, MessageSummary b) {
-          if (a.hasAttachments != b.hasAttachments) {
-            return a.hasAttachments ? -1 : 1;
-          }
-          return byDate(a, b);
-        });
+        if (a.hasAttachments != b.hasAttachments) {
+          return a.hasAttachments ? -1 : 1;
+        }
+        return _byDate(a, b);
     }
-    return sorted;
+  }
+
+  /// Newest first. A message with no date sorts last rather than crashing the
+  /// list: a summary can arrive without one.
+  static int _byDate(MessageSummary a, MessageSummary b) {
+    final DateTime? da = a.date;
+    final DateTime? db = b.date;
+    if (da == null && db == null) return 0;
+    if (da == null) return 1;
+    if (db == null) return -1;
+    return db.compareTo(da);
   }
 
   /// Case- and accent-insensitive enough for a name or a subject, and it falls

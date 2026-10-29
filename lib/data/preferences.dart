@@ -37,7 +37,9 @@ enum AceTextSize {
 enum PageSize {
   twenty('20', 20),
   forty('40', 40),
-  eighty('80', 80);
+  eighty('80', 80),
+  oneFifty('150', 150),
+  twoHundred('200', 200);
 
   const PageSize(this.label, this.count);
 
@@ -66,7 +68,10 @@ enum ListDensity {
 enum UndoWindow {
   short('4 seconds', 4),
   normal('6 seconds', 6),
-  long('10 seconds', 10);
+  long('10 seconds', 10),
+  // For a phone in a pocket: long enough that a mis-tap noticed late is still
+  // undoable, which is the whole point of offering the bar at all.
+  longer('20 seconds', 20);
 
   const UndoWindow(this.label, this.seconds);
 
@@ -105,6 +110,7 @@ class Preferences extends ChangeNotifier {
   static const String _keyConfirmDelete = 'ace.confirmDelete';
   static const String _keyDetectCodes = 'ace.detectCodes';
   static const String _keyMessageSort = 'ace.messageSort';
+  static const String _keySortTie = 'ace.sortTie';
   static const String _keyAccent = 'ace.accent';
   static const String _keyRawHeaders = 'ace.rawHeaders';
   static const String _keyDynamicColour = 'ace.dynamicColour';
@@ -218,6 +224,9 @@ class Preferences extends ChangeNotifier {
   bool _confirmDelete = true;
   bool _detectCodes = true;
   MessageSort _messageSort = MessageSort.newest;
+
+  /// The key that breaks ties in the list order, or null for none.
+  MessageSort? _sortTie;
   final bool _loadRemoteImages = true;
   AceAccent _accent = AceAccent.orange;
   bool _warnEmptySubject = true;
@@ -366,6 +375,11 @@ class Preferences extends ChangeNotifier {
 
   /// The order the message list is shown in.
   MessageSort get messageSort => _messageSort;
+
+  /// The order that decides ties, when the primary order calls two messages
+  /// equal — "by sender, then newest first". Null means the primary decides
+  /// everything, which is what most folders want.
+  MessageSort? get sortTie => _sortTie;
 
   /// Whether images in a message are fetched from the sender's server. Off by
   /// default: loading one confirms the message was opened.
@@ -732,6 +746,11 @@ class Preferences extends ChangeNotifier {
     _detectCodes = _decodeBool(raw[_keyDetectCodes], _detectCodes);
     _messageSort =
         _decodeEnum(raw[_keyMessageSort], MessageSort.values, _messageSort);
+    final String tie = raw[_keySortTie] ?? '';
+    _sortTie = null;
+    for (final MessageSort option in MessageSort.values) {
+      if (option.name == tie) _sortTie = option;
+    }
     _accent = _decodeEnum(raw[_keyAccent], AceAccent.values, _accent);
     _showRawHeaders = _decodeBool(raw[_keyRawHeaders], _showRawHeaders);
     _useDynamicColour =
@@ -828,6 +847,12 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setDetectCodes(bool value) =>
       _write(_keyDetectCodes, '$value', () => _detectCodes = value);
+
+  Future<void> setSortTie(MessageSort? value) => _write(
+        _keySortTie,
+        value?.name ?? '',
+        () => _sortTie = value,
+      );
 
   Future<void> setMessageSort(MessageSort value) =>
       _write(_keyMessageSort, value.name, () => _messageSort = value);

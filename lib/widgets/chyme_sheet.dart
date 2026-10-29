@@ -1113,15 +1113,31 @@ class _PromptCard extends StatelessWidget {
       child: AceSpringy(
         onTap: onTap,
         semanticLabel: prompt.title,
-        builder: (BuildContext context, double press, bool hover) => Container(
-          padding: const EdgeInsets.all(AstryxSpace.s4),
-          decoration: BoxDecoration(
-            color: c.surfaceHighest,
-            borderRadius: BorderRadius.circular(AstryxRadius.lg),
-            border: Border.all(
-              color: hover ? c.accent : c.border,
+        builder: (BuildContext context, double press, bool hover) => MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: AnimatedContainer(
+            duration: AstryxMotion.fast,
+            // A card under a pointer has to say so: the border alone was too
+            // quiet to notice on a desktop, and this is the one place in the
+            // app where hovering is how you find out a card is a button.
+            transform: Matrix4.translationValues(0, hover ? -3 : 0, 0),
+            padding: const EdgeInsets.all(AstryxSpace.s4),
+            decoration: BoxDecoration(
+              color: hover ? c.backgroundMuted : c.surfaceHighest,
+              borderRadius: BorderRadius.circular(AstryxRadius.lg),
+              border: Border.all(
+                color: hover ? c.accent : c.border,
+              ),
+              boxShadow: hover
+                  ? <BoxShadow>[
+                      BoxShadow(
+                        color: c.accent.withValues(alpha: 0.18),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
             ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -1150,7 +1166,8 @@ class _PromptCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AstryxText.supporting(c.textSecondary),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1297,18 +1314,38 @@ class _SuggestionArc extends StatelessWidget {
             ..sort((int a, int b) =>
                 (b - middle).abs().compareTo((a - middle).abs()));
 
-          return Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
-              for (final int index in order)
-                _placed(
-                  context,
-                  index: index,
-                  middle: middle,
-                  centre: centre,
-                  cardWidth: cardWidth,
-                ),
-            ],
+          // Wider than the sheet, and scrollable, so a phone that cannot show
+          // five cards in an arc can still reach the ones off the edge. It was
+          // a bare Stack: the outermost cards were cut off with no way to get
+          // to them, which turned "suggestions" into "the middle one".
+          final double reach = centre + _radius * math.sin(
+                _step * (prompts.length - 1 - middle),
+              ) + cardWidth / 2;
+
+          final Widget arc = SizedBox(
+            width: math.max(box.maxWidth, reach * 2),
+            height: _height,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                for (final int index in order)
+                  _placed(
+                    context,
+                    index: index,
+                    middle: middle,
+                    centre: math.max(box.maxWidth, reach * 2) / 2,
+                    cardWidth: cardWidth,
+                  ),
+              ],
+            ),
+          );
+
+          // Scrolls only when it has to: a wide screen shows the whole arc and
+          // a drag there does nothing, which is what a hand of cards should do.
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: arc,
           );
         },
       ),

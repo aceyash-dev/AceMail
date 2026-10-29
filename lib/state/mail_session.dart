@@ -367,6 +367,10 @@ class MailSession extends ChangeNotifier {
   /// The order the page is shown in, from the user's setting.
   MessageSort get sort => _preferences?.messageSort ?? MessageSort.newest;
 
+  /// The key that breaks ties, when the primary order cannot separate two
+  /// messages. Null is the ordinary case.
+  MessageSort? get sortTie => _preferences?.sortTie;
+
   /// What the last [visibleMessages] was built from, so it is not rebuilt for
   /// every read.
   ///
@@ -380,6 +384,7 @@ class MailSession extends ChangeNotifier {
   List<MessageSummary>? _visibleSource;
   MessageFilter? _visibleFilter;
   MessageSort? _visibleSort;
+  MessageSort? _visibleTie;
   String? _visibleQuery;
   int _visibleContacts = -1;
 
@@ -390,6 +395,7 @@ class MailSession extends ChangeNotifier {
         identical(_visibleSource, messages) &&
         _visibleFilter == filter &&
         _visibleSort == sort &&
+        _visibleTie == sortTie &&
         _visibleQuery == searchQuery &&
         _visibleContacts == Contacts.revision) {
       return cached;
@@ -407,11 +413,16 @@ class MailSession extends ChangeNotifier {
         : allowed
             .where((MessageSummary m) => filter.matches(m, now: now))
             .toList();
-    final List<MessageSummary> result = sort.apply(matching);
+    final List<MessageSummary> result = MessageSort.sortBy(
+      matching,
+      primary: sort,
+      secondary: sortTie,
+    );
 
     _visibleSource = messages;
     _visibleFilter = filter;
     _visibleSort = sort;
+    _visibleTie = sortTie;
     _visibleQuery = searchQuery;
     _visibleContacts = Contacts.revision;
     _visibleCache = result;

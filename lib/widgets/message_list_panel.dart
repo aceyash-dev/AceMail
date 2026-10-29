@@ -473,12 +473,64 @@ Future<void> showSortSheet(BuildContext context) {
                   onTap: () =>
                       sheetContext.read<Preferences>().setMessageSort(sort),
                 ),
+              const SizedBox(height: AstryxSpace.s4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
+                child: Text(
+                  'Then by',
+                  style: AstryxText.label(c.textSecondary),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AstryxSpace.s5,
+                  AstryxSpace.s1,
+                  AstryxSpace.s5,
+                  AstryxSpace.s2,
+                ),
+                child: Text(
+                  // Said plainly, because it is the whole difference between
+                  // this and the list above: one order decides, the other
+                  // settles the arguments.
+                  'Decides the ties: "by sender, then newest first".',
+                  style: AstryxText.supporting(c.textSecondary),
+                ),
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AstryxSpace.s5),
+                child: Row(
+                  children: <Widget>[
+                    AceChip(
+                      label: 'Nothing',
+                      selected: prefs.sortTie == null,
+                      onTap: () =>
+                          sheetContext.read<Preferences>().setSortTie(null),
+                    ),
+                    for (final MessageSort sort in MessageSort.values) ...<Widget>[
+                      const SizedBox(width: AstryxSpace.s2),
+                      AceChip(
+                        label: sort.label,
+                        selected: prefs.sortTie == sort,
+                        // Choosing the order already in force as the tie-break
+                        // would be a no-op dressed as a choice.
+                        onTap: sort == prefs.messageSort
+                            ? null
+                            : () => sheetContext
+                                .read<Preferences>()
+                                .setSortTie(sort),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               if (controller.filter != MessageFilter.all ||
-                  prefs.messageSort != MessageSort.newest)
+                  prefs.messageSort != MessageSort.newest ||
+                  prefs.sortTie != null)
                 SettingsRow(
                   icon: AceIcons.filterOff,
                   title: 'Back to the default',
-                  subtitle: 'Newest first, everything shown.',
+                  subtitle: 'Newest first, everything shown, no tie-break.',
                   onTap: () {
                     sheetContext
                         .read<MailController>()
@@ -486,6 +538,7 @@ Future<void> showSortSheet(BuildContext context) {
                     sheetContext
                         .read<Preferences>()
                         .setMessageSort(MessageSort.newest);
+                    sheetContext.read<Preferences>().setSortTie(null);
                   },
                 ),
             ],

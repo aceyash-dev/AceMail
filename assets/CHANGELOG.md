@@ -3,6 +3,33 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+94
+
+### Fixed
+- **The open envelope that meant "mark all read" is a tick.** An envelope for
+  "mark everything read" is the same picture as "open mail", and it was the one
+  control in the bar nobody could name. The per-selection version had the same
+  problem and got the same fix.
+- **Chyme's mark is drawn, not sampled.** The artwork was a 512px swoosh of
+  dozens of tapering arcs, which at 20px in a settings row and 22px in the search
+  bar blurred into a smudge — that is what made the button unreadable. It is a
+  thick open ring with rounded ends and a dot in the gap now: two strokes, clean
+  from 16px to 64px, and it takes the colour it is given.
+- **The suggestion cards scroll, and they answer a pointer.** The arc was a bare
+  stack, so the cards off the edge of a phone were unreachable; it scrolls
+  horizontally when it has to and stays still when it does not. Hovering now
+  lifts a card, tints it and shows the accent border — on a desktop that is how
+  you find out it is a button.
+
+### Added
+- **"Then by": a second sort key.** One order cannot say "by sender, then newest
+  first", and that is the order a longer folder actually wants. The sort sheet
+  has a tie-break row — nothing, or any of the six orders — and it only ever
+  decides what the primary key left equal.
+- **More room in the two limits.** The undo bar can stay for 20 seconds, and the
+  page size goes up to 150 and 200 messages for the folders where scrolling is
+  the point.
+
 ## 0.6.1+93
 
 ### Changed

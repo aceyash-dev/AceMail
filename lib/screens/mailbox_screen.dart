@@ -391,7 +391,7 @@ class _MailboxScreenState extends State<MailboxScreen> {
                     ),
                   if (!controller.inTrash)
                     AceIconButton(
-                      icon: AceIcons.mailOpen,
+                      icon: AceIcons.check,
                       tooltip: 'Mark as read',
                       // Marks read, and leaves read messages alone. This used to
                       // call toggleRead, so "Mark as read" quietly marked the
@@ -486,7 +486,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
                 !_searching &&
                 (controller.selectedFolder?.unseen ?? 0) > 0)
               AceIconButton(
-                icon: AceIcons.markAllRead,
+                // A tick, not an open envelope. An envelope for "mark
+                // everything read" is the same picture as "open mail", and it
+                // was the one icon in the bar nobody could name.
+                icon: AceIcons.checkCircle,
                 tooltip: 'Mark all read',
                 onPressed: () => _markAllRead(context),
               ),
