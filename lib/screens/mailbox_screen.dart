@@ -554,20 +554,30 @@ class _MailboxScreenState extends State<MailboxScreen>
         // something you are not looking at.
         floatingActionButton: wide || reading
             ? null
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  AceChymeFab(
-                    onAsk: () => ChymeSheet.show(context),
-                    onSpeak: () => _askChymeByVoice(context),
-                  ),
-                  const SizedBox(width: AstryxSpace.s3),
-                  AceFab(
-                    label: 'Compose',
-                    icon: AceIcons.edit,
-                    onPressed: () => _compose(context),
-                  ),
-                ],
+            // A full-width row, so the assistant sits on the centre line of the
+            // screen rather than on the centre line of whatever is beside it —
+            // which is what it was doing while Compose shared the slot.
+            : SizedBox(
+                width: MediaQuery.sizeOf(context).width -
+                    (AstryxSpace.s5 * 2),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    AceChymeFab(
+                      onAsk: () => ChymeSheet.show(context),
+                      onSpeak: () => _askChymeByVoice(context),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: AceFab(
+                        label: 'Compose',
+                        icon: AceIcons.edit,
+                        onPressed: () => _compose(context),
+                      ),
+                    ),
+                  ],
+                ),
               ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         // Behind the bar, so the glass has the list to blur rather than a flat

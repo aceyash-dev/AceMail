@@ -269,7 +269,19 @@ class MailController extends ChangeNotifier {
   String? get sessionError => active?.errorMessage;
 
   Future<void> restore() async {
-    final AccountLoad loaded = await _store.loadAll();
+    AccountLoad loaded = await _store.loadAll();
+
+    // One retry, when the read failed rather than finding nothing.
+    //
+    // Cold-starting from a swipe out of recents is the worst moment to ask the
+    // keychain anything: the process is young, the credential service is still
+    // waking up, and a read that fails there is indistinguishable from a device
+    // with no accounts. It is not — so it is asked again, once, before the
+    // sign-in screen is allowed to say somebody is signed out.
+    if (loaded.accounts.isEmpty && loaded.error != null) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      loaded = await _store.loadAll();
+    }
 
     if (loaded.accounts.isNotEmpty) {
       for (final StoredAccount stored in loaded.accounts) {

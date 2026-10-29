@@ -3,6 +3,18 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+100
+
+### Fixed
+- **Coming back from the recents list no longer asks you to sign in.** A cold
+  start is the worst moment to ask the keychain anything: the process is young,
+  the credential service is still waking, and a read that fails there is
+  indistinguishable from a device with no accounts. The read is retried once,
+  after a short pause, before the sign-in screen is allowed to say somebody is
+  signed out.
+- **The assistant sits on the screen's centre line.** It was centred on whatever
+  was beside it, so Compose sharing the slot pushed it left of centre.
+
 ## 0.6.2+99
 
 ### Changed
