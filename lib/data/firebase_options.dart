@@ -27,7 +27,7 @@ import 'package:flutter/foundation.dart';
 ///   --dart-define=FIREBASE_PROJECT_ID=tab-gl \
 ///   --dart-define=FIREBASE_STORAGE_BUCKET=tab-gl.appspot.com
 /// ```
-abstract final class FirebaseOptions_ {
+abstract final class AceFirebase {
   static const String apiKey = String.fromEnvironment('FIREBASE_API_KEY');
   static const String appId = String.fromEnvironment('FIREBASE_APP_ID');
   static const String messagingSenderId =
@@ -91,12 +91,12 @@ abstract final class FirebaseOptions_ {
 /// backend it does not need yet was unreachable — that is the failure mode this
 /// whole function exists to prevent.
 Future<bool> startFirebase() async {
-  if (!FirebaseOptions_.configured) {
+  if (!AceFirebase.configured) {
     debugPrint('Ace Mail: Firebase is not configured in this build.');
     return false;
   }
   try {
-    await Firebase.initializeApp(options: FirebaseOptions_.currentPlatform);
+    await Firebase.initializeApp(options: AceFirebase.currentPlatform);
     return true;
   } catch (error) {
     debugPrint('Ace Mail: Firebase did not start ($error)');
