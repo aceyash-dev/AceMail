@@ -3,6 +3,16 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+104
+
+### Fixed
+- **The greeting is visible again.** It was being painted behind the top bar:
+  the list runs *behind* the bar so the glass has mail to blur, and nothing was
+  holding the first row down. The list starts below the bar's own height now.
+- **A dial's value sits beside its name.** Stretched to opposite ends of the row,
+  "Blur" and "24" read as two unrelated things with a screen between them, and
+  the number you are dragging towards is the one place your eye should stay.
+
 ## 0.6.2+103
 
 ### Added

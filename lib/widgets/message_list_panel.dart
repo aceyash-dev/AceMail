@@ -69,6 +69,15 @@ class MessageListPanel extends StatelessWidget {
             refreshIndicatorExtent: 58,
             builder: _refreshIndicator,
           ),
+          // The bar's own height, because the list runs *behind* it: the glass
+          // needs mail to blur, and the price of that is that the first thing in
+          // the list would otherwise start underneath it. The greeting was being
+          // painted behind the bar, which is why it looked as if it had gone.
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: MediaQuery.paddingOf(context).top + 68,
+            ),
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: AstryxSpace.s2)),
           // Where you are and what is in it, before the mail itself. It carries
           // the folder's name, which the app bar gave up to the search bar.

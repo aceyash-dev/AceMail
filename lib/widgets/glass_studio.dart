@@ -245,14 +245,18 @@ class _Dial extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          // The value beside the name, not at the far edge of the row. Stretched
+          // apart, "Blur" and "24" read as two unrelated things with a screen
+          // between them, and the number you are dragging towards is the one
+          // place you want your eye to stay.
           Row(
             children: <Widget>[
-              Expanded(
-                child: Text(label, style: AstryxText.body(c.textPrimary)),
-              ),
+              Text(label, style: AstryxText.body(c.textPrimary)),
+              const SizedBox(width: AstryxSpace.s2),
               Text(value, style: AstryxText.supporting(c.textSecondary)),
             ],
           ),
+          const SizedBox(height: AstryxSpace.s0_5),
           child,
         ],
       ),
