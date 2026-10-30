@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'util/redact.dart';
 import 'data/app_info.dart';
+import 'data/firebase_options.dart';
 import 'data/local_store.dart';
 import 'data/preferences.dart';
 import 'theme/custom_appearance.dart';
@@ -16,6 +17,12 @@ import 'state/mail_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase, when this build was given a project. Deliberately not awaited
+  // before the first frame: mail does not depend on it, and a backend that is
+  // slow to start must not be the reason the mailbox is slow to open. It never
+  // throws — see startFirebase.
+  unawaited(startFirebase());
 
   // Room for decoded images, but not so much that the app is the reason a
   // low-end phone is out of memory. The default is sized for a handful of

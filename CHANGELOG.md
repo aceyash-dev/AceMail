@@ -3,6 +3,17 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+103
+
+### Added
+- **Firebase is wired in, and inert until it is configured.** `firebase_core` is
+  a dependency and `startFirebase()` runs before the first frame, but the options
+  come from the build rather than from a committed `firebase_options.dart`: a
+  build with no project behind it starts exactly as it did before, and says so in
+  the log. Wiring a project is `flutterfire configure --project=tab-gl` and then
+  passing the values as `--dart-define`s, or keeping the generated file and
+  returning it from `DefaultFirebaseOptions`.
+
 ## 0.6.2+102
 
 ### Added
