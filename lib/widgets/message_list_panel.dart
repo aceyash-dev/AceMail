@@ -699,19 +699,22 @@ class MessageTile extends StatelessWidget {
               // cards touched and the list looked like rows again.
               margin: const EdgeInsets.only(bottom: AstryxSpace.s1_5),
               decoration: BoxDecoration(
-                // A card, not a bare row: a surface of its own, a corner, and a
-                // little air around it. Rows on a flat page run together and
-                // each one is harder to pick out than the last.
+                // A card, and visibly one.
+                //
+                // The fill alone was not enough: `backgroundCard` and the page
+                // behind it are a single step apart on Material's tonal ramp,
+                // which in a warm light theme is no step at all — the rows read
+                // as text on a page. So the card is the *raised* surface, with a
+                // hairline edge to give it a boundary, and the gap between cards
+                // does the rest. One line per card, not a box to look at.
                 color: picked || selected
                     ? c.accentMuted
-                    : (hover ? c.surfaceHighest : c.backgroundCard),
+                    : (hover ? c.surfaceHighest : c.backgroundSurface),
                 borderRadius: shape,
-                // No border. Forty outlined boxes is forty edges to look at
-                // before you have read a single subject — the list already
-                // separates rows by the space between them, and the card's
-                // fill is enough to say "this is one message". Unread is said
-                // in the ink of the row rather than by a line down its edge.
-                border: null,
+                border: Border.all(
+                  color: picked || selected ? c.accentMuted : c.border,
+                  width: 1,
+                ),
               ),
               // No clip and no stack any more: they existed to make the unread
               // strip follow the card's corner, and the strip is gone.

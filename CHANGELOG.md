@@ -3,6 +3,18 @@
 Notable changes, newest first. Versions follow `pubspec.yaml`; the build number
 after the `+` is the Android version code.
 
+## 0.6.2+105
+
+### Changed
+- **Each message is a card you can see.** The fill was one step up Material's
+  tonal ramp from the page, which in a warm light theme is no step at all — the
+  rows read as text on a page rather than as separate things. The card is the
+  raised surface now, with a hairline edge and the gap between cards doing the
+  rest.
+- **"Ask Chyme" is back on the bottom edge, in the middle.** It says what it
+  does, it is the same distance from either thumb, and it does not move as the
+  list scrolls. Compose keeps the right-hand corner.
+
 ## 0.6.2+104
 
 ### Fixed

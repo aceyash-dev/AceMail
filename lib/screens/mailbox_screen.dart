@@ -538,11 +538,25 @@ class _MailboxScreenState extends State<MailboxScreen>
         // looking at.
         floatingActionButton: wide || reading
             ? null
-            : AceFab(
-                label: 'Compose',
-                icon: AceIcons.edit,
-                onPressed: () => _compose(context),
+            : SizedBox(
+                width: MediaQuery.sizeOf(context).width - (AstryxSpace.s5 * 2),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    AceAskChyme(onAsk: () => ChymeSheet.show(context)),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: AceFab(
+                        label: 'Compose',
+                        icon: AceIcons.edit,
+                        onPressed: () => _compose(context),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         // Behind the bar, so the glass has the list to blur rather than a flat
         // colour.
         extendBodyBehindAppBar: !(reading && !wide),

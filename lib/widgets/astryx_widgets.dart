@@ -9,7 +9,9 @@ import '../theme/ace_icons.dart';
 import '../theme/astryx_theme.dart';
 import '../theme/astryx_tokens.dart';
 import '../util/haptics.dart';
+import 'ace_glass.dart';
 import 'ace_icon_view.dart';
+import 'chyme_mark.dart';
 import 'shape_morph.dart';
 
 /// A press that springs, and a shape that morphs while it does.
@@ -1005,6 +1007,49 @@ class _AceSwitchState extends State<AceSwitch>
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The assistant's way in, on the bottom edge.
+///
+/// A pill in the middle of the screen rather than an icon in the search bar and
+/// a bare FAB in the corner: it says what it does, it is the same distance from
+/// either thumb, and it does not move as the list scrolls.
+class AceAskChyme extends StatelessWidget {
+  const AceAskChyme({super.key, required this.onAsk});
+
+  final VoidCallback onAsk;
+
+  @override
+  Widget build(BuildContext context) {
+    final AstryxColors c = context.astryx;
+
+    return AceGlass.material(
+      context,
+      radius: BorderRadius.circular(AstryxRadius.pill),
+      bordered: true,
+      opacity: 0.88,
+      child: TextButton(
+        onPressed: onAsk,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.fromLTRB(
+            AstryxSpace.s4,
+            AstryxSpace.s2,
+            AstryxSpace.s4,
+            AstryxSpace.s2,
+          ),
+          shape: const StadiumBorder(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ChymeMark(size: 20, color: c.accent),
+            const SizedBox(width: AstryxSpace.s2),
+            Text('Ask Chyme', style: AstryxText.bodyStrong(c.textPrimary)),
+          ],
         ),
       ),
     );
